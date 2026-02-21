@@ -1,0 +1,1708 @@
+// TRAE Accounting - Database Schema
+// Prisma Schema for SQL Server / PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // Change to "sqlserver" for SQL Server
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================
+// COMPANY & SYSTEM
+// =====================================================
+
+model Company {
+  id                Int       @id @default(autoincrement())
+  code              String    @unique @db.VarChar(20)
+  name              String    @db.VarChar(200)
+  name2             String?   @db.VarChar(200)
+  registrationNo    String?   @db.VarChar(50)
+  taxRegistrationNo String?   @db.VarChar(50)
+  address1          String?   @db.VarChar(100)
+  address2          String?   @db.VarChar(100)
+  address3          String?   @db.VarChar(100)
+  address4          String?   @db.VarChar(100)
+  postcode          String?   @db.VarChar(20)
+  city              String?   @db.VarChar(50)
+  state             String?   @db.VarChar(50)
+  country           String?   @db.VarChar(50)
+  phone             String?   @db.VarChar(50)
+  fax               String?   @db.VarChar(50)
+  email             String?   @db.VarChar(100)
+  website           String?   @db.VarChar(200)
+  logoPath          String?   @db.VarChar(500)
+  baseCurrency      String    @default("MYR") @db.VarChar(10)
+  fiscalYearStart   DateTime?
+  accountCodeFormat String?   @db.VarChar(50)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  isActive          Boolean   @default(true)
+
+  users    User[]
+  accounts Account[]
+
+  @@map("companies")
+}
+
+model Currency {
+  code           String  @id @db.VarChar(10)
+  name           String  @db.VarChar(50)
+  symbol         String? @db.VarChar(10)
+  decimalPlaces  Int     @default(2)
+  exchangeRate   Decimal @default(1) @db.Decimal(18, 6)
+  bankBuyRate    Decimal @default(1) @db.Decimal(18, 6)
+  bankSellRate   Decimal @default(1) @db.Decimal(18, 6)
+  isBaseCurrency Boolean @default(false)
+  isActive       Boolean @default(true)
+
+  customers Customer[]
+  vendors   Vendor[]
+
+  @@map("currencies")
+}
+
+model TaxCode {
+  code          String    @id @db.VarChar(20)
+  name          String    @db.VarChar(100)
+  rate          Decimal   @default(0) @db.Decimal(5, 2)
+  taxType       String    @db.VarChar(20) // OUTPUT, INPUT, EXEMPT, ZERO_RATED
+  taxAccountId  Int?
+  isDefault     Boolean   @default(false)
+  effectiveFrom DateTime?
+  effectiveTo   DateTime?
+  isActive      Boolean   @default(true)
+
+  taxAccount Account? @relation(fields: [taxAccountId], references: [id])
+
+  @@map("tax_codes")
+}
+
+model Location {
+  id        Int     @id @default(autoincrement())
+  code      String  @unique @db.VarChar(20)
+  name      String  @db.VarChar(100)
+  address   String? @db.VarChar(500)
+  isDefault Boolean @default(false)
+  isActive  Boolean @default(true)
+
+  productLocations ProductLocation[]
+  salesHeaders     SalesHeader[]
+  purchaseHeaders  PurchaseHeader[]
+  stockTransactions StockTransaction[]
+
+  @@map("locations")
+}
+
+model UOM {
+  id       Int     @id @default(autoincrement())
+  code     String  @unique @db.VarChar(20)
+  name     String  @db.VarChar(50)
+  isActive Boolean @default(true)
+
+  products    Product[]
+  productUOMs ProductUOM[]
+
+  @@map("uoms")
+}
+
+model Area {
+  id       Int     @id @default(autoincrement())
+  code     String  @unique @db.VarChar(20)
+  name     String  @db.VarChar(100)
+  isActive Boolean @default(true)
+
+  customers Customer[]
+
+  @@map("areas")
+}
+
+model SalesAgent {
+  id             Int     @id @default(autoincrement())
+  code           String  @unique @db.VarChar(20)
+  name           String  @db.VarChar(100)
+  phone          String? @db.VarChar(50)
+  email          String? @db.VarChar(100)
+  commissionRate Decimal @default(0) @db.Decimal(5, 2)
+  isActive       Boolean @default(true)
+
+  customers    Customer[]
+  salesHeaders SalesHeader[]
+  crmLeads     CRMLead[]
+  crmDeals     CRMDeal[]
+
+  @@map("sales_agents")
+}
+
+model PurchaseAgent {
+  id       Int     @id @default(autoincrement())
+  code     String  @unique @db.VarChar(20)
+  name     String  @db.VarChar(100)
+  phone    String? @db.VarChar(50)
+  email    String? @db.VarChar(100)
+  isActive Boolean @default(true)
+
+  vendors         Vendor[]
+  purchaseHeaders PurchaseHeader[]
+
+  @@map("purchase_agents")
+}
+
+model Project {
+  id          Int       @id @default(autoincrement())
+  code        String    @unique @db.VarChar(20)
+  name        String    @db.VarChar(100)
+  description String?   @db.VarChar(500)
+  customerId  Int?
+  startDate   DateTime?
+  endDate     DateTime?
+  budget      Decimal?  @db.Decimal(18, 2)
+  status      String?   @db.VarChar(20)
+  isActive    Boolean   @default(true)
+
+  customer Customer? @relation(fields: [customerId], references: [id])
+
+  @@map("projects")
+}
+
+model Department {
+  id          Int     @id @default(autoincrement())
+  code        String  @unique @db.VarChar(20)
+  name        String  @db.VarChar(100)
+  description String? @db.VarChar(500)
+  isActive    Boolean @default(true)
+
+  @@map("departments")
+}
+
+model DocumentSeries {
+  id           Int     @id @default(autoincrement())
+  documentType String  @db.VarChar(30)
+  seriesCode   String  @db.VarChar(20)
+  prefix       String? @db.VarChar(20)
+  suffix       String? @db.VarChar(20)
+  nextNumber   Int     @default(1)
+  numberLength Int     @default(6)
+  sampleFormat String? @db.VarChar(50)
+  resetYearly  Boolean @default(false)
+  resetMonthly Boolean @default(false)
+  isDefault    Boolean @default(false)
+  isActive     Boolean @default(true)
+
+  @@unique([documentType, seriesCode])
+  @@map("document_series")
+}
+
+model FiscalYear {
+  id         Int       @id @default(autoincrement())
+  name       String    @db.VarChar(50)
+  startDate  DateTime
+  endDate    DateTime
+  isClosed   Boolean   @default(false)
+  closedDate DateTime?
+  closedBy   Int?
+
+  periods FiscalPeriod[]
+
+  @@map("fiscal_years")
+}
+
+model FiscalPeriod {
+  id         Int       @id @default(autoincrement())
+  yearId     Int
+  periodNo   Int
+  periodName String?   @db.VarChar(50)
+  startDate  DateTime
+  endDate    DateTime
+  isLocked   Boolean   @default(false)
+  lockedDate DateTime?
+  lockedBy   Int?
+
+  fiscalYear FiscalYear @relation(fields: [yearId], references: [id])
+
+  @@map("fiscal_periods")
+}
+
+// =====================================================
+// USERS & SECURITY
+// =====================================================
+
+model UserGroup {
+  id          Int     @id @default(autoincrement())
+  code        String  @unique @db.VarChar(20)
+  name        String  @db.VarChar(50)
+  description String? @db.VarChar(200)
+  isActive    Boolean @default(true)
+
+  users        User[]
+  accessRights AccessRight[]
+
+  @@map("user_groups")
+}
+
+model User {
+  id                  Int       @id @default(autoincrement())
+  code                String    @unique @db.VarChar(20)
+  name                String    @db.VarChar(100)
+  email               String?   @unique @db.VarChar(100)
+  passwordHash        String    @db.VarChar(256)
+  phone               String?   @db.VarChar(50)
+  groupId             Int
+  companyId           Int?
+  defaultLocationId   Int?
+  defaultProjectId    Int?
+  defaultDepartmentId Int?
+  sessionTimeout      Int       @default(30)
+  lastLoginAt         DateTime?
+  isAdmin             Boolean   @default(false)
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  group   UserGroup @relation(fields: [groupId], references: [id])
+  company Company?  @relation(fields: [companyId], references: [id])
+
+  @@map("users")
+}
+
+model AccessRight {
+  id                Int     @id @default(autoincrement())
+  groupId           Int
+  moduleCode        String  @db.VarChar(50)
+  functionCode      String  @db.VarChar(50)
+  canView           Boolean @default(false)
+  canAdd            Boolean @default(false)
+  canEdit           Boolean @default(false)
+  canDelete         Boolean @default(false)
+  canPrint          Boolean @default(false)
+  canExport         Boolean @default(false)
+  customPermissions Json?
+
+  group UserGroup @relation(fields: [groupId], references: [id])
+
+  @@map("access_rights")
+}
+
+model AuditTrail {
+  id          BigInt   @id @default(autoincrement())
+  auditDate   DateTime @default(now())
+  userId      Int?
+  userCode    String?  @db.VarChar(20)
+  action      String   @db.VarChar(20)
+  moduleCode  String?  @db.VarChar(50)
+  tableName   String?  @db.VarChar(100)
+  recordId    Int?
+  documentNo  String?  @db.VarChar(50)
+  oldValues   Json?
+  newValues   Json?
+  ipAddress   String?  @db.VarChar(50)
+  machineName String?  @db.VarChar(100)
+
+  @@map("audit_trails")
+}
+
+// =====================================================
+// CHART OF ACCOUNTS
+// =====================================================
+
+model AccountType {
+  id            Int     @id @default(autoincrement())
+  code          String  @unique @db.VarChar(10)
+  name          String  @db.VarChar(50)
+  category      String  @db.VarChar(20) // ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE
+  normalBalance String  @db.Char(1) // D=Debit, C=Credit
+  displayOrder  Int?
+  isActive      Boolean @default(true)
+
+  accounts Account[]
+
+  @@map("account_types")
+}
+
+model Account {
+  id                 Int       @id @default(autoincrement())
+  accountNo          String    @db.VarChar(20)
+  name               String    @db.VarChar(200)
+  name2              String?   @db.VarChar(200)
+  typeId             Int
+  parentId           Int?
+  companyId          Int?
+  specialType        String?   @db.VarChar(20) // NORMAL, BANK, CASH, DEPOSIT, AR_CONTROL, AP_CONTROL, STOCK, RETAINED_EARNINGS, FIXED_ASSET
+  isParent           Boolean   @default(false)
+  isSystem           Boolean   @default(false)
+  openingBalance     Decimal   @default(0) @db.Decimal(18, 2)
+  openingBalanceDate DateTime?
+  currencyCode       String?   @db.VarChar(10)
+  taxCode            String?   @db.VarChar(20)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  createdBy          Int?
+  modifiedBy         Int?
+  isActive           Boolean   @default(true)
+
+  type          AccountType      @relation(fields: [typeId], references: [id])
+  parent        Account?         @relation("AccountHierarchy", fields: [parentId], references: [id])
+  children      Account[]        @relation("AccountHierarchy")
+  company       Company?         @relation(fields: [companyId], references: [id])
+  bankAccount   BankAccount?
+  taxCodes      TaxCode[]
+  paymentMethods PaymentMethod[]
+  customers     Customer[]       @relation("CustomerControlAccount")
+  vendors       Vendor[]         @relation("VendorControlAccount")
+
+  @@unique([accountNo, companyId])
+  @@map("accounts")
+}
+
+model BankAccount {
+  id                   Int       @id @default(autoincrement())
+  accountId            Int       @unique
+  bankName             String?   @db.VarChar(100)
+  bankBranch           String?   @db.VarChar(100)
+  bankAccountNo        String?   @db.VarChar(50)
+  swiftCode            String?   @db.VarChar(20)
+  overdraftLimit       Decimal?  @db.Decimal(18, 2)
+  lastReconcileDate    DateTime?
+  lastReconcileBalance Decimal?  @db.Decimal(18, 2)
+
+  account Account @relation(fields: [accountId], references: [id])
+
+  @@map("bank_accounts")
+}
+
+model PaymentMethod {
+  id                  Int     @id @default(autoincrement())
+  code                String  @unique @db.VarChar(20)
+  name                String  @db.VarChar(50)
+  accountId           Int
+  paymentType         String? @db.VarChar(20) // CASH, CHEQUE, CREDIT_CARD, BANK_TRANSFER
+  journalTypeId       Int?
+  bankChargeAccountId Int?
+  bankChargeRate      Decimal @default(0) @db.Decimal(5, 2)
+  bankChargeTaxCode   String? @db.VarChar(20)
+  paymentDocFormat    String? @db.VarChar(50)
+  receiptDocFormat    String? @db.VarChar(50)
+  requireReference    Boolean @default(false)
+  displayOrder        Int?
+  isActive            Boolean @default(true)
+
+  account    Account       @relation(fields: [accountId], references: [id])
+  arPayments ARPayment[]
+  apPayments APPayment[]
+
+  @@map("payment_methods")
+}
+
+// =====================================================
+// CUSTOMERS & VENDORS
+// =====================================================
+
+model Customer {
+  id               Int     @id @default(autoincrement())
+  code             String  @unique @db.VarChar(20)
+  name             String  @db.VarChar(200)
+  name2            String? @db.VarChar(200)
+  controlAccountId Int
+
+  // Address
+  address1        String? @db.VarChar(100)
+  address2        String? @db.VarChar(100)
+  address3        String? @db.VarChar(100)
+  address4        String? @db.VarChar(100)
+  postcode        String? @db.VarChar(20)
+  city            String? @db.VarChar(50)
+  state           String? @db.VarChar(50)
+  country         String? @db.VarChar(50)
+
+  // Delivery Address
+  deliverAddress1 String? @db.VarChar(100)
+  deliverAddress2 String? @db.VarChar(100)
+  deliverAddress3 String? @db.VarChar(100)
+  deliverAddress4 String? @db.VarChar(100)
+
+  // Contact
+  contactPerson String? @db.VarChar(100)
+  phone         String? @db.VarChar(50)
+  phone2        String? @db.VarChar(50)
+  mobile        String? @db.VarChar(50)
+  fax           String? @db.VarChar(50)
+  email         String? @db.VarChar(100)
+  website       String? @db.VarChar(200)
+
+  // Registration
+  businessRegNo String? @db.VarChar(50)
+  taxRegNo      String? @db.VarChar(50)
+  taxExemptNo   String? @db.VarChar(50)
+
+  // Credit Control
+  currencyCode   String  @default("MYR") @db.VarChar(10)
+  creditTermDays Int     @default(0)
+  creditLimit    Decimal @default(0) @db.Decimal(18, 2)
+  overdueLimit   Decimal @default(0) @db.Decimal(18, 2)
+
+  // Defaults
+  salesAgentId   Int?
+  areaId         Int?
+  pricingGroupId Int?
+  taxCode        String? @db.VarChar(20)
+  agingType      String  @default("DEFAULT") @db.VarChar(20)
+
+  // Banking
+  bankName      String? @db.VarChar(100)
+  bankAccountNo String? @db.VarChar(50)
+  bankBranch    String? @db.VarChar(100)
+
+  // Other
+  notes              String?   @db.Text
+  openingBalance     Decimal   @default(0) @db.Decimal(18, 2)
+  openingBalanceDate DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  createdBy          Int?
+  modifiedBy         Int?
+  isActive           Boolean   @default(true)
+
+  controlAccount Account     @relation("CustomerControlAccount", fields: [controlAccountId], references: [id])
+  currency       Currency    @relation(fields: [currencyCode], references: [code])
+  salesAgent     SalesAgent? @relation(fields: [salesAgentId], references: [id])
+  area           Area?       @relation(fields: [areaId], references: [id])
+
+  branches     CustomerBranch[]
+  arInvoices   ARInvoice[]
+  arPayments   ARPayment[]
+  salesHeaders SalesHeader[]
+  projects     Project[]
+  crmLeads     CRMLead[]
+
+  @@map("customers")
+}
+
+model CustomerBranch {
+  id            Int     @id @default(autoincrement())
+  customerId    Int
+  branchCode    String? @db.VarChar(20)
+  branchName    String? @db.VarChar(100)
+  address1      String? @db.VarChar(100)
+  address2      String? @db.VarChar(100)
+  address3      String? @db.VarChar(100)
+  address4      String? @db.VarChar(100)
+  contactPerson String? @db.VarChar(100)
+  phone         String? @db.VarChar(50)
+  email         String? @db.VarChar(100)
+  isDefault     Boolean @default(false)
+  isActive      Boolean @default(true)
+
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@map("customer_branches")
+}
+
+model Vendor {
+  id               Int     @id @default(autoincrement())
+  code             String  @unique @db.VarChar(20)
+  name             String  @db.VarChar(200)
+  name2            String? @db.VarChar(200)
+  controlAccountId Int
+
+  // Address
+  address1 String? @db.VarChar(100)
+  address2 String? @db.VarChar(100)
+  address3 String? @db.VarChar(100)
+  address4 String? @db.VarChar(100)
+  postcode String? @db.VarChar(20)
+  city     String? @db.VarChar(50)
+  state    String? @db.VarChar(50)
+  country  String? @db.VarChar(50)
+
+  // Contact
+  contactPerson String? @db.VarChar(100)
+  phone         String? @db.VarChar(50)
+  phone2        String? @db.VarChar(50)
+  mobile        String? @db.VarChar(50)
+  fax           String? @db.VarChar(50)
+  email         String? @db.VarChar(100)
+  website       String? @db.VarChar(200)
+
+  // Registration
+  businessRegNo String? @db.VarChar(50)
+  taxRegNo      String? @db.VarChar(50)
+
+  // Terms
+  currencyCode   String @default("MYR") @db.VarChar(10)
+  creditTermDays Int    @default(0)
+
+  // Defaults
+  purchaseAgentId Int?
+  paymentMethodId Int?
+  taxCode         String? @db.VarChar(20)
+
+  // Banking
+  bankName      String? @db.VarChar(100)
+  bankAccountNo String? @db.VarChar(50)
+  bankBranch    String? @db.VarChar(100)
+
+  // Other
+  notes              String?   @db.Text
+  openingBalance     Decimal   @default(0) @db.Decimal(18, 2)
+  openingBalanceDate DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  createdBy          Int?
+  modifiedBy         Int?
+  isActive           Boolean   @default(true)
+
+  controlAccount Account        @relation("VendorControlAccount", fields: [controlAccountId], references: [id])
+  currency       Currency       @relation(fields: [currencyCode], references: [code])
+  purchaseAgent  PurchaseAgent? @relation(fields: [purchaseAgentId], references: [id])
+
+  apInvoices      APInvoice[]
+  apPayments      APPayment[]
+  purchaseHeaders PurchaseHeader[]
+
+  @@map("vendors")
+}
+
+// =====================================================
+// PRODUCTS
+// =====================================================
+
+model ProductGroup {
+  id                Int     @id @default(autoincrement())
+  code              String  @unique @db.VarChar(20)
+  name              String  @db.VarChar(100)
+  parentId          Int?
+  salesAccountId    Int?
+  purchaseAccountId Int?
+  stockAccountId    Int?
+  cogsAccountId     Int?
+  displayOrder      Int?
+  isActive          Boolean @default(true)
+
+  parent   ProductGroup?  @relation("GroupHierarchy", fields: [parentId], references: [id])
+  children ProductGroup[] @relation("GroupHierarchy")
+  products Product[]
+
+  @@map("product_groups")
+}
+
+model ProductType {
+  id       Int     @id @default(autoincrement())
+  code     String  @unique @db.VarChar(20)
+  name     String  @db.VarChar(100)
+  isActive Boolean @default(true)
+
+  products Product[]
+
+  @@map("product_types")
+}
+
+model Product {
+  id           Int     @id @default(autoincrement())
+  code         String  @unique @db.VarChar(50)
+  description  String  @db.VarChar(200)
+  description2 String? @db.VarChar(200)
+  groupId      Int?
+  typeId       Int?
+  baseUOMId    Int
+
+  // Costing
+  costingMethod    String  @default("WEIGHTED_AVG") @db.VarChar(20)
+  standardCost     Decimal @default(0) @db.Decimal(18, 4)
+  lastPurchaseCost Decimal @default(0) @db.Decimal(18, 4)
+  averageCost      Decimal @default(0) @db.Decimal(18, 4)
+
+  // Pricing
+  sellingPrice1   Decimal @default(0) @db.Decimal(18, 4)
+  sellingPrice2   Decimal @default(0) @db.Decimal(18, 4)
+  sellingPrice3   Decimal @default(0) @db.Decimal(18, 4)
+  sellingPrice4   Decimal @default(0) @db.Decimal(18, 4)
+  sellingPrice5   Decimal @default(0) @db.Decimal(18, 4)
+  sellingPrice6   Decimal @default(0) @db.Decimal(18, 4)
+  minSellingPrice Decimal @default(0) @db.Decimal(18, 4)
+
+  // Inventory Control
+  reorderLevel  Decimal @default(0) @db.Decimal(18, 4)
+  reorderQty    Decimal @default(0) @db.Decimal(18, 4)
+  minStockLevel Decimal @default(0) @db.Decimal(18, 4)
+  maxStockLevel Decimal @default(0) @db.Decimal(18, 4)
+  leadTimeDays  Int     @default(0)
+
+  // Tracking
+  hasBatchNo    Boolean @default(false)
+  hasSerialNo   Boolean @default(false)
+  hasExpiryDate Boolean @default(false)
+
+  // Tax
+  salesTaxCode    String? @db.VarChar(20)
+  purchaseTaxCode String? @db.VarChar(20)
+
+  // Barcodes
+  barcode  String? @db.VarChar(50)
+  barcode2 String? @db.VarChar(50)
+  barcode3 String? @db.VarChar(50)
+
+  // GL Accounts
+  salesAccountId    Int?
+  purchaseAccountId Int?
+  stockAccountId    Int?
+  cogsAccountId     Int?
+
+  // Other
+  imagePath      String?  @db.VarChar(500)
+  weight         Decimal? @db.Decimal(18, 4)
+  weightUOM      String?  @db.VarChar(10)
+  notes          String?  @db.Text
+  isDiscontinued Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  createdBy      Int?
+  modifiedBy     Int?
+  isActive       Boolean  @default(true)
+
+  group   ProductGroup? @relation(fields: [groupId], references: [id])
+  type    ProductType?  @relation(fields: [typeId], references: [id])
+  baseUOM UOM           @relation(fields: [baseUOMId], references: [id])
+
+  productUOMs      ProductUOM[]
+  productLocations ProductLocation[]
+  bomParent        BOM[]             @relation("BOMParent")
+  bomComponent     BOM[]             @relation("BOMComponent")
+  salesDetails     SalesDetail[]
+  purchaseDetails  PurchaseDetail[]
+  stockDetails     StockTransactionDetail[]
+
+  @@map("products")
+}
+
+model ProductUOM {
+  id             Int      @id @default(autoincrement())
+  productId      Int
+  uomId          Int
+  conversionRate Decimal  @db.Decimal(18, 6)
+  barcode        String?  @db.VarChar(50)
+  sellingPrice   Decimal? @db.Decimal(18, 4)
+  purchasePrice  Decimal? @db.Decimal(18, 4)
+  isBaseUOM      Boolean  @default(false)
+  isActive       Boolean  @default(true)
+
+  product Product @relation(fields: [productId], references: [id])
+  uom     UOM     @relation(fields: [uomId], references: [id])
+
+  @@map("product_uoms")
+}
+
+model ProductLocation {
+  id           Int     @id @default(autoincrement())
+  productId    Int
+  locationId   Int
+  balanceQty   Decimal @default(0) @db.Decimal(18, 4)
+  reservedQty  Decimal @default(0) @db.Decimal(18, 4)
+  reorderLevel Decimal? @db.Decimal(18, 4)
+  reorderQty   Decimal? @db.Decimal(18, 4)
+  binLocation  String? @db.VarChar(50)
+
+  product  Product  @relation(fields: [productId], references: [id])
+  location Location @relation(fields: [locationId], references: [id])
+
+  @@unique([productId, locationId])
+  @@map("product_locations")
+}
+
+model BOM {
+  id                 Int      @id @default(autoincrement())
+  parentProductId    Int
+  componentProductId Int
+  quantity           Decimal  @db.Decimal(18, 4)
+  uomId              Int?
+  isByProduct        Boolean  @default(false)
+  scrapRate          Decimal  @default(0) @db.Decimal(5, 2)
+  notes              String?  @db.VarChar(200)
+  displayOrder       Int?
+
+  parentProduct    Product @relation("BOMParent", fields: [parentProductId], references: [id])
+  componentProduct Product @relation("BOMComponent", fields: [componentProductId], references: [id])
+
+  @@map("boms")
+}
+
+// =====================================================
+// AR TRANSACTIONS
+// =====================================================
+
+model ARInvoice {
+  id             Int       @id @default(autoincrement())
+  invoiceNo      String    @unique @db.VarChar(30)
+  invoiceDate    DateTime
+  dueDate        DateTime?
+  agingDate      DateTime?
+  taxDate        DateTime?
+  customerId     Int
+  customerCode   String    @db.VarChar(20)
+  customerName   String    @db.VarChar(200)
+  journalTypeId  Int?
+  salesAgentId   Int?
+  reference      String?   @db.VarChar(50)
+  reference2     String?   @db.VarChar(50)
+  description    String?   @db.VarChar(500)
+
+  // Amounts
+  subTotal          Decimal @default(0) @db.Decimal(18, 2)
+  discountAmount    Decimal @default(0) @db.Decimal(18, 2)
+  taxAmount         Decimal @default(0) @db.Decimal(18, 2)
+  roundingAmount    Decimal @default(0) @db.Decimal(18, 2)
+  netTotal          Decimal @default(0) @db.Decimal(18, 2)
+  paidAmount        Decimal @default(0) @db.Decimal(18, 2)
+  outstandingAmount Decimal @default(0) @db.Decimal(18, 2)
+
+  // Currency
+  currencyCode    String  @default("MYR") @db.VarChar(10)
+  exchangeRate    Decimal @default(1) @db.Decimal(18, 6)
+  netTotalLocal   Decimal @default(0) @db.Decimal(18, 2)
+
+  // Status
+  status     String   @default("OPEN") @db.VarChar(20)
+  isPosted   Boolean  @default(true)
+  isVoid     Boolean  @default(false)
+  isPrinted  Boolean  @default(false)
+  printCount Int      @default(0)
+
+  // Links
+  sourceType String? @db.VarChar(30)
+  sourceId   Int?
+  journalId  Int?
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  createdBy  Int?
+  modifiedBy Int?
+
+  customer Customer          @relation(fields: [customerId], references: [id])
+  details  ARInvoiceDetail[]
+  knockoffs ARPaymentKnockoff[]
+
+  @@map("ar_invoices")
+}
+
+model ARInvoiceDetail {
+  id            Int     @id @default(autoincrement())
+  invoiceId     Int
+  lineNo        Int
+  accountId     Int
+  description   String? @db.VarChar(500)
+  amount        Decimal @default(0) @db.Decimal(18, 2)
+  taxCode       String? @db.VarChar(20)
+  taxRate       Decimal @default(0) @db.Decimal(5, 2)
+  taxAmount     Decimal @default(0) @db.Decimal(18, 2)
+  taxAdjustment Decimal @default(0) @db.Decimal(18, 2)
+  subTotal      Decimal @default(0) @db.Decimal(18, 2)
+  projectId     Int?
+  departmentId  Int?
+
+  invoice ARInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("ar_invoice_details")
+}
+
+model ARPayment {
+  id              Int       @id @default(autoincrement())
+  paymentNo       String    @unique @db.VarChar(30)
+  paymentDate     DateTime
+  customerId      Int
+  customerCode    String    @db.VarChar(20)
+  customerName    String    @db.VarChar(200)
+  paymentMethodId Int
+  bankAccountId   Int
+  chequeNo        String?   @db.VarChar(50)
+  chequeDate      DateTime?
+  reference       String?   @db.VarChar(50)
+  description     String?   @db.VarChar(500)
+
+  // Amounts
+  paymentAmount    Decimal @default(0) @db.Decimal(18, 2)
+  bankChargeAmount Decimal @default(0) @db.Decimal(18, 2)
+  gainLossAmount   Decimal @default(0) @db.Decimal(18, 2)
+
+  // Currency
+  currencyCode       String  @default("MYR") @db.VarChar(10)
+  exchangeRate       Decimal @default(1) @db.Decimal(18, 6)
+  paymentAmountLocal Decimal @default(0) @db.Decimal(18, 2)
+
+  // Status
+  isPosted   Boolean @default(true)
+  isVoid     Boolean @default(false)
+  isPrinted  Boolean @default(false)
+  printCount Int     @default(0)
+  journalId  Int?
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  createdBy  Int?
+  modifiedBy Int?
+
+  customer      Customer            @relation(fields: [customerId], references: [id])
+  paymentMethod PaymentMethod       @relation(fields: [paymentMethodId], references: [id])
+  knockoffs     ARPaymentKnockoff[]
+
+  @@map("ar_payments")
+}
+
+model ARPaymentKnockoff {
+  id                 Int       @id @default(autoincrement())
+  paymentId          Int
+  documentType       String    @db.VarChar(20)
+  documentId         Int
+  documentNo         String    @db.VarChar(30)
+  documentDate       DateTime?
+  documentAmount     Decimal   @default(0) @db.Decimal(18, 2)
+  outstandingBefore  Decimal   @default(0) @db.Decimal(18, 2)
+  knockoffAmount     Decimal   @default(0) @db.Decimal(18, 2)
+  outstandingAfter   Decimal   @default(0) @db.Decimal(18, 2)
+  gainLossAmount     Decimal   @default(0) @db.Decimal(18, 2)
+
+  payment   ARPayment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  arInvoice ARInvoice? @relation(fields: [documentId], references: [id])
+
+  @@map("ar_payment_knockoffs")
+}
+
+// =====================================================
+// AP TRANSACTIONS
+// =====================================================
+
+model APInvoice {
+  id                Int       @id @default(autoincrement())
+  invoiceNo         String    @unique @db.VarChar(30)
+  invoiceDate       DateTime
+  dueDate           DateTime?
+  agingDate         DateTime?
+  taxDate           DateTime?
+  vendorId          Int
+  vendorCode        String    @db.VarChar(20)
+  vendorName        String    @db.VarChar(200)
+  supplierInvoiceNo String?   @db.VarChar(50)
+  journalTypeId     Int?
+  purchaseAgentId   Int?
+  reference         String?   @db.VarChar(50)
+  reference2        String?   @db.VarChar(50)
+  description       String?   @db.VarChar(500)
+
+  // Amounts
+  subTotal          Decimal @default(0) @db.Decimal(18, 2)
+  discountAmount    Decimal @default(0) @db.Decimal(18, 2)
+  taxAmount         Decimal @default(0) @db.Decimal(18, 2)
+  roundingAmount    Decimal @default(0) @db.Decimal(18, 2)
+  netTotal          Decimal @default(0) @db.Decimal(18, 2)
+  paidAmount        Decimal @default(0) @db.Decimal(18, 2)
+  outstandingAmount Decimal @default(0) @db.Decimal(18, 2)
+
+  // Currency
+  currencyCode  String  @default("MYR") @db.VarChar(10)
+  exchangeRate  Decimal @default(1) @db.Decimal(18, 6)
+  netTotalLocal Decimal @default(0) @db.Decimal(18, 2)
+
+  // Status
+  status     String   @default("OPEN") @db.VarChar(20)
+  isPosted   Boolean  @default(true)
+  isVoid     Boolean  @default(false)
+  isPrinted  Boolean  @default(false)
+  printCount Int      @default(0)
+
+  // Links
+  sourceType String? @db.VarChar(30)
+  sourceId   Int?
+  journalId  Int?
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  createdBy  Int?
+  modifiedBy Int?
+
+  vendor    Vendor              @relation(fields: [vendorId], references: [id])
+  details   APInvoiceDetail[]
+  knockoffs APPaymentKnockoff[]
+
+  @@map("ap_invoices")
+}
+
+model APInvoiceDetail {
+  id            Int     @id @default(autoincrement())
+  invoiceId     Int
+  lineNo        Int
+  accountId     Int
+  description   String? @db.VarChar(500)
+  amount        Decimal @default(0) @db.Decimal(18, 2)
+  taxCode       String? @db.VarChar(20)
+  taxRate       Decimal @default(0) @db.Decimal(5, 2)
+  taxAmount     Decimal @default(0) @db.Decimal(18, 2)
+  taxAdjustment Decimal @default(0) @db.Decimal(18, 2)
+  subTotal      Decimal @default(0) @db.Decimal(18, 2)
+  projectId     Int?
+  departmentId  Int?
+
+  invoice APInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("ap_invoice_details")
+}
+
+model APPayment {
+  id              Int       @id @default(autoincrement())
+  paymentNo       String    @unique @db.VarChar(30)
+  paymentDate     DateTime
+  vendorId        Int
+  vendorCode      String    @db.VarChar(20)
+  vendorName      String    @db.VarChar(200)
+  paymentMethodId Int
+  bankAccountId   Int
+  chequeNo        String?   @db.VarChar(50)
+  chequeDate      DateTime?
+  reference       String?   @db.VarChar(50)
+  description     String?   @db.VarChar(500)
+
+  // Amounts
+  paymentAmount    Decimal @default(0) @db.Decimal(18, 2)
+  bankChargeAmount Decimal @default(0) @db.Decimal(18, 2)
+  gainLossAmount   Decimal @default(0) @db.Decimal(18, 2)
+
+  // Currency
+  currencyCode       String  @default("MYR") @db.VarChar(10)
+  exchangeRate       Decimal @default(1) @db.Decimal(18, 6)
+  paymentAmountLocal Decimal @default(0) @db.Decimal(18, 2)
+
+  // Status
+  isPosted   Boolean @default(true)
+  isVoid     Boolean @default(false)
+  isPrinted  Boolean @default(false)
+  printCount Int     @default(0)
+  journalId  Int?
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  createdBy  Int?
+  modifiedBy Int?
+
+  vendor        Vendor              @relation(fields: [vendorId], references: [id])
+  paymentMethod PaymentMethod       @relation(fields: [paymentMethodId], references: [id])
+  knockoffs     APPaymentKnockoff[]
+
+  @@map("ap_payments")
+}
+
+model APPaymentKnockoff {
+  id                Int       @id @default(autoincrement())
+  paymentId         Int
+  documentType      String    @db.VarChar(20)
+  documentId        Int
+  documentNo        String    @db.VarChar(30)
+  documentDate      DateTime?
+  documentAmount    Decimal   @default(0) @db.Decimal(18, 2)
+  outstandingBefore Decimal   @default(0) @db.Decimal(18, 2)
+  knockoffAmount    Decimal   @default(0) @db.Decimal(18, 2)
+  outstandingAfter  Decimal   @default(0) @db.Decimal(18, 2)
+  gainLossAmount    Decimal   @default(0) @db.Decimal(18, 2)
+
+  payment   APPayment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  apInvoice APInvoice? @relation(fields: [documentId], references: [id])
+
+  @@map("ap_payment_knockoffs")
+}
+
+// =====================================================
+// SALES DOCUMENTS
+// =====================================================
+
+model SalesHeader {
+  id           Int      @id @default(autoincrement())
+  documentType String   @db.VarChar(20) // QUOTATION, SALES_ORDER, DELIVERY_ORDER, INVOICE, CASH_SALE, CREDIT_NOTE
+  documentNo   String   @db.VarChar(30)
+  documentDate DateTime
+  dueDate      DateTime?
+  deliveryDate DateTime?
+  customerId   Int
+  customerCode String   @db.VarChar(20)
+  customerName String   @db.VarChar(200)
+
+  // Address
+  billToAddress String? @db.VarChar(500)
+  shipToAddress String? @db.VarChar(500)
+
+  // Defaults
+  salesAgentId   Int?
+  locationId     Int?
+  currencyCode   String  @default("MYR") @db.VarChar(10)
+  exchangeRate   Decimal @default(1) @db.Decimal(18, 6)
+  pricingGroupId Int?
+
+  // References
+  reference   String? @db.VarChar(50)
+  reference2  String? @db.VarChar(50)
+  description String? @db.VarChar(500)
+  notes       String? @db.Text
+
+  // Tax
+  isTaxInclusive Boolean   @default(false)
+  taxDate        DateTime?
+
+  // Amounts
+  subTotal       Decimal @default(0) @db.Decimal(18, 2)
+  discountAmount Decimal @default(0) @db.Decimal(18, 2)
+  taxAmount      Decimal @default(0) @db.Decimal(18, 2)
+  roundingAmount Decimal @default(0) @db.Decimal(18, 2)
+  netTotal       Decimal @default(0) @db.Decimal(18, 2)
+  netTotalLocal  Decimal @default(0) @db.Decimal(18, 2)
+
+  // Cash Sale
+  paymentMethodId Int?
+  paidAmount      Decimal @default(0) @db.Decimal(18, 2)
+  changeAmount    Decimal @default(0) @db.Decimal(18, 2)
+
+  // Status
+  status         String   @default("OPEN") @db.VarChar(20)
+  transferStatus String?  @db.VarChar(20)
+  isPosted       Boolean  @default(false)
+  isVoid         Boolean  @default(false)
+  isPrinted      Boolean  @default(false)
+  printCount     Int      @default(0)
+
+  // Links
+  sourceType  String? @db.VarChar(30)
+  sourceId    Int?
+  arInvoiceId Int?
+  journalId   Int?
+
+  // Approval
+  approvalStatus String?   @db.VarChar(20)
+  approvedBy     Int?
+  approvedDate   DateTime?
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  createdBy  Int?
+  modifiedBy Int?
+
+  customer   Customer     @relation(fields: [customerId], references: [id])
+  salesAgent SalesAgent?  @relation(fields: [salesAgentId], references: [id])
+  location   Location?    @relation(fields: [locationId], references: [id])
+  details    SalesDetail[]
+
+  @@unique([documentType, documentNo])
+  @@map("sales_headers")
+}
+
+model SalesDetail {
+  id      Int @id @default(autoincrement())
+  salesId Int
+  lineNo  Int
+
+  // Item
+  productId          Int?
+  productCode        String? @db.VarChar(50)
+  description        String? @db.VarChar(500)
+  description2       String? @db.VarChar(500)
+  furtherDescription String? @db.Text
+
+  // Quantity
+  uomId        Int?
+  uomCode      String? @db.VarChar(20)
+  quantity     Decimal @default(0) @db.Decimal(18, 4)
+  focQuantity  Decimal @default(0) @db.Decimal(18, 4)
+  uomRate      Decimal @default(1) @db.Decimal(18, 6)
+  baseQuantity Decimal @default(0) @db.Decimal(18, 4)
+
+  // Pricing
+  unitPrice      Decimal @default(0) @db.Decimal(18, 4)
+  discountText   String? @db.VarChar(50)
+  discountAmount Decimal @default(0) @db.Decimal(18, 2)
+  subTotal       Decimal @default(0) @db.Decimal(18, 2)
+
+  // Tax
+  taxCode       String? @db.VarChar(20)
+  taxRate       Decimal @default(0) @db.Decimal(5, 2)
+  taxAmount     Decimal @default(0) @db.Decimal(18, 2)
+  taxAdjustment Decimal @default(0) @db.Decimal(18, 2)
+
+  // Tracking
+  locationId Int?
+  batchNo    String?   @db.VarChar(50)
+  serialNo   String?   @db.VarChar(100)
+  expiryDate DateTime?
+
+  // Costing
+  unitCost  Decimal @default(0) @db.Decimal(18, 4)
+  totalCost Decimal @default(0) @db.Decimal(18, 2)
+
+  // Links
+  accountId    Int?
+  projectId    Int?
+  departmentId Int?
+
+  // Transfer
+  transferredQty  Decimal @default(0) @db.Decimal(18, 4)
+  outstandingQty  Decimal @default(0) @db.Decimal(18, 4)
+
+  header  SalesHeader @relation(fields: [salesId], references: [id], onDelete: Cascade)
+  product Product?    @relation(fields: [productId], references: [id])
+
+  @@map("sales_details")
+}
+
+// =====================================================
+// PURCHASE DOCUMENTS
+// =====================================================
+
+model PurchaseHeader {
+  id           Int      @id @default(autoincrement())
+  documentType String   @db.VarChar(20) // RFQ, PURCHASE_REQUEST, PURCHASE_ORDER, GRN, PURCHASE_INVOICE, CASH_PURCHASE
+  documentNo   String   @db.VarChar(30)
+  documentDate DateTime
+  dueDate      DateTime?
+  vendorId     Int?
+  vendorCode   String?  @db.VarChar(20)
+  vendorName   String?  @db.VarChar(200)
+
+  // Vendor Refs
+  supplierInvoiceNo String? @db.VarChar(50)
+  supplierDONo      String? @db.VarChar(50)
+
+  // Defaults
+  purchaseAgentId Int?
+  locationId      Int?
+  currencyCode    String  @default("MYR") @db.VarChar(10)
+  exchangeRate    Decimal @default(1) @db.Decimal(18, 6)
+
+  // References
+  reference   String? @db.VarChar(50)
+  reference2  String? @db.VarChar(50)
+  description String? @db.VarChar(500)
+  notes       String? @db.Text
+
+  // Tax
+  isTaxInclusive Boolean   @default(false)
+  taxDate        DateTime?
+
+  // Amounts
+  subTotal          Decimal @default(0) @db.Decimal(18, 2)
+  discountAmount    Decimal @default(0) @db.Decimal(18, 2)
+  taxAmount         Decimal @default(0) @db.Decimal(18, 2)
+  roundingAmount    Decimal @default(0) @db.Decimal(18, 2)
+  netTotal          Decimal @default(0) @db.Decimal(18, 2)
+  netTotalLocal     Decimal @default(0) @db.Decimal(18, 2)
+  landingCostAmount Decimal @default(0) @db.Decimal(18, 2)
+
+  // Status
+  status         String   @default("OPEN") @db.VarChar(20)
+  transferStatus String?  @db.VarChar(20)
+  isPosted       Boolean  @default(false)
+  isVoid         Boolean  @default(false)
+  isPrinted      Boolean  @default(false)
+  printCount     Int      @default(0)
+
+  // Links
+  sourceType  String? @db.VarChar(30)
+  sourceId    Int?
+  apInvoiceId Int?
+  journalId   Int?
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  createdBy  Int?
+  modifiedBy Int?
+
+  vendor        Vendor?          @relation(fields: [vendorId], references: [id])
+  purchaseAgent PurchaseAgent?   @relation(fields: [purchaseAgentId], references: [id])
+  location      Location?        @relation(fields: [locationId], references: [id])
+  details       PurchaseDetail[]
+
+  @@unique([documentType, documentNo])
+  @@map("purchase_headers")
+}
+
+model PurchaseDetail {
+  id         Int @id @default(autoincrement())
+  purchaseId Int
+  lineNo     Int
+
+  // Item
+  productId    Int?
+  productCode  String? @db.VarChar(50)
+  description  String? @db.VarChar(500)
+  description2 String? @db.VarChar(500)
+
+  // Quantity
+  uomId        Int?
+  uomCode      String? @db.VarChar(20)
+  quantity     Decimal @default(0) @db.Decimal(18, 4)
+  uomRate      Decimal @default(1) @db.Decimal(18, 6)
+  baseQuantity Decimal @default(0) @db.Decimal(18, 4)
+
+  // Pricing
+  unitPrice      Decimal @default(0) @db.Decimal(18, 4)
+  discountText   String? @db.VarChar(50)
+  discountAmount Decimal @default(0) @db.Decimal(18, 2)
+  subTotal       Decimal @default(0) @db.Decimal(18, 2)
+
+  // Tax
+  taxCode   String? @db.VarChar(20)
+  taxRate   Decimal @default(0) @db.Decimal(5, 2)
+  taxAmount Decimal @default(0) @db.Decimal(18, 2)
+
+  // Tracking
+  locationId Int?
+  batchNo    String?   @db.VarChar(50)
+  serialNo   String?   @db.VarChar(100)
+  expiryDate DateTime?
+
+  // Landing Cost
+  landingCostAmount Decimal @default(0) @db.Decimal(18, 2)
+  totalCost         Decimal @default(0) @db.Decimal(18, 2)
+
+  // Links
+  accountId    Int?
+  projectId    Int?
+  departmentId Int?
+
+  // Transfer
+  transferredQty Decimal @default(0) @db.Decimal(18, 4)
+  outstandingQty Decimal @default(0) @db.Decimal(18, 4)
+
+  header  PurchaseHeader @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product Product?       @relation(fields: [productId], references: [id])
+
+  @@map("purchase_details")
+}
+
+// =====================================================
+// STOCK TRANSACTIONS
+// =====================================================
+
+model StockTransaction {
+  id              Int      @id @default(autoincrement())
+  transactionType String   @db.VarChar(20) // RECEIVE, ISSUE, TRANSFER, ADJUSTMENT, ASSEMBLY, DISASSEMBLY
+  transactionNo   String   @db.VarChar(30)
+  transactionDate DateTime
+  fromLocationId  Int?
+  toLocationId    Int?
+  reference       String?  @db.VarChar(50)
+  description     String?  @db.VarChar(500)
+  notes           String?  @db.Text
+  totalCost       Decimal  @default(0) @db.Decimal(18, 2)
+
+  // Status
+  isPosted  Boolean @default(true)
+  isVoid    Boolean @default(false)
+  isPrinted Boolean @default(false)
+
+  // Links
+  sourceType String? @db.VarChar(30)
+  sourceId   Int?
+  journalId  Int?
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  createdBy  Int?
+  modifiedBy Int?
+
+  location Location?                @relation(fields: [toLocationId], references: [id])
+  details  StockTransactionDetail[]
+
+  @@unique([transactionType, transactionNo])
+  @@map("stock_transactions")
+}
+
+model StockTransactionDetail {
+  id            Int       @id @default(autoincrement())
+  transactionId Int
+  lineNo        Int
+  productId     Int
+  productCode   String    @db.VarChar(50)
+  description   String?   @db.VarChar(500)
+  uomId         Int?
+  quantity      Decimal   @default(0) @db.Decimal(18, 4)
+  uomRate       Decimal   @default(1) @db.Decimal(18, 6)
+  baseQuantity  Decimal   @default(0) @db.Decimal(18, 4)
+  unitCost      Decimal   @default(0) @db.Decimal(18, 4)
+  totalCost     Decimal   @default(0) @db.Decimal(18, 2)
+  locationId    Int?
+  batchNo       String?   @db.VarChar(50)
+  serialNo      String?   @db.VarChar(100)
+  expiryDate    DateTime?
+  notes         String?   @db.VarChar(200)
+
+  transaction StockTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  product     Product          @relation(fields: [productId], references: [id])
+
+  @@map("stock_transaction_details")
+}
+
+// =====================================================
+// JOURNAL ENTRIES
+// =====================================================
+
+model JournalType {
+  id       Int     @id @default(autoincrement())
+  code     String  @unique @db.VarChar(20)
+  name     String  @db.VarChar(50)
+  isSystem Boolean @default(false)
+  isActive Boolean @default(true)
+
+  journalEntries JournalEntry[]
+
+  @@map("journal_types")
+}
+
+model JournalEntry {
+  id            Int       @id @default(autoincrement())
+  journalNo     String    @unique @db.VarChar(30)
+  journalDate   DateTime
+  postingDate   DateTime?
+  journalTypeId Int?
+  reference     String?   @db.VarChar(50)
+  reference2    String?   @db.VarChar(50)
+  description   String?   @db.VarChar(500)
+  totalDebit    Decimal   @default(0) @db.Decimal(18, 2)
+  totalCredit   Decimal   @default(0) @db.Decimal(18, 2)
+  currencyCode  String?   @db.VarChar(10)
+  exchangeRate  Decimal   @default(1) @db.Decimal(18, 6)
+  sourceType    String?   @db.VarChar(30)
+  sourceId      Int?
+  sourceNo      String?   @db.VarChar(30)
+  isPosted      Boolean   @default(true)
+  isVoid        Boolean   @default(false)
+  isPrinted     Boolean   @default(false)
+  printCount    Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  createdBy     Int?
+  modifiedBy    Int?
+
+  journalType JournalType?         @relation(fields: [journalTypeId], references: [id])
+  details     JournalEntryDetail[]
+
+  @@map("journal_entries")
+}
+
+model JournalEntryDetail {
+  id               Int     @id @default(autoincrement())
+  journalId        Int
+  lineNo           Int
+  accountId        Int
+  description      String? @db.VarChar(500)
+  debitAmount      Decimal @default(0) @db.Decimal(18, 2)
+  creditAmount     Decimal @default(0) @db.Decimal(18, 2)
+  debitAmountLocal Decimal @default(0) @db.Decimal(18, 2)
+  creditAmountLocal Decimal @default(0) @db.Decimal(18, 2)
+  taxCode          String? @db.VarChar(20)
+  taxRate          Decimal @default(0) @db.Decimal(5, 2)
+  taxAmount        Decimal @default(0) @db.Decimal(18, 2)
+  projectId        Int?
+  departmentId     Int?
+
+  journal JournalEntry @relation(fields: [journalId], references: [id], onDelete: Cascade)
+
+  @@map("journal_entry_details")
+}
+
+// =====================================================
+// CRM MODULE
+// =====================================================
+
+model CRMLead {
+  id            Int       @id @default(autoincrement())
+  code          String    @unique @db.VarChar(20)
+  companyName   String    @db.VarChar(200)
+  contactName   String?   @db.VarChar(100)
+  email         String?   @db.VarChar(100)
+  phone         String?   @db.VarChar(50)
+  mobile        String?   @db.VarChar(50)
+  website       String?   @db.VarChar(200)
+  
+  // Address
+  address1      String?   @db.VarChar(100)
+  address2      String?   @db.VarChar(100)
+  city          String?   @db.VarChar(50)
+  state         String?   @db.VarChar(50)
+  postcode      String?   @db.VarChar(20)
+  country       String?   @db.VarChar(50)
+  
+  // Lead Info
+  source        String?   @db.VarChar(50)   // WEBSITE, REFERRAL, COLD_CALL, etc.
+  status        String    @default("NEW") @db.VarChar(20) // NEW, CONTACTED, QUALIFIED, CONVERTED, LOST
+  rating        String?   @db.VarChar(20)   // HOT, WARM, COLD
+  industry      String?   @db.VarChar(50)
+  estimatedValue Decimal? @db.Decimal(18, 2)
+  
+  // Assignment
+  assignedTo    Int?
+  salesAgentId  Int?
+  
+  // Conversion
+  convertedAt   DateTime?
+  customerId    Int?      // Linked customer after conversion
+  
+  // Notes
+  description   String?   @db.Text
+  notes         String?   @db.Text
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  createdBy     Int?
+  modifiedBy    Int?
+  isActive      Boolean   @default(true)
+  
+  salesAgent    SalesAgent?    @relation(fields: [salesAgentId], references: [id])
+  customer      Customer?      @relation(fields: [customerId], references: [id])
+  contacts      CRMContact[]
+  activities    CRMActivity[]
+  deals         CRMDeal[]
+  
+  @@map("crm_leads")
+}
+
+model CRMContact {
+  id            Int       @id @default(autoincrement())
+  leadId        Int?
+  customerId    Int?
+  
+  // Contact Info
+  firstName     String    @db.VarChar(50)
+  lastName      String?   @db.VarChar(50)
+  title         String?   @db.VarChar(50)   // Mr, Mrs, Dr, etc.
+  jobTitle      String?   @db.VarChar(100)
+  department    String?   @db.VarChar(100)
+  
+  email         String?   @db.VarChar(100)
+  phone         String?   @db.VarChar(50)
+  mobile        String?   @db.VarChar(50)
+  
+  // Social
+  linkedIn      String?   @db.VarChar(200)
+  
+  // Preferences
+  isPrimary     Boolean   @default(false)
+  doNotCall     Boolean   @default(false)
+  doNotEmail    Boolean   @default(false)
+  
+  notes         String?   @db.Text
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  createdBy     Int?
+  modifiedBy    Int?
+  isActive      Boolean   @default(true)
+  
+  lead          CRMLead?  @relation(fields: [leadId], references: [id])
+  activities    CRMActivity[]
+  
+  @@map("crm_contacts")
+}
+
+model CRMActivity {
+  id            Int       @id @default(autoincrement())
+  leadId        Int?
+  contactId     Int?
+  dealId        Int?
+  customerId    Int?
+  
+  // Activity Info
+  type          String    @db.VarChar(30)   // CALL, EMAIL, MEETING, TASK, NOTE
+  subject       String    @db.VarChar(200)
+  description   String?   @db.Text
+  
+  // Scheduling
+  activityDate  DateTime
+  dueDate       DateTime?
+  duration      Int?      // in minutes
+  
+  // Status
+  status        String    @default("PLANNED") @db.VarChar(20) // PLANNED, IN_PROGRESS, COMPLETED, CANCELLED
+  priority      String    @default("NORMAL") @db.VarChar(20) // LOW, NORMAL, HIGH, URGENT
+  
+  // Assignment
+  assignedTo    Int?
+  
+  // Outcome
+  outcome       String?   @db.VarChar(100)
+  nextAction    String?   @db.VarChar(200)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  createdBy     Int?
+  modifiedBy    Int?
+  
+  lead          CRMLead?    @relation(fields: [leadId], references: [id])
+  contact       CRMContact? @relation(fields: [contactId], references: [id])
+  deal          CRMDeal?    @relation(fields: [dealId], references: [id])
+  
+  @@map("crm_activities")
+}
+
+model CRMDeal {
+  id            Int       @id @default(autoincrement())
+  code          String    @unique @db.VarChar(20)
+  name          String    @db.VarChar(200)
+  
+  // Related
+  leadId        Int?
+  customerId    Int?
+  salesAgentId  Int?
+  
+  // Deal Info
+  stage         String    @default("PROSPECTING") @db.VarChar(30) // PROSPECTING, QUALIFICATION, PROPOSAL, NEGOTIATION, CLOSED_WON, CLOSED_LOST
+  probability   Int       @default(0)    // 0-100%
+  value         Decimal   @default(0) @db.Decimal(18, 2)
+  currency      String    @default("MYR") @db.VarChar(10)
+  
+  // Dates
+  expectedCloseDate DateTime?
+  actualCloseDate   DateTime?
+  
+  // Details
+  description   String?   @db.Text
+  lostReason    String?   @db.VarChar(200)
+  
+  // Linked Quote/Invoice
+  salesHeaderId Int?
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  createdBy     Int?
+  modifiedBy    Int?
+  isActive      Boolean   @default(true)
+  
+  lead          CRMLead?     @relation(fields: [leadId], references: [id])
+  salesAgent    SalesAgent?  @relation(fields: [salesAgentId], references: [id])
+  activities    CRMActivity[]
+  
+  @@map("crm_deals")
+}
+
+// =====================================================
+// MESSAGING INTEGRATION
+// =====================================================
+
+model MessagingConfig {
+  id            Int       @id @default(autoincrement())
+  platform      String    @db.VarChar(30) // WHATSAPP, TELEGRAM, WECHAT
+  
+  // WhatsApp Business
+  whatsappPhoneNumber   String?   @db.VarChar(20)
+  whatsappApiToken      String?   @db.VarChar(500)
+  whatsappBusinessId    String?   @db.VarChar(100)
+  
+  // Telegram Bot
+  telegramBotToken      String?   @db.VarChar(500)
+  telegramBotUsername   String?   @db.VarChar(100)
+  
+  // WeChat
+  wechatAppId           String?   @db.VarChar(100)
+  wechatAppSecret       String?   @db.VarChar(500)
+  
+  // Webhook
+  webhookUrl            String?   @db.VarChar(500)
+  webhookSecret         String?   @db.VarChar(200)
+  
+  isEnabled     Boolean   @default(false)
+  isVerified    Boolean   @default(false)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  createdBy     Int?
+  modifiedBy    Int?
+  
+  @@unique([platform])
+  @@map("messaging_configs")
+}
+
+model MessageTemplate {
+  id            Int       @id @default(autoincrement())
+  code          String    @unique @db.VarChar(30)
+  name          String    @db.VarChar(100)
+  category      String    @db.VarChar(30) // INVOICE, STATEMENT, PAYMENT_REMINDER, RECEIPT, WELCOME, CUSTOM
+  platform      String?   @db.VarChar(30) // NULL = all platforms, or specific platform
+  
+  subject       String?   @db.VarChar(200)
+  body          String    @db.Text
+  
+  // Placeholders: {{customerName}}, {{documentNo}}, {{amount}}, {{dueDate}}, {{companyName}}, etc.
+  
+  isDefault     Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  createdBy     Int?
+  modifiedBy    Int?
+  
+  @@map("message_templates")
+}
+
+model MessageLog {
+  id            Int       @id @default(autoincrement())
+  platform      String    @db.VarChar(30) // WHATSAPP, TELEGRAM, WECHAT
+  direction     String    @db.VarChar(10) // OUTBOUND, INBOUND
+  
+  // Recipient/Sender
+  recipientPhone String?  @db.VarChar(20)
+  recipientName  String?  @db.VarChar(100)
+  customerId     Int?
+  
+  // Message Content
+  templateId     Int?
+  subject        String?  @db.VarChar(200)
+  body           String   @db.Text
+  
+  // Related Document
+  documentType   String?  @db.VarChar(30) // INVOICE, STATEMENT, RECEIPT, PAYMENT_REMINDER
+  documentId     Int?
+  documentNo     String?  @db.VarChar(30)
+  
+  // Delivery Status
+  status         String   @default("PENDING") @db.VarChar(20) // PENDING, SENT, DELIVERED, READ, FAILED
+  externalId     String?  @db.VarChar(100) // Message ID from the platform
+  errorMessage   String?  @db.VarChar(500)
+  
+  // Timestamps
+  sentAt         DateTime?
+  deliveredAt    DateTime?
+  readAt         DateTime?
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  createdBy      Int?
+  
+  // CRM Activity link
+  crmActivityId  Int?
+  
+  @@map("message_logs")
+}
+
+model MessagingInquiry {
+  id             Int       @id @default(autoincrement())
+  platform       String    @db.VarChar(30)
+  
+  // Sender Info
+  senderPhone    String?   @db.VarChar(20)
+  senderName     String?   @db.VarChar(100)
+  senderUsername String?   @db.VarChar(100)
+  
+  // Message
+  message        String    @db.Text
+  
+  // Processing
+  status         String    @default("NEW") @db.VarChar(20) // NEW, IN_PROGRESS, CONVERTED, CLOSED
+  assignedTo     Int?
+  
+  // Links
+  customerId     Int?
+  crmLeadId      Int?
+  
+  notes          String?   @db.Text
+  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  processedBy    Int?
+  processedAt    DateTime?
+  
+  @@map("messaging_inquiries")
+}

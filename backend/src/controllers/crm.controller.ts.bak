@@ -1,0 +1,1038 @@
+import { Request, Response, NextFunction } from 'express';
+import { prisma } from '../config/database';
+import { BaseController } from './base.controller';
+import { BadRequestError, ConflictError, NotFoundError } from '../middleware/errorHandler';
+import { Prisma } from '@prisma/client';
+
+// =====================================================
+// LEAD CONTROLLER
+// =====================================================
+
+export class LeadController extends BaseController<any> {
+  protected modelName = 'Lead';
+
+  /**
+   * List leads with pagination and filters
+   */
+  list = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { skip, take, page, pageSize } = this.getPagination(req);
+      const orderBy = this.getSorting(req, 'createdAt', 'desc');
+
+      const where: Prisma.CRMLeadWhereInput = {
+        isActive: req.query.includeInactive === 'true' ? undefined : true,
+      };
+
+      // Search filter
+      if (req.query.search) {
+        const search = req.query.search as string;
+        where.OR = [
+          { code: { contains: search, mode: 'insensitive' } },
+          { companyName: { contains: search, mode: 'insensitive' } },
+          { contactName: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      // Status filter
+      if (req.query.status) {
+        where.status = req.query.status as string;
+      }
+
+      // Source filter
+      if (req.query.source) {
+        where.source = req.query.source as string;
+      }
+
+      // Rating filter
+      if (req.query.rating) {
+        where.rating = req.query.rating as string;
+      }
+
+      const [leads, total] = await Promise.all([
+        prisma.cRMLead.findMany({
+          where,
+          skip,
+          take,
+          orderBy,
+          include: {
+            salesAgent: true,
+            customer: { select: { id: true, code: true, name: true } },
+            _count: { select: { activities: true, deals: true } },
+          },
+        }),
+        prisma.cRMLead.count({ where }),
+      ]);
+
+      this.paginatedResponse(res, leads, total, page, pageSize);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get lead by ID
+   */
+  getById = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      const lead = await prisma.cRMLead.findUnique({
+        where: { id },
+        include: {
+          salesAgent: true,
+          customer: true,
+          contacts: { where: { isActive: true } },
+          activities: { orderBy: { activityDate: 'desc' }, take: 10 },
+          deals: { where: { isActive: true } },
+        },
+      });
+
+      if (!lead) {
+        this.notFound(id);
+      }
+
+      this.successResponse(res, lead);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Create lead
+   */
+  create = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = req.body;
+
+      this.validateRequired(data, ['companyName']);
+
+      // Generate lead code if not provided
+      if (!data.code) {
+        const lastLead = await prisma.cRMLead.findFirst({
+          orderBy: { id: 'desc' },
+          select: { code: true },
+        });
+        const nextNum = lastLead ? parseInt(lastLead.code.replace('LEAD-', '')) + 1 : 1;
+        data.code = `LEAD-${String(nextNum).padStart(5, '0')}`;
+      }
+
+      // Check for duplicate code
+      const existing = await prisma.cRMLead.findUnique({
+        where: { code: data.code.toUpperCase() },
+      });
+
+      if (existing) {
+        throw ConflictError(`Lead code ${data.code} already exists`);
+      }
+
+      const lead = await prisma.cRMLead.create({
+        data: {
+          code: data.code.toUpperCase(),
+          companyName: data.companyName,
+          contactName: data.contactName,
+          email: data.email,
+          phone: data.phone,
+          mobile: data.mobile,
+          website: data.website,
+          address1: data.address1,
+          address2: data.address2,
+          city: data.city,
+          state: data.state,
+          postcode: data.postcode,
+          country: data.country || 'Malaysia',
+          source: data.source,
+          status: data.status || 'NEW',
+          rating: data.rating,
+          industry: data.industry,
+          estimatedValue: data.estimatedValue,
+          salesAgentId: data.salesAgentId,
+          description: data.description,
+          notes: data.notes,
+          createdBy: req.user?.userId,
+        },
+        include: { salesAgent: true },
+      });
+
+      this.createdResponse(res, lead);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Update lead
+   */
+  update = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const data = req.body;
+
+      const existing = await prisma.cRMLead.findUnique({ where: { id } });
+      if (!existing) {
+        this.notFound(id);
+      }
+
+      const lead = await prisma.cRMLead.update({
+        where: { id },
+        data: {
+          companyName: data.companyName,
+          contactName: data.contactName,
+          email: data.email,
+          phone: data.phone,
+          mobile: data.mobile,
+          website: data.website,
+          address1: data.address1,
+          address2: data.address2,
+          city: data.city,
+          state: data.state,
+          postcode: data.postcode,
+          country: data.country,
+          source: data.source,
+          status: data.status,
+          rating: data.rating,
+          industry: data.industry,
+          estimatedValue: data.estimatedValue,
+          salesAgentId: data.salesAgentId,
+          description: data.description,
+          notes: data.notes,
+          isActive: data.isActive,
+          modifiedBy: req.user?.userId,
+        },
+        include: { salesAgent: true },
+      });
+
+      this.successResponse(res, lead, 'Lead updated successfully');
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Delete lead
+   */
+  delete = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      const existing = await prisma.cRMLead.findUnique({ where: { id } });
+      if (!existing) {
+        this.notFound(id);
+      }
+
+      // Soft delete
+      await prisma.cRMLead.update({
+        where: { id },
+        data: { isActive: false },
+      });
+
+      this.deletedResponse(res);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Convert lead to customer
+   */
+  convertToCustomer = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const data = req.body;
+
+      const lead = await prisma.cRMLead.findUnique({
+        where: { id },
+        include: { contacts: { where: { isPrimary: true } } },
+      });
+
+      if (!lead) {
+        this.notFound(id);
+      }
+
+      if (lead!.customerId) {
+        throw BadRequestError('Lead has already been converted to a customer');
+      }
+
+      // Generate customer code if not provided
+      let customerCode = data.customerCode;
+      if (!customerCode) {
+        const lastCustomer = await prisma.customer.findFirst({
+          orderBy: { id: 'desc' },
+          select: { code: true },
+        });
+        const nextNum = lastCustomer ? parseInt(lastCustomer.code.replace('CUST-', '')) + 1 : 1;
+        customerCode = `CUST-${String(nextNum).padStart(5, '0')}`;
+      }
+
+      // Get default AR control account
+      const arControlAccount = await prisma.account.findFirst({
+        where: { specialType: 'AR_CONTROL', isActive: true },
+      });
+
+      if (!arControlAccount) {
+        throw BadRequestError('No AR Control account found. Please set up chart of accounts first.');
+      }
+
+      // Create customer from lead data
+      const customer = await prisma.customer.create({
+        data: {
+          code: customerCode.toUpperCase(),
+          name: lead!.companyName,
+          controlAccountId: data.controlAccountId || arControlAccount.id,
+          contactPerson: lead!.contactName,
+          email: lead!.email,
+          phone: lead!.phone,
+          mobile: lead!.mobile,
+          website: lead!.website,
+          address1: lead!.address1,
+          address2: lead!.address2,
+          city: lead!.city,
+          state: lead!.state,
+          postcode: lead!.postcode,
+          country: lead!.country,
+          salesAgentId: lead!.salesAgentId,
+          notes: lead!.notes,
+          createdBy: req.user?.userId,
+        },
+      });
+
+      // Update lead with conversion info
+      await prisma.cRMLead.update({
+        where: { id },
+        data: {
+          status: 'CONVERTED',
+          convertedAt: new Date(),
+          customerId: customer.id,
+          modifiedBy: req.user?.userId,
+        },
+      });
+
+      // Create activity for conversion
+      await prisma.cRMActivity.create({
+        data: {
+          leadId: id,
+          type: 'NOTE',
+          subject: 'Lead converted to customer',
+          description: `Lead converted to customer ${customer.code}`,
+          activityDate: new Date(),
+          status: 'COMPLETED',
+          createdBy: req.user?.userId,
+        },
+      });
+
+      this.successResponse(res, {
+        lead: { id, status: 'CONVERTED' },
+        customer,
+      }, 'Lead converted to customer successfully');
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get dashboard stats
+   */
+  getStats = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const [
+        totalLeads,
+        newLeads,
+        qualifiedLeads,
+        convertedLeads,
+        bySource,
+        byRating,
+      ] = await Promise.all([
+        prisma.cRMLead.count({ where: { isActive: true } }),
+        prisma.cRMLead.count({ where: { isActive: true, status: 'NEW' } }),
+        prisma.cRMLead.count({ where: { isActive: true, status: 'QUALIFIED' } }),
+        prisma.cRMLead.count({ where: { isActive: true, status: 'CONVERTED' } }),
+        prisma.cRMLead.groupBy({
+          by: ['source'],
+          _count: { id: true },
+          where: { isActive: true, source: { not: null } },
+        }),
+        prisma.cRMLead.groupBy({
+          by: ['rating'],
+          _count: { id: true },
+          where: { isActive: true, rating: { not: null } },
+        }),
+      ]);
+
+      this.successResponse(res, {
+        totalLeads,
+        newLeads,
+        qualifiedLeads,
+        convertedLeads,
+        bySource,
+        byRating,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+// =====================================================
+// CONTACT CONTROLLER
+// =====================================================
+
+export class ContactController extends BaseController<any> {
+  protected modelName = 'Contact';
+
+  list = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { skip, take, page, pageSize } = this.getPagination(req);
+      const orderBy = this.getSorting(req, 'firstName', 'asc');
+
+      const where: Prisma.CRMContactWhereInput = {
+        isActive: req.query.includeInactive === 'true' ? undefined : true,
+      };
+
+      if (req.query.leadId) {
+        where.leadId = parseInt(req.query.leadId as string);
+      }
+
+      if (req.query.customerId) {
+        where.customerId = parseInt(req.query.customerId as string);
+      }
+
+      if (req.query.search) {
+        const search = req.query.search as string;
+        where.OR = [
+          { firstName: { contains: search, mode: 'insensitive' } },
+          { lastName: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      const [contacts, total] = await Promise.all([
+        prisma.cRMContact.findMany({
+          where,
+          skip,
+          take,
+          orderBy,
+          include: {
+            lead: { select: { id: true, code: true, companyName: true } },
+          },
+        }),
+        prisma.cRMContact.count({ where }),
+      ]);
+
+      this.paginatedResponse(res, contacts, total, page, pageSize);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getById = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      const contact = await prisma.cRMContact.findUnique({
+        where: { id },
+        include: {
+          lead: true,
+          activities: { orderBy: { activityDate: 'desc' }, take: 5 },
+        },
+      });
+
+      if (!contact) {
+        this.notFound(id);
+      }
+
+      this.successResponse(res, contact);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  create = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = req.body;
+
+      this.validateRequired(data, ['firstName']);
+
+      const contact = await prisma.cRMContact.create({
+        data: {
+          leadId: data.leadId,
+          customerId: data.customerId,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          title: data.title,
+          jobTitle: data.jobTitle,
+          department: data.department,
+          email: data.email,
+          phone: data.phone,
+          mobile: data.mobile,
+          linkedIn: data.linkedIn,
+          isPrimary: data.isPrimary || false,
+          doNotCall: data.doNotCall || false,
+          doNotEmail: data.doNotEmail || false,
+          notes: data.notes,
+          createdBy: req.user?.userId,
+        },
+      });
+
+      this.createdResponse(res, contact);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  update = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const data = req.body;
+
+      const existing = await prisma.cRMContact.findUnique({ where: { id } });
+      if (!existing) {
+        this.notFound(id);
+      }
+
+      const contact = await prisma.cRMContact.update({
+        where: { id },
+        data: {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          title: data.title,
+          jobTitle: data.jobTitle,
+          department: data.department,
+          email: data.email,
+          phone: data.phone,
+          mobile: data.mobile,
+          linkedIn: data.linkedIn,
+          isPrimary: data.isPrimary,
+          doNotCall: data.doNotCall,
+          doNotEmail: data.doNotEmail,
+          notes: data.notes,
+          isActive: data.isActive,
+          modifiedBy: req.user?.userId,
+        },
+      });
+
+      this.successResponse(res, contact, 'Contact updated successfully');
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  delete = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      const existing = await prisma.cRMContact.findUnique({ where: { id } });
+      if (!existing) {
+        this.notFound(id);
+      }
+
+      await prisma.cRMContact.update({
+        where: { id },
+        data: { isActive: false },
+      });
+
+      this.deletedResponse(res);
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+// =====================================================
+// ACTIVITY CONTROLLER
+// =====================================================
+
+export class ActivityController extends BaseController<any> {
+  protected modelName = 'Activity';
+
+  list = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { skip, take, page, pageSize } = this.getPagination(req);
+      const orderBy = this.getSorting(req, 'activityDate', 'desc');
+
+      const where: Prisma.CRMActivityWhereInput = {};
+
+      if (req.query.leadId) {
+        where.leadId = parseInt(req.query.leadId as string);
+      }
+
+      if (req.query.dealId) {
+        where.dealId = parseInt(req.query.dealId as string);
+      }
+
+      if (req.query.contactId) {
+        where.contactId = parseInt(req.query.contactId as string);
+      }
+
+      if (req.query.type) {
+        where.type = req.query.type as string;
+      }
+
+      if (req.query.status) {
+        where.status = req.query.status as string;
+      }
+
+      // Date range
+      const dateRange = this.getDateRange(req, 'activityDate');
+      if (dateRange) Object.assign(where, dateRange);
+
+      const [activities, total] = await Promise.all([
+        prisma.cRMActivity.findMany({
+          where,
+          skip,
+          take,
+          orderBy,
+          include: {
+            lead: { select: { id: true, code: true, companyName: true } },
+            contact: { select: { id: true, firstName: true, lastName: true } },
+            deal: { select: { id: true, code: true, name: true } },
+          },
+        }),
+        prisma.cRMActivity.count({ where }),
+      ]);
+
+      this.paginatedResponse(res, activities, total, page, pageSize);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getById = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      const activity = await prisma.cRMActivity.findUnique({
+        where: { id },
+        include: {
+          lead: true,
+          contact: true,
+          deal: true,
+        },
+      });
+
+      if (!activity) {
+        this.notFound(id);
+      }
+
+      this.successResponse(res, activity);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  create = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = req.body;
+
+      this.validateRequired(data, ['type', 'subject', 'activityDate']);
+
+      const activity = await prisma.cRMActivity.create({
+        data: {
+          leadId: data.leadId,
+          contactId: data.contactId,
+          dealId: data.dealId,
+          customerId: data.customerId,
+          type: data.type,
+          subject: data.subject,
+          description: data.description,
+          activityDate: new Date(data.activityDate),
+          dueDate: data.dueDate ? new Date(data.dueDate) : null,
+          duration: data.duration,
+          status: data.status || 'PLANNED',
+          priority: data.priority || 'NORMAL',
+          assignedTo: data.assignedTo,
+          outcome: data.outcome,
+          nextAction: data.nextAction,
+          createdBy: req.user?.userId,
+        },
+        include: {
+          lead: { select: { id: true, code: true, companyName: true } },
+          deal: { select: { id: true, code: true, name: true } },
+        },
+      });
+
+      this.createdResponse(res, activity);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  update = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const data = req.body;
+
+      const existing = await prisma.cRMActivity.findUnique({ where: { id } });
+      if (!existing) {
+        this.notFound(id);
+      }
+
+      const activity = await prisma.cRMActivity.update({
+        where: { id },
+        data: {
+          type: data.type,
+          subject: data.subject,
+          description: data.description,
+          activityDate: data.activityDate ? new Date(data.activityDate) : undefined,
+          dueDate: data.dueDate ? new Date(data.dueDate) : null,
+          duration: data.duration,
+          status: data.status,
+          priority: data.priority,
+          outcome: data.outcome,
+          nextAction: data.nextAction,
+          modifiedBy: req.user?.userId,
+        },
+      });
+
+      this.successResponse(res, activity, 'Activity updated successfully');
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  delete = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      const existing = await prisma.cRMActivity.findUnique({ where: { id } });
+      if (!existing) {
+        this.notFound(id);
+      }
+
+      await prisma.cRMActivity.delete({ where: { id } });
+
+      this.deletedResponse(res);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get recent activities for dashboard
+   */
+  getRecent = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const limit = Math.min(20, parseInt(req.query.limit as string) || 10);
+
+      const activities = await prisma.cRMActivity.findMany({
+        take: limit,
+        orderBy: { activityDate: 'desc' },
+        include: {
+          lead: { select: { id: true, code: true, companyName: true } },
+          deal: { select: { id: true, code: true, name: true } },
+        },
+      });
+
+      this.successResponse(res, activities);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get upcoming tasks/activities
+   */
+  getUpcoming = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const limit = Math.min(20, parseInt(req.query.limit as string) || 10);
+
+      const activities = await prisma.cRMActivity.findMany({
+        where: {
+          status: { in: ['PLANNED', 'IN_PROGRESS'] },
+          dueDate: { gte: new Date() },
+        },
+        take: limit,
+        orderBy: { dueDate: 'asc' },
+        include: {
+          lead: { select: { id: true, code: true, companyName: true } },
+          deal: { select: { id: true, code: true, name: true } },
+        },
+      });
+
+      this.successResponse(res, activities);
+    } catch (error) {
+      next(error);
+    }
+  };
+}
+
+// =====================================================
+// DEAL CONTROLLER
+// =====================================================
+
+export class DealController extends BaseController<any> {
+  protected modelName = 'Deal';
+
+  list = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { skip, take, page, pageSize } = this.getPagination(req);
+      const orderBy = this.getSorting(req, 'createdAt', 'desc');
+
+      const where: Prisma.CRMDealWhereInput = {
+        isActive: req.query.includeInactive === 'true' ? undefined : true,
+      };
+
+      if (req.query.search) {
+        const search = req.query.search as string;
+        where.OR = [
+          { code: { contains: search, mode: 'insensitive' } },
+          { name: { contains: search, mode: 'insensitive' } },
+        ];
+      }
+
+      if (req.query.stage) {
+        where.stage = req.query.stage as string;
+      }
+
+      if (req.query.leadId) {
+        where.leadId = parseInt(req.query.leadId as string);
+      }
+
+      if (req.query.salesAgentId) {
+        where.salesAgentId = parseInt(req.query.salesAgentId as string);
+      }
+
+      const [deals, total] = await Promise.all([
+        prisma.cRMDeal.findMany({
+          where,
+          skip,
+          take,
+          orderBy,
+          include: {
+            lead: { select: { id: true, code: true, companyName: true } },
+            salesAgent: true,
+            _count: { select: { activities: true } },
+          },
+        }),
+        prisma.cRMDeal.count({ where }),
+      ]);
+
+      this.paginatedResponse(res, deals, total, page, pageSize);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get deals grouped by stage (for pipeline view)
+   */
+  getPipeline = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const deals = await prisma.cRMDeal.findMany({
+        where: { isActive: true },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          lead: { select: { id: true, code: true, companyName: true } },
+          salesAgent: { select: { id: true, name: true } },
+        },
+      });
+
+      // Group by stage
+      const stages = ['PROSPECTING', 'QUALIFICATION', 'PROPOSAL', 'NEGOTIATION', 'CLOSED_WON', 'CLOSED_LOST'];
+      const pipeline = stages.map(stage => ({
+        stage,
+        deals: deals.filter(d => d.stage === stage),
+        totalValue: deals.filter(d => d.stage === stage).reduce((sum, d) => sum + Number(d.value), 0),
+        count: deals.filter(d => d.stage === stage).length,
+      }));
+
+      this.successResponse(res, pipeline);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getById = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      const deal = await prisma.cRMDeal.findUnique({
+        where: { id },
+        include: {
+          lead: true,
+          salesAgent: true,
+          activities: { orderBy: { activityDate: 'desc' }, take: 10 },
+        },
+      });
+
+      if (!deal) {
+        this.notFound(id);
+      }
+
+      this.successResponse(res, deal);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  create = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = req.body;
+
+      this.validateRequired(data, ['name']);
+
+      // Generate deal code if not provided
+      if (!data.code) {
+        const lastDeal = await prisma.cRMDeal.findFirst({
+          orderBy: { id: 'desc' },
+          select: { code: true },
+        });
+        const nextNum = lastDeal ? parseInt(lastDeal.code.replace('DEAL-', '')) + 1 : 1;
+        data.code = `DEAL-${String(nextNum).padStart(5, '0')}`;
+      }
+
+      const existing = await prisma.cRMDeal.findUnique({
+        where: { code: data.code.toUpperCase() },
+      });
+
+      if (existing) {
+        throw ConflictError(`Deal code ${data.code} already exists`);
+      }
+
+      const deal = await prisma.cRMDeal.create({
+        data: {
+          code: data.code.toUpperCase(),
+          name: data.name,
+          leadId: data.leadId,
+          customerId: data.customerId,
+          salesAgentId: data.salesAgentId,
+          stage: data.stage || 'PROSPECTING',
+          probability: data.probability || 0,
+          value: data.value || 0,
+          currency: data.currency || 'MYR',
+          expectedCloseDate: data.expectedCloseDate ? new Date(data.expectedCloseDate) : null,
+          description: data.description,
+          createdBy: req.user?.userId,
+        },
+        include: {
+          lead: { select: { id: true, code: true, companyName: true } },
+          salesAgent: true,
+        },
+      });
+
+      this.createdResponse(res, deal);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  update = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const data = req.body;
+
+      const existing = await prisma.cRMDeal.findUnique({ where: { id } });
+      if (!existing) {
+        this.notFound(id);
+      }
+
+      // Handle stage change to closed
+      const updateData: any = {
+        name: data.name,
+        stage: data.stage,
+        probability: data.probability,
+        value: data.value,
+        currency: data.currency,
+        expectedCloseDate: data.expectedCloseDate ? new Date(data.expectedCloseDate) : undefined,
+        description: data.description,
+        salesAgentId: data.salesAgentId,
+        isActive: data.isActive,
+        modifiedBy: req.user?.userId,
+      };
+
+      // Set actual close date when deal is won or lost
+      if (data.stage === 'CLOSED_WON' || data.stage === 'CLOSED_LOST') {
+        if (!existing.actualCloseDate) {
+          updateData.actualCloseDate = new Date();
+        }
+        if (data.stage === 'CLOSED_LOST' && data.lostReason) {
+          updateData.lostReason = data.lostReason;
+        }
+      }
+
+      const deal = await prisma.cRMDeal.update({
+        where: { id },
+        data: updateData,
+        include: {
+          lead: { select: { id: true, code: true, companyName: true } },
+          salesAgent: true,
+        },
+      });
+
+      this.successResponse(res, deal, 'Deal updated successfully');
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  delete = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+
+      const existing = await prisma.cRMDeal.findUnique({ where: { id } });
+      if (!existing) {
+        this.notFound(id);
+      }
+
+      await prisma.cRMDeal.update({
+        where: { id },
+        data: { isActive: false },
+      });
+
+      this.deletedResponse(res);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get dashboard stats
+   */
+  getStats = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const [
+        totalDeals,
+        openDeals,
+        wonDeals,
+        totalValue,
+        wonValue,
+        byStage,
+      ] = await Promise.all([
+        prisma.cRMDeal.count({ where: { isActive: true } }),
+        prisma.cRMDeal.count({ 
+          where: { 
+            isActive: true, 
+            stage: { notIn: ['CLOSED_WON', 'CLOSED_LOST'] } 
+          } 
+        }),
+        prisma.cRMDeal.count({ 
+          where: { isActive: true, stage: 'CLOSED_WON' } 
+        }),
+        prisma.cRMDeal.aggregate({
+          _sum: { value: true },
+          where: { isActive: true },
+        }),
+        prisma.cRMDeal.aggregate({
+          _sum: { value: true },
+          where: { isActive: true, stage: 'CLOSED_WON' },
+        }),
+        prisma.cRMDeal.groupBy({
+          by: ['stage'],
+          _count: { id: true },
+          _sum: { value: true },
+          where: { isActive: true },
+        }),
+      ]);
+
+      this.successResponse(res, {
+        totalDeals,
+        openDeals,
+        wonDeals,
+        totalValue: totalValue._sum.value || 0,
+        wonValue: wonValue._sum.value || 0,
+        byStage,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+}

@@ -1,0 +1,66 @@
+import { Router } from 'express';
+import { 
+  LeadController, 
+  ContactController, 
+  ActivityController, 
+  DealController 
+} from '../controllers/crm.controller';
+import { authenticate, requirePermission } from '../middleware/auth';
+
+const router = Router();
+
+const leadController = new LeadController();
+const contactController = new ContactController();
+const activityController = new ActivityController();
+const dealController = new DealController();
+
+// All routes require authentication
+router.use(authenticate);
+
+// =====================================================
+// LEAD ROUTES
+// =====================================================
+
+router.get('/leads', requirePermission('CRM', 'LEAD'), leadController.list);
+router.get('/leads/stats', requirePermission('CRM', 'LEAD'), leadController.getStats);
+router.get('/leads/:id', requirePermission('CRM', 'LEAD'), leadController.getById);
+router.post('/leads', requirePermission('CRM', 'LEAD'), leadController.create);
+router.put('/leads/:id', requirePermission('CRM', 'LEAD'), leadController.update);
+router.delete('/leads/:id', requirePermission('CRM', 'LEAD'), leadController.delete);
+router.post('/leads/:id/convert', requirePermission('CRM', 'LEAD'), leadController.convertToCustomer);
+
+// =====================================================
+// CONTACT ROUTES
+// =====================================================
+
+router.get('/contacts', requirePermission('CRM', 'CONTACT'), contactController.list);
+router.get('/contacts/:id', requirePermission('CRM', 'CONTACT'), contactController.getById);
+router.post('/contacts', requirePermission('CRM', 'CONTACT'), contactController.create);
+router.put('/contacts/:id', requirePermission('CRM', 'CONTACT'), contactController.update);
+router.delete('/contacts/:id', requirePermission('CRM', 'CONTACT'), contactController.delete);
+
+// =====================================================
+// ACTIVITY ROUTES
+// =====================================================
+
+router.get('/activities', requirePermission('CRM', 'ACTIVITY'), activityController.list);
+router.get('/activities/recent', requirePermission('CRM', 'ACTIVITY'), activityController.getRecent);
+router.get('/activities/upcoming', requirePermission('CRM', 'ACTIVITY'), activityController.getUpcoming);
+router.get('/activities/:id', requirePermission('CRM', 'ACTIVITY'), activityController.getById);
+router.post('/activities', requirePermission('CRM', 'ACTIVITY'), activityController.create);
+router.put('/activities/:id', requirePermission('CRM', 'ACTIVITY'), activityController.update);
+router.delete('/activities/:id', requirePermission('CRM', 'ACTIVITY'), activityController.delete);
+
+// =====================================================
+// DEAL ROUTES
+// =====================================================
+
+router.get('/deals', requirePermission('CRM', 'DEAL'), dealController.list);
+router.get('/deals/pipeline', requirePermission('CRM', 'DEAL'), dealController.getPipeline);
+router.get('/deals/stats', requirePermission('CRM', 'DEAL'), dealController.getStats);
+router.get('/deals/:id', requirePermission('CRM', 'DEAL'), dealController.getById);
+router.post('/deals', requirePermission('CRM', 'DEAL'), dealController.create);
+router.put('/deals/:id', requirePermission('CRM', 'DEAL'), dealController.update);
+router.delete('/deals/:id', requirePermission('CRM', 'DEAL'), dealController.delete);
+
+export default router;
