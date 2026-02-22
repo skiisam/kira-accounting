@@ -9,6 +9,18 @@ export class SalesController extends BaseController<any> {
   protected modelName = 'Sales';
   private documentService = new DocumentService();
 
+  // Helper to normalize data - accept both 'items' and 'details'
+  private normalizeData(data: any) {
+    if (data.items && !data.details) {
+      data.details = data.items;
+    }
+    // Also accept 'docDate' as alias for 'documentDate'
+    if (data.docDate && !data.documentDate) {
+      data.documentDate = data.docDate;
+    }
+    return data;
+  }
+
   // ==================== QUOTATIONS ====================
   
   listQuotations = async (req: Request, res: Response, next: NextFunction) => {
@@ -66,7 +78,7 @@ export class SalesController extends BaseController<any> {
 
   createQuotation = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = req.body;
+      const data = this.normalizeData(req.body);
       this.validateRequired(data, ['customerId', 'details']);
 
       const customer = await prisma.customer.findUnique({ where: { id: data.customerId } });
@@ -84,7 +96,7 @@ export class SalesController extends BaseController<any> {
   updateQuotation = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = parseInt(req.params.id);
-      const data = req.body;
+      const data = this.normalizeData(req.body);
 
       const existing = await prisma.salesHeader.findFirst({ where: { id, documentType: 'QUOTATION' } });
       if (!existing) this.notFound(id);
@@ -198,7 +210,7 @@ export class SalesController extends BaseController<any> {
 
   createOrder = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = req.body;
+      const data = this.normalizeData(req.body);
       this.validateRequired(data, ['customerId', 'details']);
 
       const customer = await prisma.customer.findUnique({ where: { id: data.customerId } });
@@ -274,7 +286,7 @@ export class SalesController extends BaseController<any> {
 
   createDeliveryOrder = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = req.body;
+      const data = this.normalizeData(req.body);
       this.validateRequired(data, ['customerId', 'details']);
 
       const customer = await prisma.customer.findUnique({ where: { id: data.customerId } });
@@ -352,7 +364,7 @@ export class SalesController extends BaseController<any> {
   };
   createInvoice = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = req.body;
+      const data = this.normalizeData(req.body);
       this.validateRequired(data, ['customerId', 'details']);
 
       const customer = await prisma.customer.findUnique({ where: { id: data.customerId } });
@@ -415,7 +427,7 @@ export class SalesController extends BaseController<any> {
   getCashSale = this.getQuotation;
   createCashSale = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = req.body;
+      const data = this.normalizeData(req.body);
       this.validateRequired(data, ['customerId', 'details', 'paidAmount']);
 
       const customer = await prisma.customer.findUnique({ where: { id: data.customerId } });
@@ -459,7 +471,7 @@ export class SalesController extends BaseController<any> {
   getCreditNote = this.getQuotation;
   createCreditNote = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = req.body;
+      const data = this.normalizeData(req.body);
       this.validateRequired(data, ['customerId', 'details']);
 
       const customer = await prisma.customer.findUnique({ where: { id: data.customerId } });
@@ -525,7 +537,7 @@ export class SalesController extends BaseController<any> {
 
   createDebitNote = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = req.body;
+      const data = this.normalizeData(req.body);
       this.validateRequired(data, ['customerId', 'details']);
 
       const customer = await prisma.customer.findUnique({ where: { id: data.customerId } });

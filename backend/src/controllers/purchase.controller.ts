@@ -9,6 +9,18 @@ export class PurchaseController extends BaseController<any> {
   protected modelName = 'Purchase';
   private documentService = new DocumentService();
 
+  // Helper to normalize data - accept both 'items' and 'details'
+  private normalizeData(data: any) {
+    if (data.items && !data.details) {
+      data.details = data.items;
+    }
+    // Also accept 'docDate' as alias for 'documentDate'
+    if (data.docDate && !data.documentDate) {
+      data.documentDate = data.docDate;
+    }
+    return data;
+  }
+
   // ==================== PURCHASE ORDERS ====================
 
   listOrders = async (req: Request, res: Response, next: NextFunction) => {
@@ -51,7 +63,7 @@ export class PurchaseController extends BaseController<any> {
 
   createOrder = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = req.body;
+      const data = this.normalizeData(req.body);
       this.validateRequired(data, ['vendorId', 'details']);
 
       const vendor = await prisma.vendor.findUnique({ where: { id: data.vendorId } });
@@ -69,7 +81,7 @@ export class PurchaseController extends BaseController<any> {
   updateOrder = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = parseInt(req.params.id);
-      const data = req.body;
+      const data = this.normalizeData(req.body);
 
       const existing = await prisma.purchaseHeader.findFirst({ where: { id, documentType: 'PURCHASE_ORDER' } });
       if (!existing) this.notFound(id);
@@ -196,7 +208,7 @@ export class PurchaseController extends BaseController<any> {
   
   createGRN = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = req.body;
+      const data = this.normalizeData(req.body);
       this.validateRequired(data, ['vendorId', 'details']);
 
       const vendor = await prisma.vendor.findUnique({ where: { id: data.vendorId } });
@@ -217,7 +229,7 @@ export class PurchaseController extends BaseController<any> {
   updateGRN = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = parseInt(req.params.id);
-      const data = req.body;
+      const data = this.normalizeData(req.body);
 
       const existing = await prisma.purchaseHeader.findFirst({ where: { id, documentType: 'GRN' } });
       if (!existing) this.notFound(id);
@@ -329,7 +341,7 @@ export class PurchaseController extends BaseController<any> {
 
   createInvoice = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = req.body;
+      const data = this.normalizeData(req.body);
       this.validateRequired(data, ['vendorId', 'details']);
 
       const vendor = await prisma.vendor.findUnique({ where: { id: data.vendorId } });
@@ -347,7 +359,7 @@ export class PurchaseController extends BaseController<any> {
   updateInvoice = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = parseInt(req.params.id);
-      const data = req.body;
+      const data = this.normalizeData(req.body);
 
       const existing = await prisma.purchaseHeader.findFirst({ where: { id, documentType: 'PURCHASE_INVOICE' } });
       if (!existing) this.notFound(id);
@@ -488,7 +500,7 @@ export class PurchaseController extends BaseController<any> {
 
   createCreditNote = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = req.body;
+      const data = this.normalizeData(req.body);
       this.validateRequired(data, ['vendorId', 'details']);
 
       const vendor = await prisma.vendor.findUnique({ where: { id: data.vendorId } });
@@ -506,7 +518,7 @@ export class PurchaseController extends BaseController<any> {
   updateCreditNote = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = parseInt(req.params.id);
-      const data = req.body;
+      const data = this.normalizeData(req.body);
 
       const existing = await prisma.purchaseHeader.findFirst({ where: { id, documentType: 'PURCHASE_CREDIT_NOTE' } });
       if (!existing) this.notFound(id);
@@ -613,7 +625,7 @@ export class PurchaseController extends BaseController<any> {
 
   createDebitNote = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const data = req.body;
+      const data = this.normalizeData(req.body);
       this.validateRequired(data, ['vendorId', 'details']);
 
       const vendor = await prisma.vendor.findUnique({ where: { id: data.vendorId } });
@@ -631,7 +643,7 @@ export class PurchaseController extends BaseController<any> {
   updateDebitNote = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = parseInt(req.params.id);
-      const data = req.body;
+      const data = this.normalizeData(req.body);
 
       const existing = await prisma.purchaseHeader.findFirst({ where: { id, documentType: 'PURCHASE_DEBIT_NOTE' } });
       if (!existing) this.notFound(id);

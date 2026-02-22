@@ -144,7 +144,32 @@ export class ProductController extends BaseController<any> {
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const data = req.body;
-      this.validateRequired(data, ['code', 'description', 'baseUOMId']);
+      this.validateRequired(data, ['code']);
+
+      // Auto-fill description from name if not provided
+      if (!data.description && data.name) {
+        data.description = data.name;
+      }
+      if (!data.description) {
+        throw BadRequestError('Product name or description is required');
+      }
+
+      // Auto-resolve baseUOMId from uomCode if not provided
+      if (!data.baseUOMId && data.uomCode) {
+        const uom = await prisma.uOM.findUnique({ where: { code: data.uomCode } });
+        if (uom) {
+          data.baseUOMId = uom.id;
+        }
+      }
+      if (!data.baseUOMId) {
+        // Default to PCS if available
+        const defaultUOM = await prisma.uOM.findFirst({ where: { code: 'PCS' } });
+        if (defaultUOM) {
+          data.baseUOMId = defaultUOM.id;
+        } else {
+          throw BadRequestError('UOM is required. Please create UOMs first or specify uomCode/baseUOMId.');
+        }
+      }
 
       const existing = await prisma.product.findUnique({ where: { code: data.code.toUpperCase() } });
       if (existing) throw ConflictError(`Product code ${data.code} already exists`);
