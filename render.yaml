@@ -13,7 +13,7 @@ services:
     runtime: node
     plan: free
     buildCommand: cd backend && npm install && npx prisma generate && npm run build
-    startCommand: cd backend && npx prisma migrate deploy && npx prisma db seed || true && npm start
+    startCommand: cd backend && npx prisma db push --accept-data-loss && npx prisma db seed || true && npm start
     envVars:
       - key: NODE_ENV
         value: production
