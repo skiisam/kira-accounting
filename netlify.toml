@@ -1,0 +1,13 @@
+[build]
+  base = "frontend"
+  publish = "dist"
+  command = "npm install && npm run build"
+
+[build.environment]
+  NODE_VERSION = "20"
+  VITE_API_URL = "https://kira-api-n3lo.onrender.com/api/v1"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
