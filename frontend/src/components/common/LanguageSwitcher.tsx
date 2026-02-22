@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { languages } from '../../i18n';
-import { Globe, ChevronDown } from 'lucide-react';
+import { GlobeAltIcon, ChevronDownIcon } from '@heroicons/react/24/outline';
 
 export const LanguageSwitcher: React.FC = () => {
   const { i18n } = useTranslation();
@@ -20,9 +20,9 @@ export const LanguageSwitcher: React.FC = () => {
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
       >
-        <Globe className="w-4 h-4" />
+        <GlobeAltIcon className="w-4 h-4" />
         <span className="text-sm font-medium">{currentLang.flag} {currentLang.name}</span>
-        <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDownIcon className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
