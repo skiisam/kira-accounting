@@ -1,6 +1,6 @@
 # TRAE Accounting
 
-A full-featured business accounting software with 99% feature parity to AutoCount Accounting 2.2.
+A full-featured business accounting software with 99% feature parity to Malaysia Accounting standard.
 
 ## Features
 
