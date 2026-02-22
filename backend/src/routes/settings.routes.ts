@@ -98,6 +98,8 @@ router.get('/fiscal-years', settingsController.listFiscalYears);
 router.post('/fiscal-years', requireAdmin, settingsController.createFiscalYear);
 router.put('/fiscal-years/:id', requireAdmin, settingsController.updateFiscalYear);
 router.post('/fiscal-years/:id/close', requireAdmin, settingsController.closeFiscalYear);
+router.post('/fiscal-years/:id/lock', requireAdmin, settingsController.lockFiscalYear);
+router.get('/fiscal-year/check-lock', settingsController.checkFiscalYearLock);
 
 // Projects
 router.get('/projects', settingsController.listProjects);

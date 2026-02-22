@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { BackupController } from '../controllers/backup.controller';
-import { authenticate } from '../middleware/authenticate';
-import { requirePermission } from '../middleware/requirePermission';
+import { authenticate, requirePermission } from '../middleware/auth';
 
 const router = Router();
 const backupController = new BackupController();

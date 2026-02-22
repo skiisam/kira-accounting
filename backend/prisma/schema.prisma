@@ -1065,6 +1065,16 @@ model SalesHeader {
   isPrinted      Boolean  @default(false)
   printCount     Int      @default(0)
 
+  // E-Invoice (LHDN MyInvois)
+  einvoiceStatus      String?   @db.VarChar(20) // PENDING, SUBMITTED, VALID, INVALID, CANCELLED
+  einvoiceUUID        String?   @db.VarChar(50) // UUID from MyInvois
+  einvoiceLongId      String?   @db.VarChar(100) // Long ID for QR code
+  einvoiceSubmissionId String?  @db.VarChar(50) // Submission batch ID
+  einvoiceSubmittedAt DateTime?
+  einvoiceValidatedAt DateTime?
+  einvoiceErrorMsg    String?   @db.VarChar(500)
+  einvoiceQRUrl       String?   @db.VarChar(300)
+
   // Links
   sourceType  String? @db.VarChar(30)
   sourceId    Int?

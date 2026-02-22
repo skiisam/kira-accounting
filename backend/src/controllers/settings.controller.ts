@@ -510,6 +510,125 @@ export class SettingsController {
   updateFiscalYear = stubHandler('Update Fiscal Year');
   closeFiscalYear = stubHandler('Close Fiscal Year');
 
+  /**
+   * Lock a fiscal year to prevent editing/deleting transactions
+   * POST /api/v1/settings/fiscal-year/:id/lock
+   */
+  lockFiscalYear = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { lock = true } = req.body as { lock?: boolean };
+
+      // Find the fiscal year
+      const fiscalYear = await prisma.fiscalYear.findUnique({
+        where: { id },
+        include: { periods: true },
+      });
+
+      if (!fiscalYear) {
+        return res.status(404).json({
+          success: false,
+          error: { code: 'NOT_FOUND', message: 'Fiscal year not found' },
+        });
+      }
+
+      // Update fiscal year and all its periods in a transaction
+      const result = await prisma.$transaction(async (tx) => {
+        // Update the fiscal year's isClosed flag (used for locking)
+        await tx.fiscalYear.update({
+          where: { id },
+          data: {
+            isClosed: lock,
+            closedDate: lock ? new Date() : null,
+            closedBy: lock ? req.user?.userId : null,
+          },
+        });
+
+        // Lock/unlock all periods in this fiscal year
+        const periodResult = await tx.fiscalPeriod.updateMany({
+          where: { yearId: id },
+          data: {
+            isLocked: lock,
+            lockedDate: lock ? new Date() : null,
+            lockedBy: lock ? req.user?.userId : null,
+          },
+        });
+
+        return { periodsUpdated: periodResult.count };
+      });
+
+      res.json({
+        success: true,
+        data: {
+          id,
+          name: fiscalYear.name,
+          isLocked: lock,
+          periodsUpdated: result.periodsUpdated,
+        },
+        message: lock
+          ? `Fiscal year "${fiscalYear.name}" has been locked. Transactions in this period cannot be edited or deleted.`
+          : `Fiscal year "${fiscalYear.name}" has been unlocked.`,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Check if a date falls within a locked fiscal period
+   * GET /api/v1/settings/fiscal-year/check-lock?date=YYYY-MM-DD
+   */
+  checkFiscalYearLock = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const dateStr = req.query.date as string;
+      if (!dateStr) {
+        return res.status(400).json({
+          success: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Date parameter is required' },
+        });
+      }
+
+      const checkDate = new Date(dateStr);
+
+      // Find the fiscal period containing this date
+      const period = await prisma.fiscalPeriod.findFirst({
+        where: {
+          startDate: { lte: checkDate },
+          endDate: { gte: checkDate },
+        },
+        include: {
+          fiscalYear: true,
+        },
+      });
+
+      if (!period) {
+        return res.json({
+          success: true,
+          data: {
+            date: dateStr,
+            isLocked: false,
+            reason: 'No fiscal period found for this date',
+          },
+        });
+      }
+
+      const isLocked = period.isLocked || period.fiscalYear.isClosed;
+
+      res.json({
+        success: true,
+        data: {
+          date: dateStr,
+          isLocked,
+          fiscalYear: period.fiscalYear.name,
+          period: period.periodName || `Period ${period.periodNo}`,
+          reason: isLocked ? 'This fiscal period is locked' : null,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   // Projects
   listProjects = async (req: Request, res: Response, next: NextFunction) => {
     try {

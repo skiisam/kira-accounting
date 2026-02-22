@@ -13,6 +13,7 @@ import stockRoutes from './stock.routes';
 import journalRoutes from './journal.routes';
 import reportRoutes from './report.routes';
 import settingsRoutes from './settings.routes';
+import codeChangeRoutes from './codeChange.routes';
 import messagingRoutes from './messaging.routes';
 import backupRoutes from './backup.routes';
 // import crmRoutes from './crm.routes'; // TODO: Fix CRM models
@@ -36,6 +37,7 @@ router.use('/stock', stockRoutes);
 router.use('/journals', journalRoutes);
 router.use('/reports', reportRoutes);
 router.use('/settings', settingsRoutes);
+router.use('/settings/change-code', codeChangeRoutes);
 router.use('/messaging', messagingRoutes);
 router.use('/backup', backupRoutes);
 // router.use('/crm', crmRoutes); // TODO: Fix CRM models
