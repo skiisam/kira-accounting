@@ -1,0 +1,44 @@
+# Render Blueprint - KIRA Accounting
+# https://render.com/docs/blueprint-spec
+
+databases:
+  - name: kira-db
+    plan: free
+    databaseName: kira_accounting
+    user: kira
+
+services:
+  - type: web
+    name: kira-api
+    runtime: node
+    plan: free
+    buildCommand: cd backend && npm install && npx prisma generate && npm run build
+    startCommand: cd backend && npx prisma migrate deploy && npx prisma db seed || true && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: API_PREFIX
+        value: /api/v1
+      - key: DATABASE_URL
+        fromDatabase:
+          name: kira-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 24h
+      - key: JWT_REFRESH_EXPIRES_IN
+        value: 7d
+      - key: DEFAULT_CURRENCY
+        value: MYR
+      - key: DEFAULT_TAX_CODE
+        value: SR
+      - key: DEFAULT_TAX_RATE
+        value: "6"
+      - key: CORS_ORIGINS
+        value: https://kira-io.netlify.app,http://localhost:3000
+    healthCheckPath: /health
