@@ -4,6 +4,8 @@
 
 [build.environment]
   NODE_VERSION = "20"
+  VITE_API_URL = "https://kira-api-n3lo.onrender.com/api/v1"
+  VITE_DEMO_MODE = "false"
 
 # Redirect all routes to index.html for SPA
 [[redirects]]
