@@ -104,7 +104,19 @@ export class VendorController extends BaseController<any> {
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const data = req.body;
-      this.validateRequired(data, ['code', 'name', 'controlAccountId']);
+      this.validateRequired(data, ['code', 'name']);
+
+      // Auto-assign AP Control account if not provided
+      if (!data.controlAccountId) {
+        const apControl = await prisma.account.findFirst({
+          where: { specialType: 'AP_CONTROL' }
+        });
+        if (apControl) {
+          data.controlAccountId = apControl.id;
+        } else {
+          throw BadRequestError('No AP Control account found. Please create one in Chart of Accounts first.');
+        }
+      }
 
       const existing = await prisma.vendor.findUnique({ where: { code: data.code.toUpperCase() } });
       if (existing) throw ConflictError(`Vendor code ${data.code} already exists`);

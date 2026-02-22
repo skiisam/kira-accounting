@@ -174,7 +174,19 @@ export class CustomerController extends BaseController<any> {
       const data = req.body;
 
       // Validate required fields
-      this.validateRequired(data, ['code', 'name', 'controlAccountId']);
+      this.validateRequired(data, ['code', 'name']);
+
+      // Auto-assign AR Control account if not provided
+      if (!data.controlAccountId) {
+        const arControl = await prisma.account.findFirst({
+          where: { specialType: 'AR_CONTROL' }
+        });
+        if (arControl) {
+          data.controlAccountId = arControl.id;
+        } else {
+          throw BadRequestError('No AR Control account found. Please create one in Chart of Accounts first.');
+        }
+      }
 
       // Check for duplicate code
       const existing = await prisma.customer.findUnique({
