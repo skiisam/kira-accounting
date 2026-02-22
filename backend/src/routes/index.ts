@@ -16,6 +16,7 @@ import settingsRoutes from './settings.routes';
 import codeChangeRoutes from './codeChange.routes';
 import messagingRoutes from './messaging.routes';
 import backupRoutes from './backup.routes';
+import einvoiceRoutes from './einvoice.routes';
 // import crmRoutes from './crm.routes'; // TODO: Fix CRM models
 
 const router = Router();
@@ -40,6 +41,7 @@ router.use('/settings', settingsRoutes);
 router.use('/settings/change-code', codeChangeRoutes);
 router.use('/messaging', messagingRoutes);
 router.use('/backup', backupRoutes);
+router.use('/einvoice', einvoiceRoutes);
 // router.use('/crm', crmRoutes); // TODO: Fix CRM models
 
 export default router;

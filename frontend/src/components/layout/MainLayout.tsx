@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 import { isDemoMode } from '../../services/api';
+import LanguageSwitcher from '../common/LanguageSwitcher';
 import {
   HomeIcon,
   UsersIcon,
@@ -316,6 +317,11 @@ export default function MainLayout() {
             
             {/* User section */}
             <div className="flex items-center gap-4">
+              {/* Language Switcher */}
+              <div className="hidden sm:block">
+                <LanguageSwitcher />
+              </div>
+
               {/* Mobile theme toggle */}
               <div className="lg:hidden">
                 <button
