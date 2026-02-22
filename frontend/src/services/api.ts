@@ -2,9 +2,8 @@ import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../store/authStore';
 import * as mockData from './mockData';
 
-// Check if we're in demo mode (no backend available)
-const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true' || 
-  (typeof window !== 'undefined' && window.location.hostname.includes('netlify.app'));
+// Check if we're in demo mode (explicit opt-in only)
+const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
