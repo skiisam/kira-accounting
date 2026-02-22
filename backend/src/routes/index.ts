@@ -14,6 +14,7 @@ import journalRoutes from './journal.routes';
 import reportRoutes from './report.routes';
 import settingsRoutes from './settings.routes';
 import messagingRoutes from './messaging.routes';
+import backupRoutes from './backup.routes';
 // import crmRoutes from './crm.routes'; // TODO: Fix CRM models
 
 const router = Router();
@@ -36,6 +37,7 @@ router.use('/journals', journalRoutes);
 router.use('/reports', reportRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/messaging', messagingRoutes);
+router.use('/backup', backupRoutes);
 // router.use('/crm', crmRoutes); // TODO: Fix CRM models
 
 export default router;
