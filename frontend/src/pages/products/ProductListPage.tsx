@@ -43,6 +43,8 @@ export default function ProductListPage() {
       search,
       isActive: showInactive ? undefined : true,
     }),
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
   const deleteMutation = useMutation({

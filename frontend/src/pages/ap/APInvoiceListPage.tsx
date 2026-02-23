@@ -32,6 +32,8 @@ export default function APInvoiceListPage({ type = 'invoice' }: { type?: string 
   const { data, isLoading } = useQuery({
     queryKey: ['ap', type, page, search],
     queryFn: () => getPaginated<APDocument>(endpoint, { page, pageSize: 20, search }),
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
   const formatCurrency = (val: number) =>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { get, post, put } from '../../services/api';
 import {
@@ -45,6 +46,7 @@ interface VendorForm {
 export default function VendorFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -114,6 +116,8 @@ export default function VendorFormPage() {
         await post('/vendors', data);
         toast.success('Vendor created successfully');
       }
+      // Invalidate vendors list to auto-refresh
+      queryClient.invalidateQueries({ queryKey: ['vendors'] });
       navigate('/vendors');
     } catch (error: any) {
       toast.error(error.response?.data?.error?.message || 'Failed to save vendor');

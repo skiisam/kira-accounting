@@ -40,6 +40,8 @@ export default function SalesListPage({ type }: { type: string }) {
   const { data, isLoading } = useQuery({
     queryKey: ['sales', type, page, search],
     queryFn: () => getPaginated<SalesDocument>(config.endpoint, { page, pageSize: 20, search }),
+    refetchOnWindowFocus: true,
+    staleTime: 0, // Always refetch when returning to page
   });
 
   const formatCurrency = (val: number, currency: string = 'MYR') =>

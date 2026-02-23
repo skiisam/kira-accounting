@@ -217,6 +217,9 @@ export default function SalesFormPage() {
       return isEdit ? put(`${endpoint}/${id}`, data) : post(endpoint, data);
     },
     onSuccess: () => {
+      // Invalidate list query to auto-refresh
+      queryClient.invalidateQueries({ queryKey: ['sales', docType] });
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
       toast.success(isEdit ? 'Document updated' : 'Document created');
       navigate(-1);
     },

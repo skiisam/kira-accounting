@@ -18,6 +18,11 @@ export class AccountController extends BaseController<any> {
       };
 
       if (req.query.typeId) where.typeId = parseInt(req.query.typeId as string);
+      if (req.query.typeCode) {
+        // Find type by code and filter by that type
+        const accountType = await prisma.accountType.findUnique({ where: { code: req.query.typeCode as string } });
+        if (accountType) where.typeId = accountType.id;
+      }
       if (req.query.specialType) where.specialType = req.query.specialType as string;
       if (req.query.search) {
         where.OR = [

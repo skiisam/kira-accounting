@@ -42,6 +42,8 @@ export default function CustomerListPage() {
       search,
       isActive: showInactive ? undefined : true,
     }),
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
   const deleteMutation = useMutation({

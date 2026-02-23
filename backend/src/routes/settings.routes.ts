@@ -46,11 +46,15 @@ router.post('/tax-codes', requireAdmin, settingsController.createTaxCode);
 router.put('/tax-codes/:code', requireAdmin, settingsController.updateTaxCode);
 router.delete('/tax-codes/:code', requireAdmin, settingsController.deleteTaxCode);
 
-// UOM
+// UOM (support both /uom and /uoms)
 router.get('/uom', settingsController.listUOM);
+router.get('/uoms', settingsController.listUOM);
 router.post('/uom', requireAdmin, settingsController.createUOM);
+router.post('/uoms', requireAdmin, settingsController.createUOM);
 router.put('/uom/:id', requireAdmin, settingsController.updateUOM);
+router.put('/uoms/:id', requireAdmin, settingsController.updateUOM);
 router.delete('/uom/:id', requireAdmin, settingsController.deleteUOM);
+router.delete('/uoms/:id', requireAdmin, settingsController.deleteUOM);
 
 // Locations
 router.get('/locations', settingsController.listLocations);
@@ -81,6 +85,12 @@ router.get('/product-groups', settingsController.listProductGroups);
 router.post('/product-groups', requireAdmin, settingsController.createProductGroup);
 router.put('/product-groups/:id', requireAdmin, settingsController.updateProductGroup);
 router.delete('/product-groups/:id', requireAdmin, settingsController.deleteProductGroup);
+
+// Product Types
+router.get('/product-types', settingsController.listProductTypes);
+router.post('/product-types', requireAdmin, settingsController.createProductType);
+router.put('/product-types/:id', requireAdmin, settingsController.updateProductType);
+router.delete('/product-types/:id', requireAdmin, settingsController.deleteProductType);
 
 // Payment Methods
 router.get('/payment-methods', settingsController.listPaymentMethods);

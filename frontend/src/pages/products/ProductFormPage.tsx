@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { get, post, put } from '../../services/api';
 import {
@@ -59,6 +60,7 @@ const costingMethods = [
 export default function ProductFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [groups, setGroups] = useState<any[]>([]);
@@ -133,6 +135,8 @@ export default function ProductFormPage() {
         await post('/products', data);
         toast.success('Product created successfully');
       }
+      // Invalidate products list to auto-refresh
+      queryClient.invalidateQueries({ queryKey: ['products'] });
       navigate('/products');
     } catch (error: any) {
       toast.error(error.response?.data?.error?.message || 'Failed to save product');

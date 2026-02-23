@@ -552,6 +552,20 @@ export class SettingsController {
   updateProductGroup = stubHandler('Update Product Group');
   deleteProductGroup = stubHandler('Delete Product Group');
 
+  // Product Types
+  listProductTypes = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const types = await prisma.productType.findMany({ where: { isActive: true }, orderBy: { code: 'asc' } });
+      res.json({ success: true, data: types });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  createProductType = stubHandler('Create Product Type');
+  updateProductType = stubHandler('Update Product Type');
+  deleteProductType = stubHandler('Delete Product Type');
+
   // Payment Methods
   listPaymentMethods = async (req: Request, res: Response, next: NextFunction) => {
     try {

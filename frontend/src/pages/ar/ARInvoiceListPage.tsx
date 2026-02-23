@@ -32,6 +32,8 @@ export default function ARInvoiceListPage({ type = 'invoice' }: { type?: string 
   const { data, isLoading } = useQuery({
     queryKey: ['ar', type, page, search],
     queryFn: () => getPaginated<ARDocument>(endpoint, { page, pageSize: 20, search }),
+    refetchOnWindowFocus: true,
+    staleTime: 0,
   });
 
   const formatCurrency = (val: number) =>
