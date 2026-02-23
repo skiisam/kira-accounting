@@ -27,6 +27,7 @@ import {
   ArchiveBoxIcon,
   SparklesIcon,
   ChatBubbleLeftRightIcon,
+  DocumentCheckIcon,
   // UserGroupIcon, // TODO: CRM
 } from '@heroicons/react/24/outline';
 import {
@@ -115,8 +116,26 @@ const navigation = [
       { name: 'Journal Entries', href: '/gl/journals' },
     ],
   },
-  { name: 'Stock Balance', href: '/stock/balance', icon: ArchiveBoxIcon, color: 'from-lime-500 to-green-500' },
+  {
+    name: 'Stock',
+    icon: ArchiveBoxIcon,
+    color: 'from-lime-500 to-green-500',
+    children: [
+      { name: 'Stock Balance', href: '/stock/balance' },
+      { name: 'Stock Adjustment', href: '/stock/adjustment' },
+      { name: 'Stock Transfer', href: '/stock/transfer' },
+    ],
+  },
   { name: 'Reports', href: '/reports', icon: ChartPieIcon, color: 'from-indigo-500 to-violet-500' },
+  {
+    name: 'E-Invoice',
+    icon: DocumentCheckIcon,
+    color: 'from-cyan-500 to-teal-500',
+    children: [
+      { name: 'Dashboard', href: '/einvoice/dashboard' },
+      { name: 'E-Invoice List', href: '/einvoice/list' },
+    ],
+  },
   {
     name: 'AI Tools',
     icon: SparklesIcon,

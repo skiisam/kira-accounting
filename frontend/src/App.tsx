@@ -28,6 +28,10 @@ import APPaymentFormPage from './pages/ap/APPaymentFormPage';
 import AccountListPage from './pages/accounts/AccountListPage';
 import JournalListPage from './pages/journals/JournalListPage';
 import StockBalancePage from './pages/stock/StockBalancePage';
+import StockAdjustmentListPage from './pages/stock/StockAdjustmentListPage';
+import StockAdjustmentFormPage from './pages/stock/StockAdjustmentFormPage';
+import StockTransferListPage from './pages/stock/StockTransferListPage';
+import StockTransferFormPage from './pages/stock/StockTransferFormPage';
 import ReportsPage from './pages/reports/ReportsPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import AIScannerPage from './pages/ai/AIScannerPage';
@@ -35,6 +39,10 @@ import AIReportsPage from './pages/ai/AIReportsPage';
 import SocialSettingsPage from './pages/social/SocialSettingsPage';
 import SocialInboxPage from './pages/social/SocialInboxPage';
 import MessagingInboxPage from './pages/messaging/MessagingInboxPage';
+
+// E-Invoice Pages
+import EInvoiceDashboardPage from './pages/einvoice/EInvoiceDashboardPage';
+import EInvoiceListPage from './pages/einvoice/EInvoiceListPage';
 
 // CRM Pages - TODO: Fix CRM models
 // import LeadListPage from './pages/crm/LeadListPage';
@@ -133,6 +141,12 @@ export default function App() {
 
         {/* Stock */}
         <Route path="/stock/balance" element={<StockBalancePage />} />
+        <Route path="/stock/adjustment" element={<StockAdjustmentListPage />} />
+        <Route path="/stock/adjustment/new" element={<StockAdjustmentFormPage />} />
+        <Route path="/stock/adjustment/:id" element={<StockAdjustmentFormPage />} />
+        <Route path="/stock/transfer" element={<StockTransferListPage />} />
+        <Route path="/stock/transfer/new" element={<StockTransferFormPage />} />
+        <Route path="/stock/transfer/:id" element={<StockTransferFormPage />} />
 
         {/* Reports */}
         <Route path="/reports" element={<ReportsPage />} />
@@ -151,6 +165,11 @@ export default function App() {
 
         {/* Messaging */}
         <Route path="/messaging/inbox" element={<MessagingInboxPage />} />
+
+        {/* E-Invoice */}
+        <Route path="/einvoice" element={<EInvoiceDashboardPage />} />
+        <Route path="/einvoice/dashboard" element={<EInvoiceDashboardPage />} />
+        <Route path="/einvoice/list" element={<EInvoiceListPage />} />
 
         {/* CRM - TODO: Fix CRM models
         <Route path="/crm/leads" element={<LeadListPage />} />
