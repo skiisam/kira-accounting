@@ -40,5 +40,5 @@ services:
       - key: DEFAULT_TAX_RATE
         value: "6"
       - key: CORS_ORIGINS
-        value: https://kira-io.netlify.app,http://localhost:3000
+        value: https://kira-io.netlify.app,https://kira-erp.vercel.app,https://kira-accounting.vercel.app,https://kira-io.vercel.app,http://localhost:3000
     healthCheckPath: /health
