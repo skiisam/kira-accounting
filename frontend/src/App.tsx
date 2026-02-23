@@ -22,8 +22,10 @@ import SalesFormPage from './pages/sales/SalesFormPage';
 import PurchaseListPage from './pages/purchases/PurchaseListPage';
 import PurchaseFormPage from './pages/purchases/PurchaseFormPage';
 import ARInvoiceListPage from './pages/ar/ARInvoiceListPage';
+import ARInvoiceFormPage from './pages/ar/ARInvoiceFormPage';
 import ARPaymentFormPage from './pages/ar/ARPaymentFormPage';
 import APInvoiceListPage from './pages/ap/APInvoiceListPage';
+import APInvoiceFormPage from './pages/ap/APInvoiceFormPage';
 import APPaymentFormPage from './pages/ap/APPaymentFormPage';
 import AccountListPage from './pages/accounts/AccountListPage';
 import JournalListPage from './pages/journals/JournalListPage';
@@ -128,12 +130,14 @@ export default function App() {
 
         {/* AR */}
         <Route path="/ar/invoices" element={<ARInvoiceListPage />} />
+        <Route path="/ar/invoices/:id" element={<ARInvoiceFormPage />} />
         <Route path="/ar/payments" element={<ARInvoiceListPage type="payment" />} />
         <Route path="/ar/payments/new" element={<ARPaymentFormPage />} />
         <Route path="/ar/payments/:id" element={<ARPaymentFormPage />} />
 
         {/* AP */}
         <Route path="/ap/invoices" element={<APInvoiceListPage />} />
+        <Route path="/ap/invoices/:id" element={<APInvoiceFormPage />} />
         <Route path="/ap/payments" element={<APInvoiceListPage type="payment" />} />
         <Route path="/ap/payments/new" element={<APPaymentFormPage />} />
         <Route path="/ap/payments/:id" element={<APPaymentFormPage />} />

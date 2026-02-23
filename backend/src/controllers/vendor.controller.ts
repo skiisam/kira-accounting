@@ -200,15 +200,27 @@ export class VendorController extends BaseController<any> {
       const existing = await prisma.vendor.findUnique({ where: { id } });
       if (!existing) this.notFound(id);
 
-      const hasTransactions = await prisma.purchaseHeader.findFirst({ where: { vendorId: id } });
+      // Check for related transactions (purchases, AP invoices, payments)
+      const [purchaseCount, apInvoiceCount] = await Promise.all([
+        prisma.purchaseHeader.count({ where: { vendorId: id } }),
+        prisma.aPInvoice.count({ where: { vendorId: id } }),
+      ]);
 
-      if (hasTransactions) {
-        await prisma.vendor.update({ where: { id }, data: { isActive: false } });
-        this.successResponse(res, null, 'Vendor deactivated (has transactions)');
-      } else {
-        await prisma.vendor.delete({ where: { id } });
-        this.deletedResponse(res);
+      const totalTransactions = purchaseCount + apInvoiceCount;
+
+      if (totalTransactions > 0) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'HAS_TRANSACTIONS',
+            message: `Cannot delete vendor "${existing!.code}" - has ${totalTransactions} transaction(s). Deactivate instead.`,
+          },
+        });
       }
+
+      // Safe to hard delete
+      await prisma.vendor.delete({ where: { id } });
+      this.deletedResponse(res);
     } catch (error) {
       next(error);
     }

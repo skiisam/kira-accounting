@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   BanknotesIcon,
   CreditCardIcon,
@@ -7,7 +8,6 @@ import {
   PlusIcon,
   DocumentTextIcon,
   ClipboardDocumentListIcon,
-  // TruckIcon,
   ArrowTrendingUpIcon,
   ExclamationTriangleIcon,
   ClockIcon,
@@ -24,85 +24,94 @@ interface DashboardStats {
   dealsValue: number;
 }
 
-const stats = [
-  { 
-    name: 'AR Outstanding', 
-    key: 'arOutstanding', 
-    icon: BanknotesIcon, 
-    gradient: 'from-cyan-500 to-blue-600',
-    shadowColor: 'shadow-blue-500/30',
-    trend: '+12%',
-    trendUp: true,
-  },
-  { 
-    name: 'AP Outstanding', 
-    key: 'apOutstanding', 
-    icon: CreditCardIcon, 
-    gradient: 'from-rose-500 to-pink-600',
-    shadowColor: 'shadow-pink-500/30',
-    trend: '-5%',
-    trendUp: false,
-  },
-  { 
-    name: 'Sales This Month', 
-    key: 'salesThisMonth', 
-    icon: ShoppingCartIcon, 
-    gradient: 'from-emerald-500 to-teal-600',
-    shadowColor: 'shadow-emerald-500/30',
-    trend: '+24%',
-    trendUp: true,
-  },
-  { 
-    name: 'Low Stock Items', 
-    key: 'lowStockItems', 
-    icon: CubeIcon, 
-    gradient: 'from-amber-500 to-orange-600',
-    shadowColor: 'shadow-orange-500/30',
-    trend: '3 new',
-    trendUp: false,
-  },
-  { 
-    name: 'Active Leads', 
-    key: 'totalLeads', 
-    icon: UserGroupIcon, 
-    gradient: 'from-purple-500 to-pink-600',
-    shadowColor: 'shadow-purple-500/30',
-    trend: '+8',
-    trendUp: true,
-    isNumber: true,
-  },
-  { 
-    name: 'Pipeline Value', 
-    key: 'dealsValue', 
-    icon: CurrencyDollarIcon, 
-    gradient: 'from-indigo-500 to-violet-600',
-    shadowColor: 'shadow-indigo-500/30',
-    trend: '+18%',
-    trendUp: true,
-  },
-];
-
-const quickActions = [
-  { name: 'New Invoice', href: '/sales/new/invoice', icon: DocumentTextIcon, color: 'from-blue-500 to-indigo-600' },
-  { name: 'New Quotation', href: '/sales/new/quotation', icon: ClipboardDocumentListIcon, color: 'from-emerald-500 to-teal-600' },
-  { name: 'New Lead', href: '/crm/leads/new', icon: UserGroupIcon, color: 'from-purple-500 to-pink-600' },
-  { name: 'New Deal', href: '/crm/deals/new', icon: CurrencyDollarIcon, color: 'from-indigo-500 to-violet-600' },
-];
-
-const recentActivity = [
-  { type: 'invoice', doc: 'INV-000123', status: 'Posted', statusColor: 'badge-success' },
-  { type: 'receipt', doc: 'OR-000045', status: 'RM 5,000', statusColor: 'badge-info' },
-  { type: 'po', doc: 'PO-000089', status: 'Pending', statusColor: 'badge-warning' },
-  { type: 'grn', doc: 'GRN-000034', status: 'Received', statusColor: 'badge-success' },
-];
-
-const alerts = [
-  { type: 'warning', icon: ExclamationTriangleIcon, message: '12 products are below reorder level', bgColor: 'bg-amber-50 dark:bg-amber-900/20', textColor: 'text-amber-800 dark:text-amber-300', iconColor: 'text-amber-500' },
-  { type: 'danger', icon: ClockIcon, message: '5 invoices are overdue', bgColor: 'bg-red-50 dark:bg-red-900/20', textColor: 'text-red-800 dark:text-red-300', iconColor: 'text-red-500' },
-  { type: 'info', icon: ClipboardDocumentListIcon, message: '3 quotations expiring this week', bgColor: 'bg-blue-50 dark:bg-blue-900/20', textColor: 'text-blue-800 dark:text-blue-300', iconColor: 'text-blue-500' },
-];
-
 export default function DashboardPage() {
+  const { t } = useTranslation();
+
+  // Stats configuration with translation keys
+  const stats = [
+    { 
+      nameKey: 'dashboard.arOutstanding',
+      key: 'arOutstanding', 
+      icon: BanknotesIcon, 
+      gradient: 'from-cyan-500 to-blue-600',
+      shadowColor: 'shadow-blue-500/30',
+      trend: '+12%',
+      trendUp: true,
+      href: '/ar/invoices',
+    },
+    { 
+      nameKey: 'dashboard.apOutstanding',
+      key: 'apOutstanding', 
+      icon: CreditCardIcon, 
+      gradient: 'from-rose-500 to-pink-600',
+      shadowColor: 'shadow-pink-500/30',
+      trend: '-5%',
+      trendUp: false,
+      href: '/ap/invoices',
+    },
+    { 
+      nameKey: 'dashboard.salesThisMonth',
+      key: 'salesThisMonth', 
+      icon: ShoppingCartIcon, 
+      gradient: 'from-emerald-500 to-teal-600',
+      shadowColor: 'shadow-emerald-500/30',
+      trend: '+24%',
+      trendUp: true,
+      href: '/reports/sales-summary',
+    },
+    { 
+      nameKey: 'dashboard.lowStockItems',
+      key: 'lowStockItems', 
+      icon: CubeIcon, 
+      gradient: 'from-amber-500 to-orange-600',
+      shadowColor: 'shadow-orange-500/30',
+      trend: '3 new',
+      trendUp: false,
+      href: '/stock/balance',
+    },
+    { 
+      nameKey: 'dashboard.activeLeads',
+      key: 'totalLeads', 
+      icon: UserGroupIcon, 
+      gradient: 'from-purple-500 to-pink-600',
+      shadowColor: 'shadow-purple-500/30',
+      trend: '+8',
+      trendUp: true,
+      isNumber: true,
+      href: '/crm/leads',
+    },
+    { 
+      nameKey: 'dashboard.pipelineValue',
+      key: 'dealsValue', 
+      icon: CurrencyDollarIcon, 
+      gradient: 'from-indigo-500 to-violet-600',
+      shadowColor: 'shadow-indigo-500/30',
+      trend: '+18%',
+      trendUp: true,
+      href: '/crm/deals',
+    },
+  ];
+
+  const quickActions = [
+    { nameKey: 'dashboard.newInvoice', href: '/sales/new/invoice', icon: DocumentTextIcon, color: 'from-blue-500 to-indigo-600' },
+    { nameKey: 'dashboard.newQuotation', href: '/sales/new/quotation', icon: ClipboardDocumentListIcon, color: 'from-emerald-500 to-teal-600' },
+    { nameKey: 'dashboard.newLead', href: '/crm/leads/new', icon: UserGroupIcon, color: 'from-purple-500 to-pink-600' },
+    { nameKey: 'dashboard.newDeal', href: '/crm/deals/new', icon: CurrencyDollarIcon, color: 'from-indigo-500 to-violet-600' },
+  ];
+
+  const recentActivity = [
+    { type: 'invoice', doc: 'INV-000123', status: 'Posted', statusColor: 'badge-success' },
+    { type: 'receipt', doc: 'OR-000045', status: 'RM 5,000', statusColor: 'badge-info' },
+    { type: 'po', doc: 'PO-000089', status: 'Pending', statusColor: 'badge-warning' },
+    { type: 'grn', doc: 'GRN-000034', status: 'Received', statusColor: 'badge-success' },
+  ];
+
+  const alerts = [
+    { type: 'warning', icon: ExclamationTriangleIcon, messageKey: 'dashboard.productsBelow', count: 12, bgColor: 'bg-amber-50 dark:bg-amber-900/20', textColor: 'text-amber-800 dark:text-amber-300', iconColor: 'text-amber-500', href: '/stock/balance' },
+    { type: 'danger', icon: ClockIcon, messageKey: 'dashboard.invoicesOverdue', count: 5, bgColor: 'bg-red-50 dark:bg-red-900/20', textColor: 'text-red-800 dark:text-red-300', iconColor: 'text-red-500', href: '/ar/invoices' },
+    { type: 'info', icon: ClipboardDocumentListIcon, messageKey: 'dashboard.quotationsExpiring', count: 3, bgColor: 'bg-blue-50 dark:bg-blue-900/20', textColor: 'text-blue-800 dark:text-blue-300', iconColor: 'text-blue-500', href: '/sales/quotations' },
+  ];
+
   // In production, this would fetch real data
   const mockStats: DashboardStats = {
     arOutstanding: 125000,
@@ -126,11 +135,11 @@ export default function DashboardPage() {
     <div className="space-y-6">
       {/* Page Header */}
       <div className="page-header">
-        <h1 className="page-title">Dashboard</h1>
-        <p className="page-subtitle">Welcome back! Here's what's happening with your business.</p>
+        <h1 className="page-title">{t('dashboard.title')}</h1>
+        <p className="page-subtitle">{t('dashboard.welcome')}</p>
       </div>
 
-      {/* Stats Grid */}
+      {/* Stats Grid - Clickable */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {stats.map((stat, index) => {
           const value = mockStats[stat.key as keyof DashboardStats];
@@ -139,9 +148,10 @@ export default function DashboardPage() {
             : formatCurrency(value);
 
           return (
-            <div 
-              key={stat.name} 
-              className={`stat-card bg-gradient-to-br ${stat.gradient} shadow-xl ${stat.shadowColor} transform hover:scale-[1.02] transition-all duration-300`}
+            <Link 
+              key={stat.key} 
+              to={stat.href}
+              className={`stat-card bg-gradient-to-br ${stat.gradient} shadow-xl ${stat.shadowColor} transform hover:scale-[1.02] transition-all duration-300 cursor-pointer`}
               style={{ animationDelay: `${index * 100}ms` }}
             >
               {/* Background decoration */}
@@ -153,14 +163,14 @@ export default function DashboardPage() {
               
               {/* Content */}
               <div className="relative">
-                <p className="text-sm font-medium text-white/80 mb-1">{stat.name}</p>
+                <p className="text-sm font-medium text-white/80 mb-1">{t(stat.nameKey)}</p>
                 <p className="text-3xl font-bold text-white mb-2">{displayValue}</p>
                 <div className={`inline-flex items-center gap-1 text-xs font-medium ${stat.trendUp ? 'text-white/90' : 'text-white/70'}`}>
                   <ArrowTrendingUpIcon className={`w-3.5 h-3.5 ${!stat.trendUp && 'rotate-180'}`} />
-                  {stat.trend} from last month
+                  {stat.trend} {t('dashboard.fromLastMonth')}
                 </div>
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>
@@ -172,19 +182,19 @@ export default function DashboardPage() {
           <div className="card-header">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <PlusIcon className="w-5 h-5 text-primary-500" />
-              Quick Actions
+              {t('dashboard.quickActions')}
             </h2>
           </div>
           <div className="card-body">
             <div className="grid grid-cols-2 gap-3">
               {quickActions.map((action) => (
                 <Link
-                  key={action.name}
+                  key={action.nameKey}
                   to={action.href}
                   className={`flex items-center gap-3 p-4 rounded-xl bg-gradient-to-br ${action.color} text-white font-medium shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200`}
                 >
                   <action.icon className="w-5 h-5" />
-                  <span className="text-sm">{action.name}</span>
+                  <span className="text-sm">{t(action.nameKey)}</span>
                 </Link>
               ))}
             </div>
@@ -196,7 +206,7 @@ export default function DashboardPage() {
           <div className="card-header">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <ClockIcon className="w-5 h-5 text-primary-500" />
-              Recent Activity
+              {t('dashboard.recentActivity')}
             </h2>
           </div>
           <div className="card-body">
@@ -218,14 +228,14 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Charts Row - Placeholder */}
+      {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Sales Chart */}
         <div className="lg:col-span-2 card">
           <div className="card-header">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <ArrowTrendingUpIcon className="w-5 h-5 text-emerald-500" />
-              Sales Overview
+              {t('dashboard.salesOverview')}
             </h2>
           </div>
           <div className="card-body">
@@ -234,7 +244,7 @@ export default function DashboardPage() {
                 <div className="inline-flex p-4 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 text-white mb-3">
                   <ArrowTrendingUpIcon className="w-8 h-8" />
                 </div>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">Sales chart will be displayed here</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">{t('dashboard.salesChartPlaceholder')}</p>
               </div>
             </div>
           </div>
@@ -245,7 +255,7 @@ export default function DashboardPage() {
           <div className="card-header">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
               <CubeIcon className="w-5 h-5 text-purple-500" />
-              Top Products
+              {t('dashboard.topProducts')}
             </h2>
           </div>
           <div className="card-body">
@@ -262,7 +272,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="flex-1">
                     <p className="font-medium text-gray-900 dark:text-white text-sm">{product.name}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{product.sales} units sold</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">{product.sales} {t('dashboard.unitsSold')}</p>
                   </div>
                 </div>
               ))}
@@ -271,26 +281,29 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Alerts */}
+      {/* Alerts - Clickable */}
       <div className="card">
         <div className="card-header">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <ExclamationTriangleIcon className="w-5 h-5 text-amber-500" />
-            Alerts & Notifications
+            {t('dashboard.alertsNotifications')}
           </h2>
         </div>
         <div className="card-body">
           <div className="space-y-3">
             {alerts.map((alert, index) => (
-              <div 
+              <Link 
                 key={index}
+                to={alert.href}
                 className={`flex items-center gap-4 p-4 rounded-xl ${alert.bgColor} transition-all hover:scale-[1.01] cursor-pointer`}
               >
                 <div className={`p-2 rounded-lg bg-white/50 dark:bg-white/10 ${alert.iconColor}`}>
                   <alert.icon className="w-5 h-5" />
                 </div>
-                <span className={`text-sm font-medium ${alert.textColor}`}>{alert.message}</span>
-              </div>
+                <span className={`text-sm font-medium ${alert.textColor}`}>
+                  {alert.count} {t(alert.messageKey)}
+                </span>
+              </Link>
             ))}
           </div>
         </div>

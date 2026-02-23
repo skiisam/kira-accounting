@@ -259,17 +259,30 @@ export class ProductController extends BaseController<any> {
       const existing = await prisma.product.findUnique({ where: { id } });
       if (!existing) this.notFound(id);
 
-      const hasTransactions = await prisma.salesDetail.findFirst({ where: { productId: id } });
+      // Check for related transactions (sales, purchases, stock movements)
+      const [salesCount, purchaseCount, stockMoveCount] = await Promise.all([
+        prisma.salesDetail.count({ where: { productId: id } }),
+        prisma.purchaseDetail.count({ where: { productId: id } }),
+        prisma.stockMovement.count({ where: { productId: id } }),
+      ]);
 
-      if (hasTransactions) {
-        await prisma.product.update({ where: { id }, data: { isActive: false, isDiscontinued: true } });
-        this.successResponse(res, null, 'Product discontinued (has transactions)');
-      } else {
-        await prisma.productUOM.deleteMany({ where: { productId: id } });
-        await prisma.productLocation.deleteMany({ where: { productId: id } });
-        await prisma.product.delete({ where: { id } });
-        this.deletedResponse(res);
+      const totalTransactions = salesCount + purchaseCount + stockMoveCount;
+
+      if (totalTransactions > 0) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'HAS_TRANSACTIONS',
+            message: `Cannot delete product "${existing!.code}" - has ${totalTransactions} transaction(s). Deactivate instead.`,
+          },
+        });
       }
+
+      // Safe to hard delete
+      await prisma.productUOM.deleteMany({ where: { productId: id } });
+      await prisma.productLocation.deleteMany({ where: { productId: id } });
+      await prisma.product.delete({ where: { id } });
+      this.deletedResponse(res);
     } catch (error) {
       next(error);
     }

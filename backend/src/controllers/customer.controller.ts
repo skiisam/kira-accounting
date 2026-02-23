@@ -338,7 +338,7 @@ export class CustomerController extends BaseController<any> {
   };
 
   /**
-   * Delete customer (soft delete)
+   * Delete customer (with transaction check)
    */
   delete = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -353,25 +353,29 @@ export class CustomerController extends BaseController<any> {
         this.notFound(id);
       }
 
-      // Check for related transactions
-      const hasTransactions = await prisma.salesHeader.findFirst({
-        where: { customerId: id },
-      });
+      // Check for related transactions (sales, AR invoices, payments)
+      const [salesCount, arInvoiceCount] = await Promise.all([
+        prisma.salesHeader.count({ where: { customerId: id } }),
+        prisma.aRInvoice.count({ where: { customerId: id } }),
+      ]);
 
-      if (hasTransactions) {
-        // Soft delete
-        await prisma.customer.update({
-          where: { id },
-          data: { isActive: false },
+      const totalTransactions = salesCount + arInvoiceCount;
+
+      if (totalTransactions > 0) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'HAS_TRANSACTIONS',
+            message: `Cannot delete customer "${existing!.code}" - has ${totalTransactions} transaction(s). Deactivate instead.`,
+          },
         });
-        this.successResponse(res, null, 'Customer deactivated (has transactions)');
-      } else {
-        // Hard delete
-        await prisma.customer.delete({
-          where: { id },
-        });
-        this.deletedResponse(res);
       }
+
+      // Safe to hard delete
+      await prisma.customer.delete({
+        where: { id },
+      });
+      this.deletedResponse(res);
     } catch (error) {
       next(error);
     }
