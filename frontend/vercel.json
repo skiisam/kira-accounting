@@ -12,6 +12,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://kira-api-n3lo.onrender.com/api/:path*"
+    },
+    {
+      "source": "/((?!assets|favicon).*)",
+      "destination": "/index.html"
     }
   ]
 }
