@@ -6,6 +6,7 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import UserGroupsPage from './UserGroupsPage';
 import MessagingSettingsPage from './MessagingSettingsPage';
+import GlobalChangeCodePage from './GlobalChangeCodePage';
 import { usePermissions, MODULES } from '../../hooks/usePermissions';
 
 // Navigation items with permission requirements
@@ -20,6 +21,7 @@ const settingsNavItems = [
   { name: 'UOM', path: 'uom', requiresEdit: false },
   { name: 'Document Series', path: 'document-series', requiresEdit: false },
   { name: 'Fiscal Years', path: 'fiscal-years', requiresEdit: false },
+  { name: 'Change Code', path: 'change-code', requiresEdit: true },
   { name: 'Messaging', path: 'messaging', requiresEdit: false },
 ];
 
@@ -287,6 +289,7 @@ export default function SettingsPage() {
                   { key: 'isClosed', header: 'Closed', render: (r: any) => r.isClosed ? 'Yes' : 'No' },
                 ]} />
               } />
+              <Route path="change-code" element={canEditSettings ? <GlobalChangeCodePage /> : <NoAccess />} />
               <Route path="messaging" element={<MessagingSettingsPage />} />
             </Routes>
           </div>
