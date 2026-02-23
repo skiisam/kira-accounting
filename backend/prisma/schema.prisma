@@ -469,12 +469,13 @@ model Customer {
   salesAgent     SalesAgent? @relation(fields: [salesAgentId], references: [id])
   area           Area?       @relation(fields: [areaId], references: [id])
 
-  branches     CustomerBranch[]
-  arInvoices   ARInvoice[]
-  arPayments   ARPayment[]
-  salesHeaders SalesHeader[]
-  projects     Project[]
-  crmLeads     CRMLead[]
+  branches        CustomerBranch[]
+  arInvoices      ARInvoice[]
+  arPayments      ARPayment[]
+  salesHeaders    SalesHeader[]
+  projects        Project[]
+  crmLeads        CRMLead[]
+  cashBookEntries CashBookEntry[]
 
   @@map("customers")
 }
@@ -1715,4 +1716,82 @@ model MessagingInquiry {
   processedAt    DateTime?
   
   @@map("messaging_inquiries")
+}
+
+// =====================================================
+// CASH BOOK
+// =====================================================
+
+model CashBookEntry {
+  id              Int       @id @default(autoincrement())
+  documentNo      String    @unique @db.VarChar(30)
+  documentDate    DateTime
+  transactionType String    @db.VarChar(20) // AR_RECEIPT, AP_PAYMENT, PAYMENT_VOUCHER, OTHER_RECEIPT
+  
+  // Payment Details
+  paymentMethodId Int
+  bankAccountId   Int?
+  chequeNo        String?   @db.VarChar(50)
+  chequeDate      DateTime?
+  reference       String?   @db.VarChar(50)
+  description     String?   @db.VarChar(500)
+  
+  // Party (depends on type)
+  customerId      Int?      // For AR_RECEIPT
+  vendorId        Int?      // For AP_PAYMENT
+  customerCode    String?   @db.VarChar(20)
+  customerName    String?   @db.VarChar(200)
+  vendorCode      String?   @db.VarChar(20)
+  vendorName      String?   @db.VarChar(200)
+  
+  // Account (for PAYMENT_VOUCHER / OTHER_RECEIPT)
+  accountId       Int?
+  accountNo       String?   @db.VarChar(20)
+  accountName     String?   @db.VarChar(200)
+  
+  // Amounts
+  amount          Decimal   @default(0) @db.Decimal(18, 2)
+  bankChargeAmount Decimal  @default(0) @db.Decimal(18, 2)
+  
+  // Currency
+  currencyCode    String    @default("MYR") @db.VarChar(10)
+  exchangeRate    Decimal   @default(1) @db.Decimal(18, 6)
+  amountLocal     Decimal   @default(0) @db.Decimal(18, 2)
+  
+  // Status
+  isPosted        Boolean   @default(true)
+  isVoid          Boolean   @default(false)
+  isPrinted       Boolean   @default(false)
+  printCount      Int       @default(0)
+  journalId       Int?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  createdBy       Int?
+  modifiedBy      Int?
+  
+  customer        Customer?       @relation(fields: [customerId], references: [id])
+  vendor          Vendor?         @relation(fields: [vendorId], references: [id])
+  paymentMethod   PaymentMethod   @relation(fields: [paymentMethodId], references: [id])
+  knockoffs       CashBookKnockoff[]
+  
+  @@map("cashbook_entries")
+}
+
+model CashBookKnockoff {
+  id                Int       @id @default(autoincrement())
+  cashBookEntryId   Int
+  documentType      String    @db.VarChar(20) // AR_INVOICE, AR_CN, AR_DN, AP_INVOICE, AP_CN, AP_DN
+  documentId        Int
+  documentNo        String    @db.VarChar(30)
+  documentDate      DateTime?
+  documentAmount    Decimal   @default(0) @db.Decimal(18, 2)
+  outstandingBefore Decimal   @default(0) @db.Decimal(18, 2)
+  knockoffAmount    Decimal   @default(0) @db.Decimal(18, 2)
+  outstandingAfter  Decimal   @default(0) @db.Decimal(18, 2)
+  gainLossAmount    Decimal   @default(0) @db.Decimal(18, 2)
+  
+  cashBookEntry     CashBookEntry @relation(fields: [cashBookEntryId], references: [id], onDelete: Cascade)
+  
+  @@map("cashbook_knockoffs")
 }

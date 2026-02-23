@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { get, post, put } from '../../services/api';
-import { PlusIcon, TrashIcon, MagnifyingGlassIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TrashIcon, MagnifyingGlassIcon, DocumentDuplicateIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import TransferDialog from '../../components/sales/TransferDialog';
 import { SendMessageButtons } from '../../components/common/SendMessageDialog';
 
@@ -79,6 +79,7 @@ export default function SalesFormPage() {
   const [customerError, setCustomerError] = useState('');
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [selectedTransfer, setSelectedTransfer] = useState<{ target: string; label: string } | null>(null);
+  const [voidModalOpen, setVoidModalOpen] = useState(false);
   
   // Get transfer data from navigation state
   const transferFrom = (location.state as any)?.transferFrom;
@@ -241,12 +242,31 @@ export default function SalesFormPage() {
     onError: (err: any) => toast.error(err.response?.data?.error?.message || 'Post failed'),
   });
 
+  const voidMutation = useMutation({
+    mutationFn: () => post(`/sales/${typeEndpoints[docType]}/${id}/void`),
+    onSuccess: () => {
+      toast.success('Document voided successfully');
+      queryClient.invalidateQueries({ queryKey: ['sales'] });
+      navigate(-1);
+    },
+    onError: (err: any) => toast.error(err.response?.data?.error?.message || 'Failed to void document'),
+  });
+
+  const handleVoid = () => {
+    setVoidModalOpen(true);
+  };
+
+  const confirmVoid = () => {
+    voidMutation.mutate();
+  };
+
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('en-MY', { style: 'currency', currency: 'MYR' }).format(val);
 
   const canTransfer = isEdit && transferTargets[docType] && existingDoc?.status === 'OPEN';
   const canPost = isEdit && docType === 'invoice' && !existingDoc?.isPosted && existingDoc?.status === 'OPEN';
   const canSendMessage = isEdit && (docType === 'invoice' || docType === 'quotation');
+  const canVoid = isEdit && existingDoc?.status !== 'VOID';
 
   return (
     <div>
@@ -290,6 +310,16 @@ export default function SalesFormPage() {
               className="btn btn-success text-sm"
             >
               {postMutation.isPending ? 'Posting...' : 'Post to AR'}
+            </button>
+          )}
+          {canVoid && (
+            <button
+              type="button"
+              onClick={handleVoid}
+              className="btn bg-red-600 hover:bg-red-700 text-white text-sm"
+            >
+              <XCircleIcon className="w-4 h-4 mr-1" />
+              Void
             </button>
           )}
         </div>
@@ -490,6 +520,37 @@ export default function SalesFormPage() {
           targetLabel={selectedTransfer.label}
           endpoint={typeEndpoints[docType]}
         />
+      )}
+
+      {/* Void Confirmation Modal */}
+      {voidModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setVoidModalOpen(false)} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Void {typeLabels[docType]}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Are you sure you want to void <strong>{existingDoc?.documentNo}</strong>?
+              This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setVoidModalOpen(false)}
+                className="btn btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmVoid}
+                disabled={voidMutation.isPending}
+                className="btn bg-red-600 hover:bg-red-700 text-white"
+              >
+                {voidMutation.isPending ? 'Voiding...' : 'Void Document'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -180,7 +180,7 @@ export class APController extends BaseController<any> {
         include: { knockoffs: true },
       });
 
-      // Update invoice outstanding amounts
+      // Update document outstanding amounts based on document type
       for (const k of data.knockoffs) {
         if (k.documentType === 'INVOICE') {
           await prisma.aPInvoice.update({
@@ -189,6 +189,17 @@ export class APController extends BaseController<any> {
               paidAmount: { increment: k.knockoffAmount },
               outstandingAmount: { decrement: k.knockoffAmount },
               status: k.outstandingBefore - k.knockoffAmount <= 0 ? 'PAID' : 'PARTIAL',
+            },
+          });
+        } else if (k.documentType === 'CREDIT_NOTE' || k.documentType === 'DEBIT_NOTE') {
+          // For CN/DN, update PurchaseHeader status
+          const absKnockoff = Math.abs(k.knockoffAmount);
+          const absOutstanding = Math.abs(k.outstandingBefore);
+          await prisma.purchaseHeader.update({
+            where: { id: k.documentId },
+            data: {
+              paidAmount: { increment: absKnockoff },
+              status: absOutstanding - absKnockoff <= 0.01 ? 'CLOSED' : 'PARTIAL',
             },
           });
         }
@@ -290,13 +301,84 @@ export class APController extends BaseController<any> {
     try {
       const vendorId = parseInt(req.params.vendorId);
 
+      // Fetch outstanding AP Invoices
       const invoices = await prisma.aPInvoice.findMany({
         where: { vendorId, status: { in: ['OPEN', 'PARTIAL'] }, isVoid: false },
         select: { id: true, invoiceNo: true, invoiceDate: true, dueDate: true, netTotal: true, outstandingAmount: true },
         orderBy: { invoiceDate: 'asc' },
       });
 
-      this.successResponse(res, invoices);
+      // Fetch outstanding Credit Notes (reduce amount owed to vendor)
+      const creditNotes = await prisma.purchaseHeader.findMany({
+        where: {
+          vendorId,
+          documentType: 'CREDIT_NOTE',
+          status: { in: ['OPEN', 'PARTIAL'] },
+          isVoid: false,
+        },
+        select: {
+          id: true,
+          documentNo: true,
+          documentDate: true,
+          dueDate: true,
+          netTotal: true,
+        },
+        orderBy: { documentDate: 'asc' },
+      });
+
+      // Fetch outstanding Debit Notes (increase amount owed to vendor)
+      const debitNotes = await prisma.purchaseHeader.findMany({
+        where: {
+          vendorId,
+          documentType: 'DEBIT_NOTE',
+          status: { in: ['OPEN', 'PARTIAL'] },
+          isVoid: false,
+        },
+        select: {
+          id: true,
+          documentNo: true,
+          documentDate: true,
+          dueDate: true,
+          netTotal: true,
+        },
+        orderBy: { documentDate: 'asc' },
+      });
+
+      // Combine all documents with type indicator
+      const documents = [
+        ...invoices.map(inv => ({
+          id: inv.id,
+          documentType: 'INVOICE' as const,
+          invoiceNo: inv.invoiceNo,
+          invoiceDate: inv.invoiceDate,
+          dueDate: inv.dueDate,
+          netTotal: Number(inv.netTotal),
+          outstandingAmount: Number(inv.outstandingAmount),
+        })),
+        ...creditNotes.map(cn => ({
+          id: cn.id,
+          documentType: 'CREDIT_NOTE' as const,
+          invoiceNo: cn.documentNo,
+          invoiceDate: cn.documentDate,
+          dueDate: cn.dueDate,
+          netTotal: -Number(cn.netTotal), // Negative for CN (reduces payable)
+          outstandingAmount: -Number(cn.netTotal), // CN fully outstanding until knocked off
+        })),
+        ...debitNotes.map(dn => ({
+          id: dn.id,
+          documentType: 'DEBIT_NOTE' as const,
+          invoiceNo: dn.documentNo,
+          invoiceDate: dn.documentDate,
+          dueDate: dn.dueDate,
+          netTotal: Number(dn.netTotal), // Positive for DN (increases payable)
+          outstandingAmount: Number(dn.netTotal), // DN fully outstanding until knocked off
+        })),
+      ];
+
+      // Sort by date
+      documents.sort((a, b) => new Date(a.invoiceDate).getTime() - new Date(b.invoiceDate).getTime());
+
+      this.successResponse(res, documents);
     } catch (error) {
       next(error);
     }

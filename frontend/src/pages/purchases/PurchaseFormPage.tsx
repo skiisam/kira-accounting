@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { get, post, put } from '../../services/api';
-import { PlusIcon, TrashIcon, MagnifyingGlassIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, TrashIcon, MagnifyingGlassIcon, DocumentDuplicateIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import PurchaseTransferDialog from '../../components/purchases/TransferDialog';
 
 interface PurchaseDetail {
@@ -70,6 +70,7 @@ export default function PurchaseFormPage() {
   const [vendorError, setVendorError] = useState('');
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [selectedTransfer, setSelectedTransfer] = useState<{ target: string; label: string } | null>(null);
+  const [voidModalOpen, setVoidModalOpen] = useState(false);
   
   // Get transfer data from navigation state
   const transferFrom = (location.state as any)?.transferFrom;
@@ -235,6 +236,24 @@ export default function PurchaseFormPage() {
     },
     onError: (err: any) => toast.error(err.response?.data?.error?.message || 'Post failed'),
   });
+
+  const voidMutation = useMutation({
+    mutationFn: () => post(`/purchases/${typeEndpoints[docType]}/${id}/void`),
+    onSuccess: () => {
+      toast.success('Document voided successfully');
+      queryClient.invalidateQueries({ queryKey: ['purchase'] });
+      navigate(-1);
+    },
+    onError: (err: any) => toast.error(err.response?.data?.error?.message || 'Failed to void document'),
+  });
+
+  const handleVoid = () => {
+    setVoidModalOpen(true);
+  };
+
+  const confirmVoid = () => {
+    voidMutation.mutate();
+  };
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('en-MY', { style: 'currency', currency: 'MYR' }).format(val);
