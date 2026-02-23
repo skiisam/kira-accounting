@@ -29,6 +29,7 @@ interface SalesForm {
   dueDate?: string;
   reference?: string;
   description?: string;
+  reason?: string;
   salesAgentId?: number;
   locationId?: number;
   details: SalesDetail[];
@@ -120,6 +121,7 @@ export default function SalesFormPage() {
         dueDate: existingDoc.dueDate?.split('T')[0] || '',
         reference: existingDoc.reference || '',
         description: existingDoc.description || '',
+        reason: existingDoc.reason || '',
         details: details.length > 0 ? details : [{ productId: 0, productCode: '', description: '', quantity: 1, unitPrice: 0, discountAmount: 0, taxRate: 6, taxAmount: 0, subTotal: 0 }],
       });
     }
@@ -332,6 +334,16 @@ export default function SalesFormPage() {
               <label className="label">Description</label>
               <input {...register('description')} className="input" />
             </div>
+            {(docType === 'cn' || docType === 'dn') && (
+              <div className="md:col-span-3">
+                <label className="label">Reason for {docType === 'cn' ? 'Credit Note' : 'Debit Note'} *</label>
+                <textarea 
+                  {...register('reason', { required: docType === 'cn' || docType === 'dn' })} 
+                  className="input min-h-[80px]" 
+                  placeholder={`Enter reason for issuing this ${docType === 'cn' ? 'credit note' : 'debit note'}...`}
+                />
+              </div>
+            )}
           </div>
         </div>
 
