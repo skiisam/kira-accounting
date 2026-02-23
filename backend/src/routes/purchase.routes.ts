@@ -15,6 +15,7 @@ router.put('/orders/:id', requirePermission('PURCHASE', 'PURCHASE_ORDER'), purch
 router.delete('/orders/:id', requirePermission('PURCHASE', 'PURCHASE_ORDER'), purchaseController.deleteOrder);
 router.post('/orders/:id/transfer', requirePermission('PURCHASE', 'PURCHASE_ORDER'), purchaseController.transferOrder);
 router.get('/orders/:id/transferable-lines', requirePermission('PURCHASE', 'PURCHASE_ORDER'), purchaseController.getTransferableLines);
+router.post('/orders/:id/void', requirePermission('PURCHASE', 'PURCHASE_ORDER'), purchaseController.voidDocument);
 
 // Goods Received Notes
 router.get('/grn', requirePermission('PURCHASE', 'GRN'), purchaseController.listGRN);
@@ -24,6 +25,7 @@ router.put('/grn/:id', requirePermission('PURCHASE', 'GRN'), purchaseController.
 router.delete('/grn/:id', requirePermission('PURCHASE', 'GRN'), purchaseController.deleteGRN);
 router.post('/grn/:id/transfer', requirePermission('PURCHASE', 'GRN'), purchaseController.transferGRN);
 router.get('/grn/:id/transferable-lines', requirePermission('PURCHASE', 'GRN'), purchaseController.getTransferableLines);
+router.post('/grn/:id/void', requirePermission('PURCHASE', 'GRN'), purchaseController.voidDocument);
 
 // Purchase Invoices
 router.get('/invoices', requirePermission('PURCHASE', 'PURCHASE_INVOICE'), purchaseController.listInvoices);
@@ -32,6 +34,7 @@ router.post('/invoices', requirePermission('PURCHASE', 'PURCHASE_INVOICE'), purc
 router.put('/invoices/:id', requirePermission('PURCHASE', 'PURCHASE_INVOICE'), purchaseController.updateInvoice);
 router.delete('/invoices/:id', requirePermission('PURCHASE', 'PURCHASE_INVOICE'), purchaseController.deleteInvoice);
 router.post('/invoices/:id/post', requirePermission('PURCHASE', 'PURCHASE_INVOICE'), purchaseController.postInvoice);
+router.post('/invoices/:id/void', requirePermission('PURCHASE', 'PURCHASE_INVOICE'), purchaseController.voidDocument);
 
 // Cash Purchases
 router.get('/cash-purchases', requirePermission('PURCHASE', 'CASH_PURCHASE'), purchaseController.listCashPurchases);
@@ -43,6 +46,7 @@ router.get('/credit-notes/:id', requirePermission('PURCHASE', 'CREDIT_NOTE'), pu
 router.post('/credit-notes', requirePermission('PURCHASE', 'CREDIT_NOTE'), purchaseController.createCreditNote);
 router.put('/credit-notes/:id', requirePermission('PURCHASE', 'CREDIT_NOTE'), purchaseController.updateCreditNote);
 router.delete('/credit-notes/:id', requirePermission('PURCHASE', 'CREDIT_NOTE'), purchaseController.deleteCreditNote);
+router.post('/credit-notes/:id/void', requirePermission('PURCHASE', 'CREDIT_NOTE'), purchaseController.voidDocument);
 
 // Debit Notes (Supplier Debit Note - increases what we owe)
 router.get('/debit-notes', requirePermission('PURCHASE', 'DEBIT_NOTE'), purchaseController.listDebitNotes);
@@ -50,6 +54,7 @@ router.get('/debit-notes/:id', requirePermission('PURCHASE', 'DEBIT_NOTE'), purc
 router.post('/debit-notes', requirePermission('PURCHASE', 'DEBIT_NOTE'), purchaseController.createDebitNote);
 router.put('/debit-notes/:id', requirePermission('PURCHASE', 'DEBIT_NOTE'), purchaseController.updateDebitNote);
 router.delete('/debit-notes/:id', requirePermission('PURCHASE', 'DEBIT_NOTE'), purchaseController.deleteDebitNote);
+router.post('/debit-notes/:id/void', requirePermission('PURCHASE', 'DEBIT_NOTE'), purchaseController.voidDocument);
 
 // Common
 router.post('/:id/void', purchaseController.voidDocument);
