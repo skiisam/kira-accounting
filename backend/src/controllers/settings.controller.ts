@@ -366,10 +366,36 @@ export class SettingsController {
     }
   };
 
-  createCurrency = stubHandler('Create Currency');
-  updateCurrency = stubHandler('Update Currency');
-  deleteCurrency = stubHandler('Delete Currency');
-  updateExchangeRate = stubHandler('Update Exchange Rate');
+  createCurrency = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { code, name, symbol, exchangeRate } = req.body;
+      const currency = await prisma.currency.create({ data: { code, name, symbol, exchangeRate: exchangeRate || 1 } });
+      res.status(201).json({ success: true, data: currency, message: 'Currency created' });
+    } catch (error) { next(error); }
+  };
+  updateCurrency = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { code } = req.params;
+      const { name, symbol, exchangeRate } = req.body;
+      const currency = await prisma.currency.update({ where: { code }, data: { name, symbol, exchangeRate } });
+      res.json({ success: true, data: currency, message: 'Currency updated' });
+    } catch (error) { next(error); }
+  };
+  deleteCurrency = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { code } = req.params;
+      await prisma.currency.delete({ where: { code } });
+      res.json({ success: true, message: 'Currency deleted' });
+    } catch (error) { next(error); }
+  };
+  updateExchangeRate = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { code } = req.params;
+      const { exchangeRate } = req.body;
+      const currency = await prisma.currency.update({ where: { code }, data: { exchangeRate } });
+      res.json({ success: true, data: currency, message: 'Exchange rate updated' });
+    } catch (error) { next(error); }
+  };
 
   // Tax Codes
   listTaxCodes = async (req: Request, res: Response, next: NextFunction) => {
@@ -381,9 +407,28 @@ export class SettingsController {
     }
   };
 
-  createTaxCode = stubHandler('Create Tax Code');
-  updateTaxCode = stubHandler('Update Tax Code');
-  deleteTaxCode = stubHandler('Delete Tax Code');
+  createTaxCode = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { code, name, rate, taxType, isActive } = req.body;
+      const taxCode = await prisma.taxCode.create({ data: { code, name, rate, taxType, isActive: isActive ?? true } });
+      res.status(201).json({ success: true, data: taxCode, message: 'Tax code created' });
+    } catch (error) { next(error); }
+  };
+  updateTaxCode = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { code } = req.params;
+      const { name, rate, taxType, isActive } = req.body;
+      const taxCode = await prisma.taxCode.update({ where: { code }, data: { name, rate, taxType, isActive } });
+      res.json({ success: true, data: taxCode, message: 'Tax code updated' });
+    } catch (error) { next(error); }
+  };
+  deleteTaxCode = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { code } = req.params;
+      await prisma.taxCode.delete({ where: { code } });
+      res.json({ success: true, message: 'Tax code deleted' });
+    } catch (error) { next(error); }
+  };
 
   // UOM
   listUOM = async (req: Request, res: Response, next: NextFunction) => {
@@ -395,9 +440,28 @@ export class SettingsController {
     }
   };
 
-  createUOM = stubHandler('Create UOM');
-  updateUOM = stubHandler('Update UOM');
-  deleteUOM = stubHandler('Delete UOM');
+  createUOM = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { code, name } = req.body;
+      const uom = await prisma.uOM.create({ data: { code, name } });
+      res.status(201).json({ success: true, data: uom, message: 'UOM created' });
+    } catch (error) { next(error); }
+  };
+  updateUOM = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const { code, name } = req.body;
+      const uom = await prisma.uOM.update({ where: { id: parseInt(id) }, data: { code, name } });
+      res.json({ success: true, data: uom, message: 'UOM updated' });
+    } catch (error) { next(error); }
+  };
+  deleteUOM = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      await prisma.uOM.delete({ where: { id: parseInt(id) } });
+      res.json({ success: true, message: 'UOM deleted' });
+    } catch (error) { next(error); }
+  };
 
   // Locations
   listLocations = async (req: Request, res: Response, next: NextFunction) => {
@@ -409,9 +473,28 @@ export class SettingsController {
     }
   };
 
-  createLocation = stubHandler('Create Location');
-  updateLocation = stubHandler('Update Location');
-  deleteLocation = stubHandler('Delete Location');
+  createLocation = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { code, name, address, isDefault, isActive } = req.body;
+      const location = await prisma.location.create({ data: { code, name, address, isDefault: isDefault ?? false, isActive: isActive ?? true } });
+      res.status(201).json({ success: true, data: location, message: 'Location created' });
+    } catch (error) { next(error); }
+  };
+  updateLocation = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const { code, name, address, isDefault, isActive } = req.body;
+      const location = await prisma.location.update({ where: { id: parseInt(id) }, data: { code, name, address, isDefault, isActive } });
+      res.json({ success: true, data: location, message: 'Location updated' });
+    } catch (error) { next(error); }
+  };
+  deleteLocation = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      await prisma.location.update({ where: { id: parseInt(id) }, data: { isActive: false } });
+      res.json({ success: true, message: 'Location deactivated' });
+    } catch (error) { next(error); }
+  };
 
   // Areas
   listAreas = async (req: Request, res: Response, next: NextFunction) => {
@@ -479,9 +562,28 @@ export class SettingsController {
     }
   };
 
-  createPaymentMethod = stubHandler('Create Payment Method');
-  updatePaymentMethod = stubHandler('Update Payment Method');
-  deletePaymentMethod = stubHandler('Delete Payment Method');
+  createPaymentMethod = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { code, name, paymentType, accountId, isActive } = req.body;
+      const method = await prisma.paymentMethod.create({ data: { code, name, paymentType, accountId, isActive: isActive ?? true } });
+      res.status(201).json({ success: true, data: method, message: 'Payment method created' });
+    } catch (error) { next(error); }
+  };
+  updatePaymentMethod = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const { code, name, paymentType, accountId, isActive } = req.body;
+      const method = await prisma.paymentMethod.update({ where: { id: parseInt(id) }, data: { code, name, paymentType, accountId, isActive } });
+      res.json({ success: true, data: method, message: 'Payment method updated' });
+    } catch (error) { next(error); }
+  };
+  deletePaymentMethod = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      await prisma.paymentMethod.update({ where: { id: parseInt(id) }, data: { isActive: false } });
+      res.json({ success: true, message: 'Payment method deactivated' });
+    } catch (error) { next(error); }
+  };
 
   // Document Series
   listDocumentSeries = async (req: Request, res: Response, next: NextFunction) => {
@@ -493,8 +595,31 @@ export class SettingsController {
     }
   };
 
-  createDocumentSeries = stubHandler('Create Document Series');
-  updateDocumentSeries = stubHandler('Update Document Series');
+  createDocumentSeries = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { documentType, seriesCode, prefix, nextNumber, numberLength, isDefault } = req.body;
+      const series = await prisma.documentSeries.create({
+        data: { documentType, seriesCode: seriesCode || 'DEFAULT', prefix, nextNumber: nextNumber || 1, numberLength: numberLength || 6, isDefault: isDefault ?? true },
+      });
+      res.status(201).json({ success: true, data: series, message: 'Document series created' });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateDocumentSeries = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const { prefix, nextNumber, numberLength, isDefault } = req.body;
+      const series = await prisma.documentSeries.update({
+        where: { id: parseInt(id) },
+        data: { prefix, nextNumber, numberLength, isDefault },
+      });
+      res.json({ success: true, data: series, message: 'Document series updated' });
+    } catch (error) {
+      next(error);
+    }
+  };
 
   // Fiscal Years
   listFiscalYears = async (req: Request, res: Response, next: NextFunction) => {
@@ -506,8 +631,36 @@ export class SettingsController {
     }
   };
 
-  createFiscalYear = stubHandler('Create Fiscal Year');
-  updateFiscalYear = stubHandler('Update Fiscal Year');
+  createFiscalYear = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { name, startDate, endDate, isClosed } = req.body;
+      const fiscalYear = await prisma.fiscalYear.create({
+        data: { name, startDate: new Date(startDate), endDate: new Date(endDate), isClosed: isClosed ?? false },
+      });
+      res.status(201).json({ success: true, data: fiscalYear, message: 'Fiscal year created' });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  updateFiscalYear = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const { name, startDate, endDate, isClosed } = req.body;
+      const fiscalYear = await prisma.fiscalYear.update({
+        where: { id: parseInt(id) },
+        data: { 
+          name, 
+          startDate: startDate ? new Date(startDate) : undefined, 
+          endDate: endDate ? new Date(endDate) : undefined, 
+          isClosed 
+        },
+      });
+      res.json({ success: true, data: fiscalYear, message: 'Fiscal year updated' });
+    } catch (error) {
+      next(error);
+    }
+  };
   closeFiscalYear = stubHandler('Close Fiscal Year');
 
   /**
