@@ -106,7 +106,7 @@ export class EInvoiceController extends BaseController<any> {
       }
 
       // Check if already submitted
-      const invoice = await prisma.salesHeader.findUnique({ where: { id: invoiceId } });
+      const invoice = await prisma.salesHeader.findUnique({ where: { id: invoiceId } }) as any;
       if (!invoice) {
         throw NotFoundError('Invoice not found');
       }
@@ -162,20 +162,7 @@ export class EInvoiceController extends BaseController<any> {
 
       const invoice = await prisma.salesHeader.findUnique({ 
         where: { id: invoiceId },
-        select: {
-          id: true,
-          documentNo: true,
-          documentType: true,
-          einvoiceStatus: true,
-          einvoiceUUID: true,
-          einvoiceLongId: true,
-          einvoiceSubmissionId: true,
-          einvoiceSubmittedAt: true,
-          einvoiceValidatedAt: true,
-          einvoiceErrorMsg: true,
-          einvoiceQRUrl: true,
-        },
-      });
+      }) as any;
 
       if (!invoice) {
         throw NotFoundError('Invoice not found');
@@ -188,20 +175,7 @@ export class EInvoiceController extends BaseController<any> {
         // Refresh invoice data after status check
         const updatedInvoice = await prisma.salesHeader.findUnique({ 
           where: { id: invoiceId },
-          select: {
-            id: true,
-            documentNo: true,
-            documentType: true,
-            einvoiceStatus: true,
-            einvoiceUUID: true,
-            einvoiceLongId: true,
-            einvoiceSubmissionId: true,
-            einvoiceSubmittedAt: true,
-            einvoiceValidatedAt: true,
-            einvoiceErrorMsg: true,
-            einvoiceQRUrl: true,
-          },
-        });
+        }) as any;
 
         this.successResponse(res, {
           ...updatedInvoice,
@@ -237,7 +211,7 @@ export class EInvoiceController extends BaseController<any> {
         throw BadRequestError('Cancellation reason is required');
       }
 
-      const invoice = await prisma.salesHeader.findUnique({ where: { id: invoiceId } });
+      const invoice = await prisma.salesHeader.findUnique({ where: { id: invoiceId } }) as any;
       if (!invoice) {
         throw NotFoundError('Invoice not found');
       }
@@ -351,25 +325,12 @@ export class EInvoiceController extends BaseController<any> {
 
       const [invoices, total] = await Promise.all([
         prisma.salesHeader.findMany({
-          where,
-          select: {
-            id: true,
-            documentNo: true,
-            documentType: true,
-            documentDate: true,
-            customerName: true,
-            netTotal: true,
-            einvoiceStatus: true,
-            einvoiceUUID: true,
-            einvoiceSubmittedAt: true,
-            einvoiceValidatedAt: true,
-            einvoiceQRUrl: true,
-          },
+          where: where as any,
           orderBy: { documentDate: 'desc' },
           skip,
           take,
         }),
-        prisma.salesHeader.count({ where }),
+        prisma.salesHeader.count({ where: where as any }),
       ]);
 
       this.paginatedResponse(res, invoices, total, Number(page), Number(pageSize));
@@ -440,7 +401,7 @@ export class EInvoiceController extends BaseController<any> {
       const skip = (Number(page) - 1) * Number(pageSize);
       const take = Number(pageSize);
 
-      const where = {
+      const where: any = {
         documentType: { in: ['INVOICE', 'CREDIT_NOTE', 'DEBIT_NOTE', 'CASH_SALE'] },
         isPosted: true,
         isVoid: false,
@@ -450,14 +411,6 @@ export class EInvoiceController extends BaseController<any> {
       const [invoices, total] = await Promise.all([
         prisma.salesHeader.findMany({
           where,
-          select: {
-            id: true,
-            documentNo: true,
-            documentType: true,
-            documentDate: true,
-            customerName: true,
-            netTotal: true,
-          },
           orderBy: { documentDate: 'desc' },
           skip,
           take,

@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import { EInvoiceController } from '../controllers/einvoice.controller';
-import { authenticate } from '../middleware/authenticate';
-import { requirePermission } from '../middleware/requirePermission';
+import { authenticate, requirePermission } from '../middleware/auth';
 
 const router = Router();
 const einvoiceController = new EInvoiceController();
@@ -16,15 +15,18 @@ router.post('/validate/:invoiceId', requirePermission('SALES', 'INVOICE'), einvo
 router.post('/submit/:invoiceId', requirePermission('SALES', 'INVOICE'), einvoiceController.submitInvoice);
 
 // Check submission status
-router.get('/status/:invoiceId', requirePermission('SALES', 'INVOICE'), einvoiceController.getStatus);
+router.get('/status/:invoiceId', requirePermission('SALES', 'INVOICE'), einvoiceController.getInvoiceStatus);
 
 // Cancel submitted invoice
 router.post('/cancel/:invoiceId', requirePermission('SALES', 'INVOICE'), einvoiceController.cancelInvoice);
 
-// Get company e-invoice settings
-router.get('/settings', requirePermission('SETTINGS', 'EINVOICE'), einvoiceController.getSettings);
+// Get configuration status
+router.get('/config', einvoiceController.getConfigStatus);
 
-// Update company e-invoice settings
-router.put('/settings', requirePermission('SETTINGS', 'EINVOICE'), einvoiceController.updateSettings);
+// Get pending invoices for submission
+router.get('/pending', requirePermission('SALES', 'INVOICE'), einvoiceController.getPendingInvoices);
+
+// Batch submit multiple invoices
+router.post('/batch', requirePermission('SALES', 'INVOICE'), einvoiceController.batchSubmit);
 
 export default router;

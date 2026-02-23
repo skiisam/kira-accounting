@@ -7,7 +7,7 @@
 
 import { prisma } from '../config/database';
 import { createHash } from 'crypto';
-import logger from '../utils/logger';
+import { logger } from '../utils/logger';
 
 // Environment configuration
 const MYINVOIS_ENV = process.env.MYINVOIS_ENV || 'sandbox';
@@ -325,7 +325,7 @@ export class EInvoiceService {
       throw new Error(`Authentication failed: ${response.statusText}`);
     }
 
-    const data = await response.json();
+    const data = await response.json() as { access_token: string; expires_in: number };
     this.accessToken = data.access_token;
     this.tokenExpiry = new Date(Date.now() + (data.expires_in - 60) * 1000); // Refresh 60s early
 
@@ -353,7 +353,7 @@ export class EInvoiceService {
       } else if (response.status === 400) {
         return { valid: false, message: 'TIN validation failed - invalid format or mismatch' };
       } else {
-        const error = await response.json();
+        const error = await response.json() as { message?: string };
         return { valid: false, message: error.message || 'TIN validation failed' };
       }
     } catch (error) {
@@ -679,7 +679,12 @@ export class EInvoiceService {
         }),
       });
 
-      const result = await response.json();
+      const result = await response.json() as {
+        error?: { message?: string };
+        message?: string;
+        submissionUid?: string;
+        acceptedDocuments?: Array<{ uuid?: string; longId?: string }>;
+      };
 
       if (!response.ok) {
         const errorMsg = result.error?.message || result.message || 'Submission failed';
@@ -688,7 +693,7 @@ export class EInvoiceService {
           data: {
             einvoiceStatus: EInvoiceStatus.INVALID,
             einvoiceErrorMsg: errorMsg,
-          },
+          } as any,
         });
         return { success: false, errors: [errorMsg] };
       }
@@ -708,7 +713,7 @@ export class EInvoiceService {
           einvoiceQRUrl: acceptedDoc?.uuid && acceptedDoc?.longId 
             ? `${this.portalBaseUrl}/${acceptedDoc.uuid}/share/${acceptedDoc.longId}` 
             : null,
-        },
+        } as any,
       });
 
       return {
@@ -726,7 +731,7 @@ export class EInvoiceService {
         data: {
           einvoiceStatus: EInvoiceStatus.INVALID,
           einvoiceErrorMsg: errorMsg,
-        },
+        } as any,
       });
 
       return { success: false, errors: [errorMsg] };
@@ -760,7 +765,15 @@ export class EInvoiceService {
       throw new Error(`Failed to get submission status: ${response.statusText}`);
     }
 
-    return response.json();
+    return response.json() as Promise<{
+      overallStatus: string;
+      documents: Array<{
+        uuid: string;
+        status: number;
+        statusName: string;
+        longId?: string;
+      }>;
+    }>;
   }
 
   /**
@@ -801,12 +814,12 @@ export class EInvoiceService {
         where: { id: invoiceId },
         data: {
           einvoiceStatus: newStatus,
-          einvoiceLongId: doc.longId || invoice.einvoiceLongId,
-          einvoiceValidatedAt: newStatus === EInvoiceStatus.VALID ? new Date() : invoice.einvoiceValidatedAt,
+          einvoiceLongId: doc.longId || (invoice as any).einvoiceLongId,
+          einvoiceValidatedAt: newStatus === EInvoiceStatus.VALID ? new Date() : (invoice as any).einvoiceValidatedAt,
           einvoiceQRUrl: doc.longId 
             ? `${this.portalBaseUrl}/${doc.uuid}/share/${doc.longId}` 
-            : invoice.einvoiceQRUrl,
-        },
+            : (invoice as any).einvoiceQRUrl,
+        } as any,
       });
 
       return {
@@ -853,7 +866,7 @@ export class EInvoiceService {
       );
 
       if (!response.ok) {
-        const error = await response.json();
+        const error = await response.json() as { message?: string };
         return { success: false, error: error.message || 'Cancellation failed' };
       }
 
@@ -861,7 +874,7 @@ export class EInvoiceService {
         where: { id: invoiceId },
         data: {
           einvoiceStatus: EInvoiceStatus.CANCELLED,
-        },
+        } as any,
       });
 
       return { success: true };

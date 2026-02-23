@@ -1,12 +1,26 @@
 import { Request, Response, NextFunction } from 'express';
 import { prisma } from '../config/database';
-import { BaseController } from './base.controller';
 import { BadRequestError } from '../middleware/errorHandler';
 import * as fs from 'fs';
 import * as path from 'path';
 
-export class BackupController extends BaseController<any> {
+export class BackupController {
   protected modelName = 'Backup';
+
+  protected successResponse<T>(res: Response, data: T, message?: string) {
+    res.status(200).json({
+      success: true,
+      message: message || 'Success',
+      data,
+    });
+  }
+
+  protected errorResponse(res: Response, error: string, code: number = 400) {
+    res.status(code).json({
+      success: false,
+      error: { code: 'ERROR', message: error },
+    });
+  }
 
   /**
    * Export all data as JSON backup
@@ -104,30 +118,30 @@ export class BackupController extends BaseController<any> {
       salesDetails,
       purchaseHeaders,
       purchaseDetails,
-      arReceipts,
+      arPayments,
       apPayments,
-      journalHeaders,
+      journalEntries,
       journalDetails,
-      stockMovements,
+      stockTransactions,
     ] = await Promise.all([
       prisma.salesHeader.findMany({ where: { isVoid: false } }),
       prisma.salesDetail.findMany(),
       prisma.purchaseHeader.findMany({ where: { isVoid: false } }),
       prisma.purchaseDetail.findMany(),
-      prisma.aRReceipt.findMany({ where: { isVoid: false } }),
+      prisma.aRPayment.findMany({ where: { isVoid: false } }),
       prisma.aPPayment.findMany({ where: { isVoid: false } }),
-      prisma.journalHeader.findMany({ where: { isVoid: false } }),
-      prisma.journalDetail.findMany(),
-      prisma.stockMovement.findMany(),
+      prisma.journalEntry.findMany({ where: { isVoid: false } }),
+      prisma.journalEntryDetail.findMany(),
+      prisma.stockTransaction.findMany(),
     ]);
 
     return {
       sales: { headers: salesHeaders, details: salesDetails },
       purchases: { headers: purchaseHeaders, details: purchaseDetails },
-      arReceipts,
+      arPayments,
       apPayments,
-      journals: { headers: journalHeaders, details: journalDetails },
-      stockMovements,
+      journals: { entries: journalEntries, details: journalDetails },
+      stockTransactions,
     };
   }
 
@@ -233,7 +247,12 @@ export class BackupController extends BaseController<any> {
       for (const account of data.accounts) {
         try {
           await prisma.account.upsert({
-            where: { accountNo: account.accountNo },
+            where: { 
+              accountNo_companyId: { 
+                accountNo: account.accountNo, 
+                companyId: account.companyId || 1 
+              } 
+            },
             update: overwrite ? account : {},
             create: account,
           });
