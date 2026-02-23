@@ -59,8 +59,10 @@
     "customers": "Pelanggan",
     "vendors": "Pembekal",
     "products": "Produk",
-    "inventory": "Inventori",
+    "inventory": "Stok",
     "stockBalance": "Baki Stok",
+    "stockAdjustment": "Pelarasan Stok",
+    "stockTransfer": "Pindahan Stok",
     "generalLedger": "Lejar Am",
     "reports": "Laporan",
     "settings": "Tetapan",
@@ -85,10 +87,15 @@
     "chartOfAccounts": "Carta Akaun",
     "journalEntries": "Catatan Jurnal",
     "messagingInbox": "Peti Masuk Mesej",
+    "batchSoa": "Hantar SOA Secara Pukal",
+    "paymentNotify": "Pemberitahuan Pembayaran",
     "socialInbox": "Peti Masuk Sosial",
     "socialSettings": "Tetapan Sosial",
     "documentScanner": "Pengimbas Dokumen",
-    "aiReports": "Laporan AI"
+    "aiReports": "Laporan AI",
+    "einvoice": "E-Invois",
+    "einvoiceDashboard": "Papan Pemuka",
+    "einvoiceList": "Senarai E-Invois"
   },
   "auth": {
     "login": "Log Masuk",

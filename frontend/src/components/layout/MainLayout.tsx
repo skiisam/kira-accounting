@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 import { isDemoMode } from '../../services/api';
@@ -37,125 +38,115 @@ import {
 } from '@heroicons/react/24/solid';
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: HomeIcon, iconSolid: HomeIconSolid, color: 'from-violet-500 to-purple-500' },
+  { nameKey: 'nav.dashboard', href: '/dashboard', icon: HomeIcon, iconSolid: HomeIconSolid, color: 'from-violet-500 to-purple-500' },
   {
-    name: 'Sales',
+    nameKey: 'nav.sales',
     icon: ShoppingCartIcon,
     iconSolid: ShoppingCartIconSolid,
     color: 'from-emerald-500 to-teal-500',
     children: [
-      { name: 'Quotations', href: '/sales/quotations' },
-      { name: 'Sales Orders', href: '/sales/orders' },
-      { name: 'Delivery Orders', href: '/sales/delivery-orders' },
-      { name: 'Invoices', href: '/sales/invoices' },
-      { name: 'Cash Sales', href: '/sales/cash-sales' },
-      { name: 'Credit Notes', href: '/sales/credit-notes' },
-      { name: 'Debit Notes', href: '/sales/debit-notes' },
+      { nameKey: 'nav.quotations', href: '/sales/quotations' },
+      { nameKey: 'nav.salesOrders', href: '/sales/orders' },
+      { nameKey: 'nav.deliveryOrders', href: '/sales/delivery-orders' },
+      { nameKey: 'nav.invoices', href: '/sales/invoices' },
+      { nameKey: 'nav.cashSales', href: '/sales/cash-sales' },
+      { nameKey: 'nav.creditNotes', href: '/sales/credit-notes' },
+      { nameKey: 'nav.debitNotes', href: '/sales/debit-notes' },
     ],
   },
   {
-    name: 'Purchases',
+    nameKey: 'nav.purchases',
     icon: TruckIcon,
     color: 'from-orange-500 to-amber-500',
     children: [
-      { name: 'Purchase Orders', href: '/purchases/orders' },
-      { name: 'Goods Received', href: '/purchases/grn' },
-      { name: 'Purchase Invoices', href: '/purchases/invoices' },
-      { name: 'Supplier Credit Notes', href: '/purchases/credit-notes' },
-      { name: 'Supplier Debit Notes', href: '/purchases/debit-notes' },
+      { nameKey: 'nav.purchaseOrders', href: '/purchases/orders' },
+      { nameKey: 'nav.goodsReceived', href: '/purchases/grn' },
+      { nameKey: 'nav.purchaseInvoices', href: '/purchases/invoices' },
+      { nameKey: 'nav.supplierCreditNotes', href: '/purchases/credit-notes' },
+      { nameKey: 'nav.supplierDebitNotes', href: '/purchases/debit-notes' },
     ],
   },
   {
-    name: 'Receivables',
+    nameKey: 'nav.receivables',
     icon: BanknotesIcon,
     color: 'from-cyan-500 to-blue-500',
     children: [
-      { name: 'AR Invoices', href: '/ar/invoices' },
-      { name: 'Receipts', href: '/ar/payments' },
+      { nameKey: 'nav.arInvoices', href: '/ar/invoices' },
+      { nameKey: 'nav.receipts', href: '/ar/payments' },
     ],
   },
   {
-    name: 'Payables',
+    nameKey: 'nav.payables',
     icon: CreditCardIcon,
     color: 'from-rose-500 to-pink-500',
     children: [
-      { name: 'AP Invoices', href: '/ap/invoices' },
-      { name: 'Payments', href: '/ap/payments' },
+      { nameKey: 'nav.apInvoices', href: '/ap/invoices' },
+      { nameKey: 'nav.payments', href: '/ap/payments' },
     ],
   },
-  // TODO: Fix CRM models
-  // {
-  //   name: 'CRM',
-  //   icon: UserGroupIcon,
-  //   color: 'from-purple-500 to-pink-500',
-  //   children: [
-  //     { name: 'Leads', href: '/crm/leads' },
-  //     { name: 'Deal Pipeline', href: '/crm/deals' },
-  //     { name: 'Activities', href: '/crm/activities' },
-  //   ],
-  // },
-  { name: 'Customers', href: '/customers', icon: UsersIcon, iconSolid: UsersIconSolid, color: 'from-blue-500 to-indigo-500' },
-  { name: 'Vendors', href: '/vendors', icon: BuildingStorefrontIcon, color: 'from-amber-500 to-yellow-500' },
-  { name: 'Products', href: '/products', icon: CubeIcon, color: 'from-fuchsia-500 to-purple-500' },
+  { nameKey: 'nav.customers', href: '/customers', icon: UsersIcon, iconSolid: UsersIconSolid, color: 'from-blue-500 to-indigo-500' },
+  { nameKey: 'nav.vendors', href: '/vendors', icon: BuildingStorefrontIcon, color: 'from-amber-500 to-yellow-500' },
+  { nameKey: 'nav.products', href: '/products', icon: CubeIcon, color: 'from-fuchsia-500 to-purple-500' },
   {
-    name: 'Messaging & CRM',
+    nameKey: 'nav.messaging',
     icon: ChatBubbleLeftRightIcon,
     color: 'from-pink-500 to-rose-500',
     children: [
-      { name: 'Messaging Inbox', href: '/messaging/inbox' },
-      { name: 'Batch SOA Sending', href: '/messaging/batch-soa' },
-      { name: 'Payment Notification', href: '/messaging/payment-notify' },
-      { name: 'Social Inbox', href: '/social/inbox' },
-      { name: 'Social Settings', href: '/social/settings' },
+      { nameKey: 'nav.messagingInbox', href: '/messaging/inbox' },
+      { nameKey: 'nav.batchSoa', href: '/messaging/batch-soa' },
+      { nameKey: 'nav.paymentNotify', href: '/messaging/payment-notify' },
+      { nameKey: 'nav.socialInbox', href: '/social/inbox' },
+      { nameKey: 'nav.socialSettings', href: '/social/settings' },
     ],
   },
   {
-    name: 'General Ledger',
+    nameKey: 'nav.generalLedger',
     icon: CalculatorIcon,
     color: 'from-slate-500 to-gray-500',
     children: [
-      { name: 'Chart of Accounts', href: '/gl/accounts' },
-      { name: 'Journal Entries', href: '/gl/journals' },
+      { nameKey: 'nav.chartOfAccounts', href: '/gl/accounts' },
+      { nameKey: 'nav.journalEntries', href: '/gl/journals' },
     ],
   },
   {
-    name: 'Stock',
+    nameKey: 'nav.inventory',
     icon: ArchiveBoxIcon,
     color: 'from-lime-500 to-green-500',
     children: [
-      { name: 'Stock Balance', href: '/stock/balance' },
-      { name: 'Stock Adjustment', href: '/stock/adjustment' },
-      { name: 'Stock Transfer', href: '/stock/transfer' },
+      { nameKey: 'nav.stockBalance', href: '/stock/balance' },
+      { nameKey: 'nav.stockAdjustment', href: '/stock/adjustment' },
+      { nameKey: 'nav.stockTransfer', href: '/stock/transfer' },
     ],
   },
-  { name: 'Reports', href: '/reports', icon: ChartPieIcon, color: 'from-indigo-500 to-violet-500' },
+  { nameKey: 'nav.reports', href: '/reports', icon: ChartPieIcon, color: 'from-indigo-500 to-violet-500' },
   {
-    name: 'E-Invoice',
+    nameKey: 'nav.einvoice',
     icon: DocumentCheckIcon,
     color: 'from-cyan-500 to-teal-500',
     children: [
-      { name: 'Dashboard', href: '/einvoice/dashboard' },
-      { name: 'E-Invoice List', href: '/einvoice/list' },
+      { nameKey: 'nav.einvoiceDashboard', href: '/einvoice/dashboard' },
+      { nameKey: 'nav.einvoiceList', href: '/einvoice/list' },
     ],
   },
   {
-    name: 'AI Tools',
+    nameKey: 'nav.aiTools',
     icon: SparklesIcon,
     color: 'from-violet-500 to-purple-600',
     children: [
-      { name: 'Document Scanner', href: '/ai/scanner' },
-      { name: 'AI Reports', href: '/ai/reports' },
+      { nameKey: 'nav.documentScanner', href: '/ai/scanner' },
+      { nameKey: 'nav.aiReports', href: '/ai/reports' },
     ],
   },
-  { name: 'Settings', href: '/settings', icon: Cog6ToothIcon, color: 'from-gray-500 to-slate-500' },
+  { nameKey: 'nav.settings', href: '/settings', icon: Cog6ToothIcon, color: 'from-gray-500 to-slate-500' },
 ];
 
 interface NavItemProps {
   item: typeof navigation[0];
   mobile?: boolean;
+  t: (key: string) => string;
 }
 
-function NavItem({ item, mobile }: NavItemProps) {
+function NavItem({ item, mobile, t }: NavItemProps) {
   const [open, setOpen] = useState(false);
   const baseClass = mobile ? 'sidebar-link w-full' : 'sidebar-link';
 
@@ -170,7 +161,7 @@ function NavItem({ item, mobile }: NavItemProps) {
             <span className={`p-1.5 rounded-lg bg-gradient-to-br ${item.color} text-white shadow-lg`}>
               <item.icon className="w-4 h-4" />
             </span>
-            {item.name}
+            {t(item.nameKey)}
           </span>
           <ChevronDownIcon className={`w-4 h-4 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
         </button>
@@ -188,7 +179,7 @@ function NavItem({ item, mobile }: NavItemProps) {
                   }`
                 }
               >
-                {child.name}
+                {t(child.nameKey)}
               </NavLink>
             ))}
           </div>
@@ -207,7 +198,7 @@ function NavItem({ item, mobile }: NavItemProps) {
       <span className={`p-1.5 rounded-lg bg-gradient-to-br ${item.color} text-white shadow-lg group-hover:shadow-xl transition-shadow`}>
         <item.icon className="w-4 h-4" />
       </span>
-      {item.name}
+      {t(item.nameKey)}
     </NavLink>
   );
 }
@@ -242,6 +233,7 @@ function ThemeToggle() {
 }
 
 export default function MainLayout() {
+  const { t } = useTranslation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { user, logout } = useAuthStore();
   const { isDark } = useThemeStore();
@@ -277,7 +269,7 @@ export default function MainLayout() {
           </div>
           <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-4rem)]">
             {navigation.map((item) => (
-              <NavItem key={item.name} item={item} mobile />
+              <NavItem key={item.nameKey} item={item} mobile t={t} />
             ))}
           </nav>
         </div>
@@ -301,8 +293,8 @@ export default function MainLayout() {
         {/* Navigation */}
         <nav className="p-4 space-y-1.5 overflow-y-auto h-[calc(100vh-8rem)]">
           {navigation.map((item, index) => (
-            <div key={item.name} style={{ animationDelay: `${index * 50}ms` }} className="animate-slide-in">
-              <NavItem item={item} />
+            <div key={item.nameKey} style={{ animationDelay: `${index * 50}ms` }} className="animate-slide-in">
+              <NavItem item={item} t={t} />
             </div>
           ))}
         </nav>

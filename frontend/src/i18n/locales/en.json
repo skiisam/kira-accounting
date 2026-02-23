@@ -59,8 +59,10 @@
     "customers": "Customers",
     "vendors": "Vendors",
     "products": "Products",
-    "inventory": "Inventory",
+    "inventory": "Stock",
     "stockBalance": "Stock Balance",
+    "stockAdjustment": "Stock Adjustment",
+    "stockTransfer": "Stock Transfer",
     "generalLedger": "General Ledger",
     "reports": "Reports",
     "settings": "Settings",
@@ -85,10 +87,15 @@
     "chartOfAccounts": "Chart of Accounts",
     "journalEntries": "Journal Entries",
     "messagingInbox": "Messaging Inbox",
+    "batchSoa": "Batch SOA Sending",
+    "paymentNotify": "Payment Notification",
     "socialInbox": "Social Inbox",
     "socialSettings": "Social Settings",
     "documentScanner": "Document Scanner",
-    "aiReports": "AI Reports"
+    "aiReports": "AI Reports",
+    "einvoice": "E-Invoice",
+    "einvoiceDashboard": "Dashboard",
+    "einvoiceList": "E-Invoice List"
   },
   "auth": {
     "login": "Sign In",
