@@ -250,7 +250,7 @@ export class MessagingController extends BaseController<any> {
             ? new Date(payment.paymentDate).toLocaleDateString('en-MY') 
             : 'N/A',
           companyName: 'Our Company', // TODO: Get from company settings
-          paymentMethod: payment.paymentMethod || 'N/A',
+          paymentMethod: (payment as any).paymentMethod || 'N/A',
           reference: payment.reference || 'N/A',
         };
 

@@ -198,7 +198,6 @@ export class APController extends BaseController<any> {
           await prisma.purchaseHeader.update({
             where: { id: k.documentId },
             data: {
-              paidAmount: { increment: absKnockoff },
               status: absOutstanding - absKnockoff <= 0.01 ? 'CLOSED' : 'PARTIAL',
             },
           });

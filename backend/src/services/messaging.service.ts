@@ -179,6 +179,61 @@ export class MessagingService {
   }
 
   /**
+   * Send email (placeholder - integrate with email service)
+   */
+  async sendEmail(payload: EmailPayload, userId?: number): Promise<SendMessageResult> {
+    const config = await this.getConfig('EMAIL');
+    
+    // For now, just log and simulate success
+    // TODO: Implement actual email sending via SMTP, SendGrid, or other provider
+    console.log(`[Email] Sending to ${payload.to}: ${payload.subject}`);
+    console.log(`[Email] Body: ${payload.body.substring(0, 100)}...`);
+
+    // Log the message
+    await prisma.messageLog.create({
+      data: {
+        platform: 'EMAIL',
+        direction: 'OUTBOUND',
+        recipientPhone: payload.to, // Using this field for email
+        customerId: payload.customerId,
+        body: payload.body,
+        documentType: payload.documentType,
+        documentId: payload.documentId,
+        documentNo: payload.documentNo,
+        status: 'SENT',
+        externalId: `email_${Date.now()}_placeholder`,
+        sentAt: new Date(),
+        createdBy: userId
+      }
+    });
+
+    // Log as CRM activity if customer is linked
+    if (payload.customerId) {
+      try {
+        await prisma.cRMActivity.create({
+          data: {
+            customerId: payload.customerId,
+            type: 'EMAIL',
+            subject: payload.subject,
+            description: `Email sent: ${payload.documentType || 'General'} ${payload.documentNo || ''}`,
+            activityDate: new Date(),
+            status: 'COMPLETED',
+            priority: 'NORMAL',
+            createdBy: userId
+          }
+        });
+      } catch (error) {
+        console.error('Failed to log CRM activity:', error);
+      }
+    }
+
+    return {
+      success: true,
+      messageId: `email_${Date.now()}_placeholder`
+    };
+  }
+
+  /**
    * Send message and log it
    */
   async sendMessage(payload: MessagePayload, userId?: number): Promise<SendMessageResult> {

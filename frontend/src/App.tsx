@@ -39,6 +39,9 @@ import AIReportsPage from './pages/ai/AIReportsPage';
 import SocialSettingsPage from './pages/social/SocialSettingsPage';
 import SocialInboxPage from './pages/social/SocialInboxPage';
 import MessagingInboxPage from './pages/messaging/MessagingInboxPage';
+import BatchSOASendPage from './pages/messaging/BatchSOASendPage';
+import BatchPaymentNotifyPage from './pages/messaging/BatchPaymentNotifyPage';
+import BatchInvoiceSendPage from './pages/messaging/BatchInvoiceSendPage';
 
 // E-Invoice Pages
 import EInvoiceDashboardPage from './pages/einvoice/EInvoiceDashboardPage';
@@ -165,6 +168,9 @@ export default function App() {
 
         {/* Messaging */}
         <Route path="/messaging/inbox" element={<MessagingInboxPage />} />
+        <Route path="/messaging/batch-soa" element={<BatchSOASendPage />} />
+        <Route path="/messaging/payment-notify" element={<BatchPaymentNotifyPage />} />
+        <Route path="/messaging/batch-invoices" element={<BatchInvoiceSendPage />} />
 
         {/* E-Invoice */}
         <Route path="/einvoice" element={<EInvoiceDashboardPage />} />

@@ -159,6 +159,27 @@ function getMockResponse(url: string, params?: Record<string, any>): any {
   if (url === '/ar/invoices') return paginate(mockData.mockARInvoices);
   if (url === '/ar/payments') return paginate(mockData.mockARPayments);
 
+  // Batch Invoices (Messaging)
+  if (url === '/messaging/invoices' || url.startsWith('/messaging/invoices?')) {
+    // Transform AR invoices to include customer contact info for batch sending
+    const invoicesWithContact = mockData.mockARInvoices.map((inv: any) => {
+      const customer = mockData.mockCustomers.find((c: any) => c.code === inv.customerCode);
+      return {
+        ...inv,
+        customerId: customer?.id || 1,
+        customer: customer ? {
+          id: customer.id,
+          code: customer.code,
+          name: customer.name,
+          email: customer.email,
+          phone: customer.phone,
+          mobile: customer.phone?.replace('03-', '+601'), // Simulate mobile
+        } : null,
+      };
+    });
+    return paginate(invoicesWithContact);
+  }
+
   // AP
   if (url === '/ap/invoices') return paginate(mockData.mockAPInvoices);
   if (url === '/ap/payments') return paginate(mockData.mockAPPayments);
@@ -244,6 +265,28 @@ function getMockResponse(url: string, params?: Record<string, any>): any {
       inquiries = inquiries.filter((i: any) => i.status === status);
     }
     return paginate(inquiries);
+  }
+
+  // Batch SOA - Customers with balance
+  if (url.startsWith('/messaging/customers-with-balance')) {
+    const customersWithBalance = [
+      { id: 1, code: 'C001', name: 'ABC Trading Sdn Bhd', email: 'john@abc.com', phone: '03-55551234', mobile: '012-3456789', totalOutstanding: 5250, invoiceCount: 2, aging: { current: 2500, days1to30: 750, days31to60: 1500, days61to90: 500, over90: 0 } },
+      { id: 2, code: 'C002', name: 'XYZ Enterprise', email: 'mary@xyz.com', phone: '03-22221234', mobile: '012-9876543', totalOutstanding: 3250, invoiceCount: 1, aging: { current: 3250, days1to30: 0, days31to60: 0, days61to90: 0, over90: 0 } },
+      { id: 3, code: 'C003', name: 'Global Tech Solutions', email: 'ahmad@globaltech.com', phone: '03-33335678', mobile: null, totalOutstanding: 12000, invoiceCount: 1, aging: { current: 12000, days1to30: 0, days31to60: 0, days61to90: 0, over90: 0 } },
+      { id: 4, code: 'C004', name: 'Premier Industries', email: null, phone: '03-44449999', mobile: '016-8765432', totalOutstanding: 8900, invoiceCount: 1, aging: { current: 0, days1to30: 0, days31to60: 8900, days61to90: 0, over90: 0 } },
+    ];
+    return { success: true, data: customersWithBalance };
+  }
+
+  // Batch Payment Notification - Vendor payments
+  if (url.startsWith('/messaging/vendor-payments')) {
+    const vendorPayments = [
+      { id: 1, paymentNo: 'PV-000001', paymentDate: '2026-02-20', paymentAmount: 15000, chequeNo: 'CHQ-001', reference: 'Feb Payment', vendor: { id: 1, code: 'V001', name: 'Premier Supplies Sdn Bhd', email: 'ali@premier.com', phone: '03-55559999', mobile: '019-1234567' }, knockoffs: [{ invoiceNo: 'PI-000001', amount: 15000 }] },
+      { id: 2, paymentNo: 'PV-000002', paymentDate: '2026-02-21', paymentAmount: 5000, chequeNo: null, reference: 'TT Payment', vendor: { id: 2, code: 'V002', name: 'Quality Materials Co', email: 'siti@quality.com', phone: '03-66667777', mobile: '012-7654321' }, knockoffs: [{ invoiceNo: 'PI-000002', amount: 5000 }] },
+      { id: 3, paymentNo: 'PV-000003', paymentDate: '2026-02-22', paymentAmount: 12000, chequeNo: 'CHQ-002', reference: null, vendor: { id: 3, code: 'V003', name: 'Tech Components Ltd', email: 'james@techcomp.com', phone: '03-88881234', mobile: null }, knockoffs: [{ invoiceNo: 'PI-000003', amount: 10000 }, { invoiceNo: 'PI-000004', amount: 2000 }] },
+      { id: 4, paymentNo: 'PV-000004', paymentDate: '2026-02-23', paymentAmount: 8500, chequeNo: null, reference: 'Urgent', vendor: { id: 4, code: 'V004', name: 'Eastern Trading', email: null, phone: '03-99994567', mobile: '013-9876543' }, knockoffs: [{ invoiceNo: 'PI-000005', amount: 8500 }] },
+    ];
+    return { success: true, data: vendorPayments };
   }
 
   // Default
@@ -370,6 +413,99 @@ function handleMockPost(url: string, data?: any): any {
         companyName: 'Converted Lead',
         status: 'NEW'
       } 
+    };
+  }
+
+  // Batch SOA sending
+  if (url === '/messaging/batch-soa') {
+    const customerIds = data?.customerIds || [];
+    const results = customerIds.map((id: number) => ({
+      customerId: id,
+      customerCode: `C${String(id).padStart(3, '0')}`,
+      success: Math.random() > 0.1, // 90% success rate
+      messageId: `msg_${Date.now()}_${id}`,
+      error: Math.random() > 0.1 ? undefined : 'Demo: Random failure for testing'
+    }));
+    const successCount = results.filter((r: any) => r.success).length;
+    return { 
+      success: true, 
+      data: { 
+        summary: { total: customerIds.length, sent: successCount, failed: customerIds.length - successCount },
+        results 
+      } 
+    };
+  }
+
+  // Batch payment notification
+  if (url === '/messaging/batch-payment-notify') {
+    const paymentIds = data?.paymentIds || [];
+    const results = paymentIds.map((id: number) => ({
+      paymentId: id,
+      paymentNo: `PV-${String(id).padStart(6, '0')}`,
+      vendorCode: `V${String(id).padStart(3, '0')}`,
+      success: Math.random() > 0.1,
+      messageId: `msg_${Date.now()}_${id}`,
+      error: Math.random() > 0.1 ? undefined : 'Demo: Random failure for testing'
+    }));
+    const successCount = results.filter((r: any) => r.success).length;
+    return { 
+      success: true, 
+      data: { 
+        summary: { total: paymentIds.length, sent: successCount, failed: paymentIds.length - successCount },
+        results 
+      } 
+    };
+  }
+
+  // Batch Invoice Sending
+  if (url === '/messaging/batch-invoices') {
+    const { invoiceIds, channel } = data || {};
+    const results = (invoiceIds || []).map((id: number, idx: number) => {
+      const inv = mockData.mockARInvoices.find((i: any) => i.id === id);
+      // Simulate some failures for demo
+      const success = idx % 4 !== 2; // Every 3rd fails
+      return {
+        invoiceId: id,
+        invoiceNo: inv?.invoiceNo || `INV-${id}`,
+        customerName: inv?.customerName || 'Customer',
+        status: success ? 'sent' : 'failed',
+        error: success ? undefined : `Customer has no ${channel === 'email' ? 'email address' : 'phone number'}`,
+        messageId: success ? `msg_${Date.now()}_${id}` : undefined,
+      };
+    });
+    return {
+      success: true,
+      data: {
+        results,
+        summary: {
+          total: results.length,
+          sent: results.filter((r: any) => r.status === 'sent').length,
+          failed: results.filter((r: any) => r.status === 'failed').length,
+        },
+      },
+    };
+  }
+
+  // Batch Payment Notifications
+  if (url === '/messaging/batch-payment-notifications') {
+    const { paymentIds } = data || {};
+    const results = (paymentIds || []).map((id: number) => ({
+      paymentId: id,
+      paymentNo: `PAY-${id}`,
+      vendorName: 'Vendor',
+      status: 'sent' as const,
+      messageId: `msg_${Date.now()}_${id}`,
+    }));
+    return {
+      success: true,
+      data: {
+        results,
+        summary: {
+          total: results.length,
+          sent: results.length,
+          failed: 0,
+        },
+      },
     };
   }
 

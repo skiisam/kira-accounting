@@ -103,6 +103,8 @@ const navigation = [
     color: 'from-pink-500 to-rose-500',
     children: [
       { name: 'Messaging Inbox', href: '/messaging/inbox' },
+      { name: 'Batch SOA Sending', href: '/messaging/batch-soa' },
+      { name: 'Payment Notification', href: '/messaging/payment-notify' },
       { name: 'Social Inbox', href: '/social/inbox' },
       { name: 'Social Settings', href: '/social/settings' },
     ],

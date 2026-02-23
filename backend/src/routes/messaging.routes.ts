@@ -1,8 +1,31 @@
 import { Router, Request, Response } from 'express';
 import { messagingService } from '../services/messaging.service';
 import { prisma } from '../config/database';
+import { messagingController } from '../controllers/messaging.controller';
 
 const router = Router();
+
+// =====================================================
+// BATCH MESSAGING
+// =====================================================
+
+/**
+ * POST /messaging/batch-invoices
+ * Send invoices in batch to customers via email/WhatsApp
+ */
+router.post('/batch-invoices', messagingController.batchSendInvoices);
+
+/**
+ * POST /messaging/batch-payment-notifications
+ * Notify vendors about payments
+ */
+router.post('/batch-payment-notifications', messagingController.batchPaymentNotifications);
+
+/**
+ * GET /messaging/invoices
+ * Get invoices available for batch sending
+ */
+router.get('/invoices', messagingController.getInvoicesForBatch);
 
 // =====================================================
 // MESSAGING CONFIGURATION
