@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { messagingService } from '../services/messaging.service';
+import { prisma } from '../config/database';
 
 const router = Router();
 
@@ -413,6 +414,454 @@ router.post('/inquiries/:id/convert-to-lead', async (req: Request, res: Response
     res.status(500).json({
       success: false,
       error: { code: 'CONVERT_ERROR', message: error.message }
+    });
+  }
+});
+
+// =====================================================
+// BATCH SOA (Statement of Account)
+// =====================================================
+
+/**
+ * GET /messaging/customers-with-balance
+ * Get customers with outstanding balance for batch SOA
+ */
+router.get('/customers-with-balance', async (req: Request, res: Response) => {
+  try {
+    const asOfDate = req.query.asOfDate 
+      ? new Date(req.query.asOfDate as string)
+      : new Date();
+
+    // Get customers with outstanding AR invoices
+    const customersWithBalance = await prisma.customer.findMany({
+      where: {
+        isActive: true,
+        arInvoices: {
+          some: {
+            status: 'OPEN',
+            isVoid: false,
+            outstandingAmount: { gt: 0 }
+          }
+        }
+      },
+      include: {
+        arInvoices: {
+          where: {
+            status: 'OPEN',
+            isVoid: false,
+            outstandingAmount: { gt: 0 }
+          },
+          select: {
+            id: true,
+            invoiceNo: true,
+            invoiceDate: true,
+            dueDate: true,
+            netTotal: true,
+            outstandingAmount: true
+          }
+        }
+      },
+      orderBy: { code: 'asc' }
+    });
+
+    // Calculate totals and aging for each customer
+    const result = customersWithBalance.map(customer => {
+      const totalOutstanding = customer.arInvoices.reduce(
+        (sum, inv) => sum + Number(inv.outstandingAmount), 0
+      );
+
+      // Calculate aging buckets
+      const aging = { current: 0, days1to30: 0, days31to60: 0, days61to90: 0, over90: 0 };
+      customer.arInvoices.forEach(inv => {
+        const dueDate = inv.dueDate || inv.invoiceDate;
+        const daysDue = Math.floor((asOfDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+        const amount = Number(inv.outstandingAmount);
+
+        if (daysDue <= 0) aging.current += amount;
+        else if (daysDue <= 30) aging.days1to30 += amount;
+        else if (daysDue <= 60) aging.days31to60 += amount;
+        else if (daysDue <= 90) aging.days61to90 += amount;
+        else aging.over90 += amount;
+      });
+
+      return {
+        id: customer.id,
+        code: customer.code,
+        name: customer.name,
+        email: customer.email,
+        phone: customer.phone,
+        mobile: customer.mobile,
+        totalOutstanding,
+        invoiceCount: customer.arInvoices.length,
+        aging
+      };
+    });
+
+    res.json({ success: true, data: result });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'FETCH_ERROR', message: error.message }
+    });
+  }
+});
+
+/**
+ * POST /messaging/batch-soa
+ * Send SOA (Statement of Account) to multiple customers
+ */
+router.post('/batch-soa', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    const { customerIds, asOfDate, channel, includeAging } = req.body;
+
+    if (!customerIds || !Array.isArray(customerIds) || customerIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'customerIds array is required' }
+      });
+    }
+
+    if (!channel || !['email', 'whatsapp'].includes(channel)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'channel must be "email" or "whatsapp"' }
+      });
+    }
+
+    const statementDate = asOfDate ? new Date(asOfDate) : new Date();
+    const results: Array<{ customerId: number; customerCode: string; success: boolean; error?: string; messageId?: string }> = [];
+
+    // Get company info for template
+    const company = await prisma.company.findFirst({ where: { isActive: true } });
+    const companyName = company?.name || 'Our Company';
+
+    // Process each customer
+    for (const customerId of customerIds) {
+      try {
+        // Get customer details
+        const customer = await prisma.customer.findUnique({
+          where: { id: customerId },
+          include: {
+            arInvoices: {
+              where: {
+                status: 'OPEN',
+                isVoid: false,
+                outstandingAmount: { gt: 0 }
+              },
+              orderBy: { invoiceDate: 'asc' }
+            }
+          }
+        });
+
+        if (!customer) {
+          results.push({ customerId, customerCode: 'UNKNOWN', success: false, error: 'Customer not found' });
+          continue;
+        }
+
+        // Check if customer has contact info for the channel
+        const contactInfo = channel === 'email' ? customer.email : (customer.mobile || customer.phone);
+        if (!contactInfo) {
+          results.push({ 
+            customerId, 
+            customerCode: customer.code, 
+            success: false, 
+            error: `No ${channel === 'email' ? 'email' : 'phone number'} on file` 
+          });
+          continue;
+        }
+
+        // Calculate totals
+        const totalOutstanding = customer.arInvoices.reduce(
+          (sum, inv) => sum + Number(inv.outstandingAmount), 0
+        );
+
+        // Build aging breakdown if requested
+        let agingText = '';
+        if (includeAging) {
+          const aging = { current: 0, days1to30: 0, days31to60: 0, days61to90: 0, over90: 0 };
+          customer.arInvoices.forEach(inv => {
+            const dueDate = inv.dueDate || inv.invoiceDate;
+            const daysDue = Math.floor((statementDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+            const amount = Number(inv.outstandingAmount);
+
+            if (daysDue <= 0) aging.current += amount;
+            else if (daysDue <= 30) aging.days1to30 += amount;
+            else if (daysDue <= 60) aging.days31to60 += amount;
+            else if (daysDue <= 90) aging.days61to90 += amount;
+            else aging.over90 += amount;
+          });
+
+          agingText = `\n\nAging Breakdown:\n` +
+            `• Current: ${aging.current.toFixed(2)}\n` +
+            `• 1-30 days: ${aging.days1to30.toFixed(2)}\n` +
+            `• 31-60 days: ${aging.days31to60.toFixed(2)}\n` +
+            `• 61-90 days: ${aging.days61to90.toFixed(2)}\n` +
+            `• Over 90 days: ${aging.over90.toFixed(2)}`;
+        }
+
+        // Build invoice list
+        const invoiceList = customer.arInvoices.slice(0, 10).map(inv => 
+          `• ${inv.invoiceNo}: ${Number(inv.outstandingAmount).toFixed(2)} (Due: ${inv.dueDate?.toISOString().split('T')[0] || 'N/A'})`
+        ).join('\n');
+        const moreInvoices = customer.arInvoices.length > 10 
+          ? `\n... and ${customer.arInvoices.length - 10} more invoices` 
+          : '';
+
+        // Get or create message
+        const template = await messagingService.getTemplate('STATEMENT_NOTIFICATION');
+        const messageBody = template 
+          ? messagingService.replaceTemplateVariables(template.body, {
+              customerName: customer.name,
+              statementDate: statementDate.toISOString().split('T')[0],
+              outstandingAmount: totalOutstanding.toFixed(2),
+              companyName
+            }) + agingText
+          : `Dear ${customer.name},\n\n` +
+            `Statement of Account as of ${statementDate.toISOString().split('T')[0]}\n\n` +
+            `Total Outstanding: ${totalOutstanding.toFixed(2)}\n\n` +
+            `Outstanding Invoices:\n${invoiceList}${moreInvoices}` +
+            agingText +
+            `\n\nPlease arrange payment at your earliest convenience.\n\n` +
+            `Thank you,\n${companyName}`;
+
+        // Send message
+        const platform = channel === 'email' ? 'EMAIL' : 'WHATSAPP';
+        const result = await messagingService.sendMessage({
+          platform: platform as any,
+          recipientPhone: customer.mobile || customer.phone,
+          message: messageBody,
+          customerId: customer.id,
+          documentType: 'STATEMENT',
+          documentNo: `SOA-${customer.code}-${statementDate.toISOString().split('T')[0]}`
+        }, userId);
+
+        results.push({
+          customerId,
+          customerCode: customer.code,
+          success: result.success,
+          error: result.error,
+          messageId: result.messageId
+        });
+      } catch (err: any) {
+        results.push({
+          customerId,
+          customerCode: 'UNKNOWN',
+          success: false,
+          error: err.message
+        });
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+
+    res.json({
+      success: true,
+      data: {
+        summary: {
+          total: customerIds.length,
+          sent: successCount,
+          failed: failCount
+        },
+        results
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'BATCH_SOA_ERROR', message: error.message }
+    });
+  }
+});
+
+/**
+ * GET /messaging/vendor-payments
+ * Get recent AP payments for batch notification
+ */
+router.get('/vendor-payments', async (req: Request, res: Response) => {
+  try {
+    const { dateFrom, dateTo } = req.query;
+    const fromDate = dateFrom ? new Date(dateFrom as string) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const toDate = dateTo ? new Date(dateTo as string) : new Date();
+
+    const payments = await prisma.aPPayment.findMany({
+      where: {
+        isVoid: false,
+        paymentDate: {
+          gte: fromDate,
+          lte: toDate
+        }
+      },
+      include: {
+        vendor: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            email: true,
+            phone: true,
+            mobile: true
+          }
+        },
+        knockoffs: {
+          select: {
+            documentNo: true,
+            knockoffAmount: true
+          }
+        }
+      },
+      orderBy: { paymentDate: 'desc' }
+    });
+
+    const result = payments.map(payment => ({
+      id: payment.id,
+      paymentNo: payment.paymentNo,
+      paymentDate: payment.paymentDate,
+      paymentAmount: Number(payment.paymentAmount),
+      chequeNo: payment.chequeNo,
+      reference: payment.reference,
+      vendor: payment.vendor,
+      knockoffs: payment.knockoffs.map(k => ({
+        invoiceNo: k.documentNo,
+        amount: Number(k.knockoffAmount)
+      }))
+    }));
+
+    res.json({ success: true, data: result });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'FETCH_ERROR', message: error.message }
+    });
+  }
+});
+
+/**
+ * POST /messaging/batch-payment-notify
+ * Send payment notification (remittance advice) to vendors
+ */
+router.post('/batch-payment-notify', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    const { paymentIds, channel } = req.body;
+
+    if (!paymentIds || !Array.isArray(paymentIds) || paymentIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'paymentIds array is required' }
+      });
+    }
+
+    if (!channel || !['email', 'whatsapp'].includes(channel)) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'channel must be "email" or "whatsapp"' }
+      });
+    }
+
+    const results: Array<{ paymentId: number; paymentNo: string; vendorCode: string; success: boolean; error?: string; messageId?: string }> = [];
+
+    // Get company info for template
+    const company = await prisma.company.findFirst({ where: { isActive: true } });
+    const companyName = company?.name || 'Our Company';
+
+    // Process each payment
+    for (const paymentId of paymentIds) {
+      try {
+        // Get payment details
+        const payment = await prisma.aPPayment.findUnique({
+          where: { id: paymentId },
+          include: {
+            vendor: true,
+            knockoffs: true
+          }
+        });
+
+        if (!payment) {
+          results.push({ paymentId, paymentNo: 'UNKNOWN', vendorCode: 'UNKNOWN', success: false, error: 'Payment not found' });
+          continue;
+        }
+
+        // Check if vendor has contact info for the channel
+        const contactInfo = channel === 'email' ? payment.vendor.email : (payment.vendor.mobile || payment.vendor.phone);
+        if (!contactInfo) {
+          results.push({ 
+            paymentId, 
+            paymentNo: payment.paymentNo,
+            vendorCode: payment.vendor.code, 
+            success: false, 
+            error: `No ${channel === 'email' ? 'email' : 'phone number'} on file` 
+          });
+          continue;
+        }
+
+        // Build invoices paid list
+        const invoiceList = payment.knockoffs.map(k => 
+          `• ${k.documentNo}: ${Number(k.knockoffAmount).toFixed(2)}`
+        ).join('\n');
+
+        // Build message
+        const messageBody = `Dear ${payment.vendor.name},\n\n` +
+          `Payment Notification from ${companyName}\n\n` +
+          `Payment Details:\n` +
+          `• Payment No: ${payment.paymentNo}\n` +
+          `• Payment Date: ${payment.paymentDate.toISOString().split('T')[0]}\n` +
+          `• Amount: ${Number(payment.paymentAmount).toFixed(2)} ${payment.currencyCode}\n` +
+          (payment.chequeNo ? `• Cheque No: ${payment.chequeNo}\n` : '') +
+          (payment.reference ? `• Reference: ${payment.reference}\n` : '') +
+          `\nInvoices Paid:\n${invoiceList}\n\n` +
+          `Thank you for your business.\n\n` +
+          `Best regards,\n${companyName}`;
+
+        // Send message
+        const platform = channel === 'email' ? 'EMAIL' : 'WHATSAPP';
+        const result = await messagingService.sendMessage({
+          platform: platform as any,
+          recipientPhone: payment.vendor.mobile || payment.vendor.phone,
+          message: messageBody,
+          documentType: 'PAYMENT_NOTIFICATION',
+          documentId: payment.id,
+          documentNo: payment.paymentNo
+        }, userId);
+
+        results.push({
+          paymentId,
+          paymentNo: payment.paymentNo,
+          vendorCode: payment.vendor.code,
+          success: result.success,
+          error: result.error,
+          messageId: result.messageId
+        });
+      } catch (err: any) {
+        results.push({
+          paymentId,
+          paymentNo: 'UNKNOWN',
+          vendorCode: 'UNKNOWN',
+          success: false,
+          error: err.message
+        });
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+
+    res.json({
+      success: true,
+      data: {
+        summary: {
+          total: paymentIds.length,
+          sent: successCount,
+          failed: failCount
+        },
+        results
+      }
+    });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'BATCH_PAYMENT_NOTIFY_ERROR', message: error.message }
     });
   }
 });

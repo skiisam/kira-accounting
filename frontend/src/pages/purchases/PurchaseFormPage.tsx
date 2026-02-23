@@ -481,6 +481,16 @@ export default function PurchaseFormPage() {
 
         {/* Actions */}
         <div className="flex justify-end gap-4">
+          {id && (
+            <button
+              type="button"
+              onClick={handleVoid}
+              className="btn bg-red-600 hover:bg-red-700 text-white"
+            >
+              <XCircleIcon className="w-4 h-4 mr-1" />
+              Void
+            </button>
+          )}
           <button type="button" onClick={() => navigate(-1)} className="btn btn-secondary">
             Cancel
           </button>
@@ -502,6 +512,33 @@ export default function PurchaseFormPage() {
           targetLabel={selectedTransfer.label}
           endpoint={typeEndpoints[docType]}
         />
+      )}
+
+      {/* Void Modal */}
+      {voidModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setVoidModalOpen(false)} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Void {typeLabels[docType]}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Are you sure you want to void this document? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setVoidModalOpen(false)} className="btn btn-secondary">
+                Cancel
+              </button>
+              <button
+                onClick={confirmVoid}
+                disabled={voidMutation.isPending}
+                className="btn bg-red-600 hover:bg-red-700 text-white"
+              >
+                {voidMutation.isPending ? 'Voiding...' : 'Void Document'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

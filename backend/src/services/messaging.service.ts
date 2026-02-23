@@ -15,6 +15,18 @@ interface MessagePayload {
   recipientChatId?: string;
   message: string;
   customerId?: number;
+  vendorId?: number;
+  documentType?: string;
+  documentId?: number;
+  documentNo?: string;
+}
+
+interface EmailPayload {
+  to: string;
+  subject: string;
+  body: string;
+  customerId?: number;
+  vendorId?: number;
   documentType?: string;
   documentId?: number;
   documentNo?: string;
