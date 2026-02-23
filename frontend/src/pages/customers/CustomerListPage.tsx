@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   PlusIcon, 
   MagnifyingGlassIcon, 
   UsersIcon,
+  PencilIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
-import { getPaginated } from '../../services/api';
+import { getPaginated, del } from '../../services/api';
 import DataTable from '../../components/common/DataTable';
+import toast from 'react-hot-toast';
 
 interface Customer {
   id: number;
@@ -24,9 +27,11 @@ interface Customer {
 
 export default function CustomerListPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [showInactive, setShowInactive] = useState(false);
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; customer: Customer | null }>({ open: false, customer: null });
   const pageSize = 20;
 
   const { data, isLoading } = useQuery({
@@ -39,8 +44,31 @@ export default function CustomerListPage() {
     }),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => del(`/customers/${id}`),
+    onSuccess: () => {
+      toast.success('Customer deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['customers'] });
+      setDeleteModal({ open: false, customer: null });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error?.message || 'Failed to delete customer');
+    },
+  });
+
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('en-MY', { style: 'currency', currency: 'MYR' }).format(val);
+
+  const handleDelete = (customer: Customer, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeleteModal({ open: true, customer });
+  };
+
+  const confirmDelete = () => {
+    if (deleteModal.customer) {
+      deleteMutation.mutate(deleteModal.customer.id);
+    }
+  };
 
   const columns = [
     { 
@@ -53,7 +81,6 @@ export default function CustomerListPage() {
     { key: 'name', header: 'Name' },
     { key: 'contactPerson', header: 'Contact Person' },
     { key: 'phone', header: 'Phone' },
-    { key: 'email', header: 'Email' },
     {
       key: 'creditLimit',
       header: 'Credit Limit',
@@ -64,19 +91,34 @@ export default function CustomerListPage() {
       ),
     },
     {
-      key: 'creditTermDays',
-      header: 'Terms',
-      render: (row: Customer) => (
-        <span className="text-gray-600 dark:text-gray-400">{row.creditTermDays} days</span>
-      ),
-    },
-    {
       key: 'isActive',
       header: 'Status',
       render: (row: Customer) => (
         <span className={`badge ${row.isActive ? 'badge-success' : 'badge-gray'}`}>
           {row.isActive ? 'Active' : 'Inactive'}
         </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (row: Customer) => (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={(e) => { e.stopPropagation(); navigate(`/customers/${row.id}`); }}
+            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            title="Edit"
+          >
+            <PencilIcon className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => handleDelete(row, e)}
+            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            title="Delete"
+          >
+            <TrashIcon className="w-4 h-4" />
+          </button>
+        </div>
       ),
     },
   ];
@@ -149,6 +191,37 @@ export default function CustomerListPage() {
           emptyMessage="No customers found. Create your first customer to get started."
         />
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setDeleteModal({ open: false, customer: null })} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Delete Customer
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Are you sure you want to delete <strong>{deleteModal.customer?.name}</strong> ({deleteModal.customer?.code})?
+              This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteModal({ open: false, customer: null })}
+                className="btn btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleteMutation.isPending}
+                className="btn bg-red-600 hover:bg-red-700 text-white"
+              >
+                {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

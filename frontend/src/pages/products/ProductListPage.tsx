@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   PlusIcon, 
   MagnifyingGlassIcon, 
   CubeIcon,
+  PencilIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
-import { getPaginated } from '../../services/api';
+import { getPaginated, del } from '../../services/api';
 import DataTable from '../../components/common/DataTable';
+import toast from 'react-hot-toast';
 
 interface Product {
   id: number;
@@ -26,9 +29,11 @@ interface Product {
 
 export default function ProductListPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [showInactive, setShowInactive] = useState(false);
+  const [deleteModal, setDeleteModal] = useState<{ open: boolean; product: Product | null }>({ open: false, product: null });
 
   const { data, isLoading } = useQuery({
     queryKey: ['products', page, search, showInactive],
@@ -40,8 +45,31 @@ export default function ProductListPage() {
     }),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => del(`/products/${id}`),
+    onSuccess: () => {
+      toast.success('Product deleted successfully');
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+      setDeleteModal({ open: false, product: null });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error?.message || 'Failed to delete product');
+    },
+  });
+
   const formatCurrency = (val: number) => 
     new Intl.NumberFormat('en-MY', { style: 'currency', currency: 'MYR' }).format(val);
+
+  const handleDelete = (product: Product, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeleteModal({ open: true, product });
+  };
+
+  const confirmDelete = () => {
+    if (deleteModal.product) {
+      deleteMutation.mutate(deleteModal.product.id);
+    }
+  };
 
   const columns = [
     { 
@@ -75,38 +103,11 @@ export default function ProductListPage() {
     },
     { 
       key: 'prices', 
-      header: 'Selling Prices', 
+      header: 'Selling Price', 
       render: (row: Product) => (
-        <div className="space-y-0.5">
-          <div className="font-medium text-emerald-600 dark:text-emerald-400">
-            {formatCurrency(row.sellingPrice1)}
-          </div>
-          {(row.sellingPrice2 || row.sellingPrice3) && (
-            <div className="text-xs text-gray-500">
-              {row.sellingPrice2 ? formatCurrency(row.sellingPrice2) : ''} 
-              {row.sellingPrice2 && row.sellingPrice3 ? ' / ' : ''}
-              {row.sellingPrice3 ? formatCurrency(row.sellingPrice3) : ''}
-            </div>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'flags',
-      header: 'Type',
-      render: (row: Product) => (
-        <div className="flex gap-1">
-          {row.isSellable && (
-            <span className="w-6 h-6 rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center text-xs" title="Sellable">
-              S
-            </span>
-          )}
-          {row.isPurchasable && (
-            <span className="w-6 h-6 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center text-xs" title="Purchasable">
-              P
-            </span>
-          )}
-        </div>
+        <span className="font-medium text-emerald-600 dark:text-emerald-400">
+          {formatCurrency(row.sellingPrice1)}
+        </span>
       ),
     },
     {
@@ -116,6 +117,28 @@ export default function ProductListPage() {
         <span className={`badge ${row.isActive ? 'badge-success' : 'badge-gray'}`}>
           {row.isActive ? 'Active' : 'Inactive'}
         </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (row: Product) => (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={(e) => { e.stopPropagation(); navigate(`/products/${row.id}`); }}
+            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            title="Edit"
+          >
+            <PencilIcon className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => handleDelete(row, e)}
+            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            title="Delete"
+          >
+            <TrashIcon className="w-4 h-4" />
+          </button>
+        </div>
       ),
     },
   ];
@@ -176,6 +199,37 @@ export default function ProductListPage() {
           emptyMessage="No products found. Create your first product to get started."
         />
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setDeleteModal({ open: false, product: null })} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Delete Product
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Are you sure you want to delete <strong>{deleteModal.product?.description}</strong> ({deleteModal.product?.code})?
+              This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteModal({ open: false, product: null })}
+                className="btn btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleteMutation.isPending}
+                className="btn bg-red-600 hover:bg-red-700 text-white"
+              >
+                {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
