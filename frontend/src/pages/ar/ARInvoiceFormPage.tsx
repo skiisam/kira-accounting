@@ -1,5 +1,5 @@
 import { useNavigate, useParams } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { get } from '../../services/api';
 import { 
   ArrowLeftIcon, 
@@ -50,7 +50,6 @@ interface ARInvoice {
 export default function ARInvoiceFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
   const { data: invoice, isLoading, error } = useQuery({
     queryKey: ['ar-invoice', id],
