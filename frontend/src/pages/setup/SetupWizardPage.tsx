@@ -34,13 +34,23 @@ const COUNTRIES = [
   { code: 'TW', name: 'Taiwan', currency: 'TWD', flag: '🇹🇼' },
 ];
 
-// GL Code formats
+// GL Code format characters
+const GL_FORMAT_CHARS = [
+  { char: '0', meaning: 'Numeric only (0-9)', example: '1, 2, 3...' },
+  { char: 'A', meaning: 'Alphanumeric (A-Z, 0-9)', example: 'A, B, 1, 2...' },
+  { char: 'L', meaning: 'Uppercase letter only (A-Z)', example: 'A, B, C...' },
+  { char: '-/.(){}', meaning: 'Literal separator characters', example: '-, /, .' },
+];
+
+// Pre-defined GL Code formats
 const GL_FORMATS = [
-  { value: 'XXXX', label: '4 digits (1000)', example: '1000, 2100, 4000' },
-  { value: 'XXXXX', label: '5 digits (10000)', example: '10000, 21000, 40000' },
-  { value: 'XX-XXXX', label: '2-4 format (10-1000)', example: '10-1000, 20-2100' },
-  { value: 'XXX-XXX', label: '3-3 format (100-100)', example: '100-100, 200-210' },
-  { value: 'XX-XXX-XXX', label: '2-3-3 format', example: '10-100-100' },
+  { value: '0000', label: '4 Numeric', example: '1000, 2100, 4000' },
+  { value: '00000', label: '5 Numeric', example: '10000, 21000, 40000' },
+  { value: '00-0000', label: '2-4 Numeric', example: '10-1000, 20-2100' },
+  { value: '000-000', label: '3-3 Numeric', example: '100-100, 200-210' },
+  { value: 'AAA-0000', label: 'Alpha-Numeric', example: 'AST-1000, REV-4000' },
+  { value: 'L-0000', label: 'Letter-Numeric', example: 'A-1000, L-2100' },
+  { value: '', label: 'Free Format', example: 'Any format allowed' },
 ];
 
 // Chart of Accounts templates
@@ -114,6 +124,8 @@ interface WizardData {
   
   // Step 5: GL & COA
   glFormat: string;
+  glFormatCustom: string;
+  coaMode: 'blank' | 'sample' | 'copy';
   coaTemplate: string;
   
   // Step 6: Inventory
@@ -150,7 +162,9 @@ export default function SetupWizardPage() {
     enableWithholdingTax: false,
     gstNo: '',
     sstNo: '',
-    glFormat: 'XXXX',
+    glFormat: '0000',
+    glFormatCustom: '',
+    coaMode: 'sample',
     coaTemplate: 'trading',
     inventoryType: 'perpetual',
   });
@@ -491,53 +505,153 @@ export default function SetupWizardPage() {
                     Chart of Accounts Setup
                   </h3>
                   <p className="text-gray-500 dark:text-gray-400 text-sm mb-6">
-                    Select your GL code format and industry template
+                    Configure your account code format and initial chart of accounts
                   </p>
                 </div>
 
-                <div>
-                  <label className="label">GL Account Code Format</label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {GL_FORMATS.map((format) => (
-                      <button
-                        key={format.value}
-                        onClick={() => updateData({ glFormat: format.value })}
-                        className={`p-3 rounded-lg border-2 text-left transition-all ${
-                          data.glFormat === format.value
-                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
-                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                        }`}
-                      >
-                        <p className="font-mono font-semibold text-gray-900 dark:text-white">{format.label}</p>
-                        <p className="text-xs text-gray-500 mt-1">e.g. {format.example}</p>
-                      </button>
-                    ))}
+                {/* Account Code Format Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div>
+                    <label className="label">Account Code Format</label>
+                    <div className="flex gap-2 mb-3">
+                      <input
+                        type="text"
+                        value={data.glFormatCustom || data.glFormat}
+                        onChange={(e) => updateData({ glFormatCustom: e.target.value, glFormat: e.target.value })}
+                        className="input font-mono text-lg"
+                        placeholder="0000"
+                      />
+                    </div>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      {GL_FORMATS.map((format) => (
+                        <button
+                          key={format.value}
+                          onClick={() => updateData({ glFormat: format.value, glFormatCustom: format.value })}
+                          className={`px-3 py-1.5 text-sm rounded-lg border transition-all ${
+                            data.glFormat === format.value
+                              ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          {format.label || 'Free'}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
+                      💡 Leave empty for free format (any code allowed)
+                    </p>
+                  </div>
+
+                  {/* Format Character Reference */}
+                  <div className="bg-gray-50 dark:bg-slate-900/50 rounded-lg p-4">
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Format Characters</p>
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left text-gray-500">
+                          <th className="pb-2 font-medium">Char</th>
+                          <th className="pb-2 font-medium">Meaning</th>
+                        </tr>
+                      </thead>
+                      <tbody className="text-gray-700 dark:text-gray-300">
+                        {GL_FORMAT_CHARS.map((item) => (
+                          <tr key={item.char}>
+                            <td className="py-1 font-mono font-bold text-primary-600">{item.char}</td>
+                            <td className="py-1">{item.meaning}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
 
+                {/* Sample Chart of Accounts Section */}
                 <div className="pt-4 border-t">
-                  <label className="label">Industry Template</label>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Pre-configured chart of accounts for your business type
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-80 overflow-y-auto">
-                    {COA_TEMPLATES.map((template) => (
-                      <button
-                        key={template.id}
-                        onClick={() => updateData({ coaTemplate: template.id })}
-                        className={`p-4 rounded-lg border-2 text-left transition-all ${
-                          data.coaTemplate === template.id
-                            ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
-                            : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
-                        }`}
-                      >
-                        <span className="text-2xl">{template.icon}</span>
-                        <p className="font-medium text-gray-900 dark:text-white mt-2">{template.name}</p>
-                        <p className="text-xs text-gray-500 mt-1">{template.desc}</p>
-                      </button>
-                    ))}
+                  <label className="label mb-3">Sample Chart of Accounts</label>
+                  <div className="space-y-3">
+                    <label className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                      data.coaMode === 'blank' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30' : 'border-gray-200 dark:border-gray-700'
+                    }`}>
+                      <input
+                        type="radio"
+                        name="coaMode"
+                        checked={data.coaMode === 'blank'}
+                        onChange={() => updateData({ coaMode: 'blank' })}
+                        className="mt-1"
+                      />
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">Blank Account Book</p>
+                        <p className="text-sm text-gray-500">Start with no accounts - create your own from scratch</p>
+                      </div>
+                    </label>
+
+                    <label className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                      data.coaMode === 'sample' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30' : 'border-gray-200 dark:border-gray-700'
+                    }`}>
+                      <input
+                        type="radio"
+                        name="coaMode"
+                        checked={data.coaMode === 'sample'}
+                        onChange={() => updateData({ coaMode: 'sample' })}
+                        className="mt-1"
+                      />
+                      <div className="flex-1">
+                        <p className="font-medium text-gray-900 dark:text-white">Create Sample Chart of Accounts</p>
+                        <p className="text-sm text-gray-500 mb-3">Pre-configured accounts for your industry</p>
+                        {data.coaMode === 'sample' && (
+                          <select
+                            value={data.coaTemplate}
+                            onChange={(e) => updateData({ coaTemplate: e.target.value })}
+                            className="input"
+                          >
+                            {COA_TEMPLATES.map((t) => (
+                              <option key={t.id} value={t.id}>{t.icon} {t.name}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    </label>
+
+                    <label className={`flex items-start gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all opacity-50 ${
+                      data.coaMode === 'copy' ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30' : 'border-gray-200 dark:border-gray-700'
+                    }`}>
+                      <input
+                        type="radio"
+                        name="coaMode"
+                        checked={data.coaMode === 'copy'}
+                        onChange={() => updateData({ coaMode: 'copy' })}
+                        className="mt-1"
+                        disabled
+                      />
+                      <div>
+                        <p className="font-medium text-gray-900 dark:text-white">Copy from Other Account Book</p>
+                        <p className="text-sm text-gray-500">Import COA from existing company (Coming Soon)</p>
+                      </div>
+                    </label>
                   </div>
                 </div>
+
+                {/* Industry Quick Select (when sample mode) */}
+                {data.coaMode === 'sample' && (
+                  <div className="pt-4 border-t">
+                    <label className="label mb-3">Industry Templates</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 max-h-48 overflow-y-auto">
+                      {COA_TEMPLATES.map((template) => (
+                        <button
+                          key={template.id}
+                          onClick={() => updateData({ coaTemplate: template.id })}
+                          className={`p-3 rounded-lg border text-left transition-all ${
+                            data.coaTemplate === template.id
+                              ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/30'
+                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300'
+                          }`}
+                        >
+                          <span className="text-xl">{template.icon}</span>
+                          <p className="font-medium text-xs text-gray-900 dark:text-white mt-1 truncate">{template.name}</p>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -610,9 +724,13 @@ export default function SetupWizardPage() {
                       <p className="font-medium text-gray-900 dark:text-white">{data.fiscalYearStart}</p>
                     </div>
                     <div>
-                      <p className="text-gray-500">Industry Template</p>
+                      <p className="text-gray-500">Chart of Accounts</p>
                       <p className="font-medium text-gray-900 dark:text-white">
-                        {COA_TEMPLATES.find((t) => t.id === data.coaTemplate)?.name}
+                        {data.coaMode === 'blank' 
+                          ? 'Blank (No accounts)' 
+                          : data.coaMode === 'sample' 
+                            ? COA_TEMPLATES.find((t) => t.id === data.coaTemplate)?.name 
+                            : 'Copy from existing'}
                       </p>
                     </div>
                     <div>
