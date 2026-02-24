@@ -102,7 +102,7 @@ export default function ProductFormPage() {
       const [groupsRes, typesRes, uomsRes] = await Promise.all([
         get<any>('/settings/product-groups'),
         get<any>('/settings/product-types'),
-        get<any>('/settings/uoms'),
+        get<any>('/settings/uom'),
       ]);
       // Handle both direct array and {data: []} wrapper formats
       setGroups((groupsRes as any)?.data || (Array.isArray(groupsRes) ? groupsRes : []));

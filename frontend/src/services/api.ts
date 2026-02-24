@@ -200,7 +200,7 @@ function getMockResponse(url: string, params?: Record<string, any>): any {
   // Settings / Lookups
   if (url === '/settings/currencies') return { success: true, data: mockData.mockCurrencies };
   if (url === '/settings/tax-codes') return { success: true, data: mockData.mockTaxCodes };
-  if (url === '/settings/uoms') return { success: true, data: mockData.mockUOMs };
+  if (url === '/settings/uom' || url === '/settings/uoms') return { success: true, data: mockData.mockUOMs };
   if (url === '/settings/product-groups') return { success: true, data: mockData.mockProductGroups };
   if (url === '/settings/product-types') return { success: true, data: mockData.mockProductTypes };
   if (url === '/settings/payment-methods') return { success: true, data: mockData.mockPaymentMethods };
