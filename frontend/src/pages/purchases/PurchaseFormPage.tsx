@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { get, post, put } from '../../services/api';
 import { PlusIcon, TrashIcon, MagnifyingGlassIcon, DocumentDuplicateIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import PurchaseTransferDialog from '../../components/purchases/TransferDialog';
+import SearchDialog from '../../components/common/SearchDialog';
 
 interface PurchaseDetail {
   productId: number;
@@ -71,6 +72,8 @@ export default function PurchaseFormPage() {
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [selectedTransfer, setSelectedTransfer] = useState<{ target: string; label: string } | null>(null);
   const [voidModalOpen, setVoidModalOpen] = useState(false);
+  const [vendorSearchOpen, setVendorSearchOpen] = useState(false);
+  const [productSearchOpen, setProductSearchOpen] = useState<number | null>(null);
   
   // Get transfer data from navigation state
   const transferFrom = (location.state as any)?.transferFrom;
@@ -170,6 +173,23 @@ export default function PurchaseFormPage() {
     } catch (err) {
       setVendorError('Error looking up vendor');
     }
+  };
+
+  // Handle vendor selection from search dialog
+  const handleVendorSelect = (vendor: any) => {
+    setValue('vendorId', vendor.id);
+    setValue('vendorCode', vendor.code);
+    setVendorError('');
+  };
+
+  // Handle product selection from search dialog
+  const handleProductSelect = (product: any, index: number) => {
+    setValue(`details.${index}.productId`, product.id);
+    setValue(`details.${index}.productCode`, product.code);
+    setValue(`details.${index}.description`, product.description);
+    setValue(`details.${index}.unitPrice`, Number(product.lastPurchaseCost) || Number(product.standardCost) || 0);
+    updateLine(index);
+    setProductSearchOpen(null);
   };
 
   // Look up product by code  
@@ -312,7 +332,7 @@ export default function PurchaseFormPage() {
                   onBlur={(e) => lookupVendor(e.target.value)}
                 />
                 <input type="hidden" {...register('vendorId', { valueAsNumber: true })} />
-                <button type="button" className="btn btn-secondary px-3">
+                <button type="button" onClick={() => setVendorSearchOpen(true)} className="btn btn-secondary px-3">
                   <MagnifyingGlassIcon className="w-5 h-5" />
                 </button>
               </div>
@@ -393,14 +413,23 @@ export default function PurchaseFormPage() {
                   <tr key={field.id}>
                     <td>{index + 1}</td>
                     <td>
-                      <input
-                        {...register(`details.${index}.productCode`)}
-                        className="input py-1 text-sm"
-                        onBlur={(e) => {
-                          lookupProduct(e.target.value, index);
-                          updateLine(index);
-                        }}
-                      />
+                      <div className="flex gap-1">
+                        <input
+                          {...register(`details.${index}.productCode`)}
+                          className="input py-1 text-sm flex-1"
+                          onBlur={(e) => {
+                            lookupProduct(e.target.value, index);
+                            updateLine(index);
+                          }}
+                        />
+                        <button 
+                          type="button" 
+                          onClick={() => setProductSearchOpen(index)}
+                          className="btn btn-secondary px-2 py-1"
+                        >
+                          <MagnifyingGlassIcon className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                     <td>
                       <input {...register(`details.${index}.description`)} className="input py-1 text-sm" />
@@ -540,6 +569,38 @@ export default function PurchaseFormPage() {
           </div>
         </div>
       )}
+
+      {/* Vendor Search Dialog */}
+      <SearchDialog
+        isOpen={vendorSearchOpen}
+        onClose={() => setVendorSearchOpen(false)}
+        onSelect={handleVendorSelect}
+        title="Select Vendor"
+        endpoint="/vendors"
+        displayFields={[
+          { key: 'name', label: 'Name' },
+          { key: 'contactPerson', label: 'Contact' },
+        ]}
+        valueField="code"
+        newPath="/vendors/new"
+        placeholder="Search by code or name..."
+      />
+
+      {/* Product Search Dialog */}
+      <SearchDialog
+        isOpen={productSearchOpen !== null}
+        onClose={() => setProductSearchOpen(null)}
+        onSelect={(product) => productSearchOpen !== null && handleProductSelect(product, productSearchOpen)}
+        title="Select Product"
+        endpoint="/products"
+        displayFields={[
+          { key: 'description', label: 'Description' },
+          { key: 'group.name', label: 'Group' },
+        ]}
+        valueField="code"
+        newPath="/products/new"
+        placeholder="Search by code or description..."
+      />
     </div>
   );
 }

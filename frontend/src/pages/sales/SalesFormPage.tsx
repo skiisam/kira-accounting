@@ -7,6 +7,7 @@ import { get, post, put } from '../../services/api';
 import { PlusIcon, TrashIcon, MagnifyingGlassIcon, DocumentDuplicateIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import TransferDialog from '../../components/sales/TransferDialog';
 import { SendMessageButtons } from '../../components/common/SendMessageDialog';
+import SearchDialog from '../../components/common/SearchDialog';
 
 interface SalesDetail {
   productId: number;
@@ -80,6 +81,8 @@ export default function SalesFormPage() {
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [selectedTransfer, setSelectedTransfer] = useState<{ target: string; label: string } | null>(null);
   const [voidModalOpen, setVoidModalOpen] = useState(false);
+  const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
+  const [productSearchOpen, setProductSearchOpen] = useState<number | null>(null);
   
   // Get transfer data from navigation state
   const transferFrom = (location.state as any)?.transferFrom;
@@ -192,6 +195,23 @@ export default function SalesFormPage() {
     } catch (err) {
       console.error('Error looking up product:', err);
     }
+  };
+
+  // Handle customer selection from search dialog
+  const handleCustomerSelect = (customer: any) => {
+    setValue('customerId', customer.id);
+    setValue('customerCode', customer.code);
+    setCustomerError('');
+  };
+
+  // Handle product selection from search dialog
+  const handleProductSelect = (product: any, index: number) => {
+    setValue(`details.${index}.productId`, product.id);
+    setValue(`details.${index}.productCode`, product.code);
+    setValue(`details.${index}.description`, product.description);
+    setValue(`details.${index}.unitPrice`, Number(product.sellingPrice1) || 0);
+    updateLine(index);
+    setProductSearchOpen(null);
   };
 
   const { fields, append, remove } = useFieldArray({ control, name: 'details' });
@@ -345,7 +365,7 @@ export default function SalesFormPage() {
                   onBlur={(e) => lookupCustomer(e.target.value)}
                 />
                 <input type="hidden" {...register('customerId', { valueAsNumber: true })} />
-                <button type="button" className="btn btn-secondary px-3">
+                <button type="button" onClick={() => setCustomerSearchOpen(true)} className="btn btn-secondary px-3">
                   <MagnifyingGlassIcon className="w-5 h-5" />
                 </button>
               </div>
@@ -414,14 +434,23 @@ export default function SalesFormPage() {
                   <tr key={field.id}>
                     <td>{index + 1}</td>
                     <td>
-                      <input
-                        {...register(`details.${index}.productCode`)}
-                        className="input py-1 text-sm"
-                        onBlur={(e) => {
-                          lookupProduct(e.target.value, index);
-                          updateLine(index);
-                        }}
-                      />
+                      <div className="flex gap-1">
+                        <input
+                          {...register(`details.${index}.productCode`)}
+                          className="input py-1 text-sm flex-1"
+                          onBlur={(e) => {
+                            lookupProduct(e.target.value, index);
+                            updateLine(index);
+                          }}
+                        />
+                        <button 
+                          type="button" 
+                          onClick={() => setProductSearchOpen(index)}
+                          className="btn btn-secondary px-2 py-1"
+                        >
+                          <MagnifyingGlassIcon className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                     <td>
                       <input {...register(`details.${index}.description`)} className="input py-1 text-sm" />
@@ -555,6 +584,38 @@ export default function SalesFormPage() {
           </div>
         </div>
       )}
+
+      {/* Customer Search Dialog */}
+      <SearchDialog
+        isOpen={customerSearchOpen}
+        onClose={() => setCustomerSearchOpen(false)}
+        onSelect={handleCustomerSelect}
+        title="Select Customer"
+        endpoint="/customers"
+        displayFields={[
+          { key: 'name', label: 'Name' },
+          { key: 'contactPerson', label: 'Contact' },
+        ]}
+        valueField="code"
+        newPath="/customers/new"
+        placeholder="Search by code or name..."
+      />
+
+      {/* Product Search Dialog */}
+      <SearchDialog
+        isOpen={productSearchOpen !== null}
+        onClose={() => setProductSearchOpen(null)}
+        onSelect={(product) => productSearchOpen !== null && handleProductSelect(product, productSearchOpen)}
+        title="Select Product"
+        endpoint="/products"
+        displayFields={[
+          { key: 'description', label: 'Description' },
+          { key: 'group.name', label: 'Group' },
+        ]}
+        valueField="code"
+        newPath="/products/new"
+        placeholder="Search by code or description..."
+      />
     </div>
   );
 }
