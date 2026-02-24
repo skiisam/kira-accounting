@@ -819,8 +819,10 @@ function GenericSettings({ endpoint, title, columns, canEdit = false }: { endpoi
     queryFn: () => get(`/settings/${endpoint}`),
   });
 
-  // API returns { success: true, data: [...] }
-  const items = (data as any)?.data || [];
+  // get() already extracts .data.data, so data IS the array directly
+  const items = Array.isArray(data) ? data : [];
+  
+  console.log(`GenericSettings[${endpoint}]:`, { canEdit, dataType: typeof data, isArray: Array.isArray(data), itemCount: items.length });
 
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
