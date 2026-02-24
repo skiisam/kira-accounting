@@ -928,6 +928,41 @@ export class SettingsController {
     } catch (error) { next(error); }
   };
 
+  // Payment Terms
+  listPaymentTerms = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const terms = await prisma.paymentTerm.findMany({ where: { isActive: true }, orderBy: { code: 'asc' } });
+      res.json({ success: true, data: terms });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  createPaymentTerm = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { code, name, days, description } = req.body;
+      const term = await prisma.paymentTerm.create({ data: { code, name, days: days || 0, description } });
+      res.status(201).json({ success: true, data: term, message: 'Payment term created' });
+    } catch (error) { next(error); }
+  };
+
+  updatePaymentTerm = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const { code, name, days, description, isActive } = req.body;
+      const term = await prisma.paymentTerm.update({ where: { id: parseInt(id) }, data: { code, name, days, description, isActive } });
+      res.json({ success: true, data: term, message: 'Payment term updated' });
+    } catch (error) { next(error); }
+  };
+
+  deletePaymentTerm = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      await prisma.paymentTerm.update({ where: { id: parseInt(id) }, data: { isActive: false } });
+      res.json({ success: true, message: 'Payment term deactivated' });
+    } catch (error) { next(error); }
+  };
+
   // Document Series
   listDocumentSeries = async (req: Request, res: Response, next: NextFunction) => {
     try {

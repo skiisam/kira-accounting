@@ -429,6 +429,17 @@ model PaymentMethod {
   @@map("payment_methods")
 }
 
+model PaymentTerm {
+  id          Int     @id @default(autoincrement())
+  code        String  @unique @db.VarChar(20)
+  name        String  @db.VarChar(100)
+  days        Int     @default(0)
+  description String? @db.VarChar(255)
+  isActive    Boolean @default(true)
+
+  @@map("payment_terms")
+}
+
 // =====================================================
 // CUSTOMERS & VENDORS
 // =====================================================

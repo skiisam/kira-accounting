@@ -101,6 +101,12 @@ router.post('/payment-methods', requireAdmin, settingsController.createPaymentMe
 router.put('/payment-methods/:id', requireAdmin, settingsController.updatePaymentMethod);
 router.delete('/payment-methods/:id', requireAdmin, settingsController.deletePaymentMethod);
 
+// Payment Terms
+router.get('/terms', settingsController.listPaymentTerms);
+router.post('/terms', requireAdmin, settingsController.createPaymentTerm);
+router.put('/terms/:id', requireAdmin, settingsController.updatePaymentTerm);
+router.delete('/terms/:id', requireAdmin, settingsController.deletePaymentTerm);
+
 // Document Series
 router.get('/document-series', settingsController.listDocumentSeries);
 router.post('/document-series', requireAdmin, settingsController.createDocumentSeries);
