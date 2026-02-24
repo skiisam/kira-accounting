@@ -348,8 +348,23 @@ export class RegistrationController {
   getSetupStatus = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const companyId = req.user!.companyId;
+      
+      // If no company associated, return status indicating setup hasn't started
       if (!companyId) {
-        throw BadRequestError('No company associated with user');
+        return res.json({
+          success: true,
+          data: {
+            company: null,
+            status: {
+              companyInfo: false,
+              fiscalYear: false,
+              currency: false,
+              chartOfAccounts: false,
+              setupComplete: false,
+              needsSetup: true,
+            },
+          },
+        });
       }
 
       const company = await prisma.company.findUnique({
@@ -370,6 +385,7 @@ export class RegistrationController {
         currency: !!company?.baseCurrency,
         chartOfAccounts: accountCount > 0,
         setupComplete: !!(company?.name && fiscalYear && company?.baseCurrency),
+        needsSetup: false,
       };
 
       res.json({
