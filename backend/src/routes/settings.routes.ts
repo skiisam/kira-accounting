@@ -10,6 +10,9 @@ router.use(authenticate);
 // My Permissions (for current user)
 router.get('/my-permissions', settingsController.getMyPermissions);
 
+// Setup Wizard
+router.post('/setup-wizard', requireAdmin, settingsController.setupWizard);
+
 // Company
 router.get('/company', settingsController.getCompany);
 router.put('/company', requireAdmin, settingsController.updateCompany);

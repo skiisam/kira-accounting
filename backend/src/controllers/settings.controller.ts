@@ -93,6 +93,260 @@ export class SettingsController {
     }
   };
 
+  // Setup Wizard - First time setup
+  setupWizard = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = req.body;
+
+      // Use transaction to set up everything
+      const result = await prisma.$transaction(async (tx) => {
+        // 1. Create or update Company
+        let company = await tx.company.findFirst();
+        const companyData = {
+          name: data.companyName,
+          registrationNo: data.registrationNo,
+          address1: data.address1,
+          city: data.city,
+          state: data.state,
+          postcode: data.postcode,
+          country: data.country,
+          baseCurrency: data.currency,
+          taxRegistrationNo: data.sstNo || data.gstNo,
+        };
+
+        if (!company) {
+          company = await tx.company.create({
+            data: { code: 'MAIN', ...companyData },
+          });
+        } else {
+          company = await tx.company.update({
+            where: { id: company.id },
+            data: companyData,
+          });
+        }
+
+        // 2. Create Fiscal Year
+        const fyStart = new Date(data.fiscalYearStart);
+        const fyEnd = new Date(fyStart);
+        fyEnd.setFullYear(fyEnd.getFullYear() + 1);
+        fyEnd.setDate(fyEnd.getDate() - 1);
+
+        const existingFY = await tx.fiscalYear.findFirst({
+          where: { startDate: fyStart },
+        });
+
+        if (!existingFY) {
+          await tx.fiscalYear.create({
+            data: {
+              name: `FY ${fyStart.getFullYear()}`,
+              startDate: fyStart,
+              endDate: fyEnd,
+              isClosed: false,
+            },
+          });
+        }
+
+        // 3. Create base currency if not exists
+        const currencyExists = await tx.currency.findUnique({
+          where: { code: data.currency },
+        });
+        if (!currencyExists) {
+          await tx.currency.create({
+            data: {
+              code: data.currency,
+              name: data.currency,
+              symbol: data.currency,
+              isBaseCurrency: true,
+            },
+          });
+        }
+
+        // 4. Create default tax codes based on settings
+        if (data.enableSST) {
+          const sstExists = await tx.taxCode.findUnique({ where: { code: 'SST' } });
+          if (!sstExists) {
+            await tx.taxCode.createMany({
+              data: [
+                { code: 'SST', name: 'Sales & Service Tax', rate: 6, taxType: 'OUTPUT' },
+                { code: 'SST-E', name: 'SST Exempt', rate: 0, taxType: 'EXEMPT' },
+              ],
+              skipDuplicates: true,
+            });
+          }
+        }
+
+        if (data.enableGST) {
+          const gstExists = await tx.taxCode.findUnique({ where: { code: 'GST' } });
+          if (!gstExists) {
+            await tx.taxCode.createMany({
+              data: [
+                { code: 'GST', name: 'GST Standard Rate', rate: 6, taxType: 'OUTPUT' },
+                { code: 'GST-ZR', name: 'GST Zero Rated', rate: 0, taxType: 'ZERO_RATED' },
+                { code: 'GST-E', name: 'GST Exempt', rate: 0, taxType: 'EXEMPT' },
+              ],
+              skipDuplicates: true,
+            });
+          }
+        }
+
+        // 5. Create Chart of Accounts based on template
+        const coaTemplates = this.getCoaTemplate(data.coaTemplate, data.glFormat);
+        for (const account of coaTemplates) {
+          const exists = await tx.account.findFirst({ 
+            where: { accountNo: account.accountNo } 
+          });
+          if (!exists) {
+            await tx.account.create({ 
+              data: {
+                accountNo: account.accountNo,
+                name: account.name,
+                typeId: account.typeId,
+                companyId: company.id,
+                isParent: account.isGroup || false,
+                isActive: true,
+              } as any
+            });
+          }
+        }
+
+        return { company };
+      });
+
+      res.json({
+        success: true,
+        data: result,
+        message: 'Setup completed successfully! Welcome to KIRA Accounting.',
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // Get COA template based on industry
+  private getCoaTemplate = (templateId: string, glFormat: string) => {
+    const prefix = glFormat === 'XXXXX' ? '1' : '';
+    const pad = glFormat === 'XXXXX' ? 5 : 4;
+    const formatCode = (num: number) => prefix + num.toString().padStart(pad - prefix.length, '0');
+
+    // Account type IDs (must match AccountType table)
+    const typeIds: Record<string, number> = {
+      'ASSET': 1, 'LIABILITY': 2, 'EQUITY': 3, 'REVENUE': 4, 'COGS': 5, 'EXPENSE': 6
+    };
+
+    // Base accounts common to all templates
+    const baseAccounts = [
+      // Assets (1xxx)
+      { accountNo: formatCode(1000), name: 'Assets', typeId: typeIds.ASSET, isGroup: true },
+      { accountNo: formatCode(1100), name: 'Current Assets', typeId: typeIds.ASSET, isGroup: true },
+      { accountNo: formatCode(1110), name: 'Cash and Bank', typeId: typeIds.ASSET, isGroup: true },
+      { accountNo: formatCode(1111), name: 'Petty Cash', typeId: typeIds.ASSET },
+      { accountNo: formatCode(1112), name: 'Cash in Bank', typeId: typeIds.ASSET },
+      { accountNo: formatCode(1120), name: 'Accounts Receivable', typeId: typeIds.ASSET },
+      { accountNo: formatCode(1130), name: 'Inventory', typeId: typeIds.ASSET },
+      { accountNo: formatCode(1140), name: 'Prepaid Expenses', typeId: typeIds.ASSET },
+      { accountNo: formatCode(1200), name: 'Fixed Assets', typeId: typeIds.ASSET, isGroup: true },
+      { accountNo: formatCode(1210), name: 'Property, Plant & Equipment', typeId: typeIds.ASSET },
+      { accountNo: formatCode(1220), name: 'Accumulated Depreciation', typeId: typeIds.ASSET },
+      // Liabilities (2xxx)
+      { accountNo: formatCode(2000), name: 'Liabilities', typeId: typeIds.LIABILITY, isGroup: true },
+      { accountNo: formatCode(2100), name: 'Current Liabilities', typeId: typeIds.LIABILITY, isGroup: true },
+      { accountNo: formatCode(2110), name: 'Accounts Payable', typeId: typeIds.LIABILITY },
+      { accountNo: formatCode(2120), name: 'Accrued Expenses', typeId: typeIds.LIABILITY },
+      { accountNo: formatCode(2130), name: 'SST/GST Payable', typeId: typeIds.LIABILITY },
+      { accountNo: formatCode(2200), name: 'Long-term Liabilities', typeId: typeIds.LIABILITY, isGroup: true },
+      { accountNo: formatCode(2210), name: 'Bank Loans', typeId: typeIds.LIABILITY },
+      // Equity (3xxx)
+      { accountNo: formatCode(3000), name: 'Equity', typeId: typeIds.EQUITY, isGroup: true },
+      { accountNo: formatCode(3100), name: 'Share Capital', typeId: typeIds.EQUITY },
+      { accountNo: formatCode(3200), name: 'Retained Earnings', typeId: typeIds.EQUITY },
+      { accountNo: formatCode(3300), name: 'Current Year Earnings', typeId: typeIds.EQUITY },
+      // Revenue (4xxx)
+      { accountNo: formatCode(4000), name: 'Revenue', typeId: typeIds.REVENUE, isGroup: true },
+      { accountNo: formatCode(4100), name: 'Sales Revenue', typeId: typeIds.REVENUE },
+      { accountNo: formatCode(4200), name: 'Service Revenue', typeId: typeIds.REVENUE },
+      { accountNo: formatCode(4900), name: 'Other Income', typeId: typeIds.REVENUE },
+      // Cost of Goods Sold (5xxx)
+      { accountNo: formatCode(5000), name: 'Cost of Goods Sold', typeId: typeIds.COGS, isGroup: true },
+      { accountNo: formatCode(5100), name: 'Cost of Sales', typeId: typeIds.COGS },
+      { accountNo: formatCode(5200), name: 'Direct Labour', typeId: typeIds.COGS },
+      // Expenses (6xxx)
+      { accountNo: formatCode(6000), name: 'Operating Expenses', typeId: typeIds.EXPENSE, isGroup: true },
+      { accountNo: formatCode(6100), name: 'Salaries & Wages', typeId: typeIds.EXPENSE },
+      { accountNo: formatCode(6110), name: 'EPF Contribution', typeId: typeIds.EXPENSE },
+      { accountNo: formatCode(6120), name: 'SOCSO Contribution', typeId: typeIds.EXPENSE },
+      { accountNo: formatCode(6200), name: 'Rental Expense', typeId: typeIds.EXPENSE },
+      { accountNo: formatCode(6210), name: 'Utilities', typeId: typeIds.EXPENSE },
+      { accountNo: formatCode(6220), name: 'Telecommunication', typeId: typeIds.EXPENSE },
+      { accountNo: formatCode(6300), name: 'Office Supplies', typeId: typeIds.EXPENSE },
+      { accountNo: formatCode(6400), name: 'Professional Fees', typeId: typeIds.EXPENSE },
+      { accountNo: formatCode(6500), name: 'Depreciation Expense', typeId: typeIds.EXPENSE },
+      { accountNo: formatCode(6600), name: 'Bank Charges', typeId: typeIds.EXPENSE },
+      { accountNo: formatCode(6700), name: 'Marketing & Advertising', typeId: typeIds.EXPENSE },
+      { accountNo: formatCode(6800), name: 'Travel & Entertainment', typeId: typeIds.EXPENSE },
+      { accountNo: formatCode(6900), name: 'Miscellaneous Expenses', typeId: typeIds.EXPENSE },
+    ];
+
+    // Industry-specific additions
+    const industryAccounts: Record<string, any[]> = {
+      'manufacturing': [
+        { accountNo: formatCode(1135), name: 'Raw Materials', typeId: typeIds.ASSET },
+        { accountNo: formatCode(1136), name: 'Work in Progress', typeId: typeIds.ASSET },
+        { accountNo: formatCode(1137), name: 'Finished Goods', typeId: typeIds.ASSET },
+        { accountNo: formatCode(5300), name: 'Manufacturing Overhead', typeId: typeIds.COGS },
+      ],
+      'it-services': [
+        { accountNo: formatCode(4110), name: 'Software Development Revenue', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(4120), name: 'Consulting Revenue', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(4130), name: 'Maintenance Revenue', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(6410), name: 'Software Licenses', typeId: typeIds.EXPENSE },
+        { accountNo: formatCode(6420), name: 'Cloud Services', typeId: typeIds.EXPENSE },
+      ],
+      'recruitment': [
+        { accountNo: formatCode(4110), name: 'Placement Fees', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(4120), name: 'Contract Staffing Revenue', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(6430), name: 'Recruitment Advertising', typeId: typeIds.EXPENSE },
+      ],
+      'accounting': [
+        { accountNo: formatCode(4110), name: 'Audit Fees', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(4120), name: 'Tax Services', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(4130), name: 'Bookkeeping Fees', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(4140), name: 'Secretarial Services', typeId: typeIds.REVENUE },
+      ],
+      'insurance': [
+        { accountNo: formatCode(4110), name: 'Commission Income', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(4120), name: 'Renewal Commission', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(6440), name: 'Agent Commissions Paid', typeId: typeIds.EXPENSE },
+      ],
+      'travel': [
+        { accountNo: formatCode(4110), name: 'Tour Package Sales', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(4120), name: 'Ticket Commission', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(4130), name: 'Hotel Commission', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(5110), name: 'Tour Costs', typeId: typeIds.COGS },
+      ],
+      'retail': [
+        { accountNo: formatCode(4110), name: 'Store Sales', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(4120), name: 'Online Sales', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(6450), name: 'Store Rental', typeId: typeIds.EXPENSE },
+        { accountNo: formatCode(6460), name: 'POS System Fees', typeId: typeIds.EXPENSE },
+      ],
+      'car-workshop': [
+        { accountNo: formatCode(4110), name: 'Labour Revenue', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(4120), name: 'Parts Sales', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(1138), name: 'Spare Parts Inventory', typeId: typeIds.ASSET },
+        { accountNo: formatCode(5110), name: 'Cost of Parts Sold', typeId: typeIds.COGS },
+      ],
+      'fnb': [
+        { accountNo: formatCode(4110), name: 'Food Sales', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(4120), name: 'Beverage Sales', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(1138), name: 'Food Inventory', typeId: typeIds.ASSET },
+        { accountNo: formatCode(5110), name: 'Cost of Food', typeId: typeIds.COGS },
+        { accountNo: formatCode(5120), name: 'Cost of Beverages', typeId: typeIds.COGS },
+      ],
+    };
+
+    return [...baseAccounts, ...(industryAccounts[templateId] || [])];
+  };
+
   // Users
   listUsers = async (req: Request, res: Response, next: NextFunction) => {
     try {
