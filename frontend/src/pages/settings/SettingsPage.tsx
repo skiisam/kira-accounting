@@ -82,7 +82,7 @@ function CompanySettings() {
 
   const company = (companyData as any)?.data || companyData;
 
-  const { register, handleSubmit, reset, setValue, watch } = useForm<CompanyForm>({
+  const { register, handleSubmit, reset, setValue } = useForm<CompanyForm>({
     defaultValues: {
       name: '',
       baseCurrency: 'MYR',
