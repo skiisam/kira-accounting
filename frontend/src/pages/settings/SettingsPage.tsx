@@ -65,11 +65,35 @@ interface CompanyForm {
   logoPath?: string;
   signaturePath?: string;
   baseCurrency: string;
+  // Letterhead settings
+  letterheadFontFamily?: string;
+  letterheadFontSize?: number;
+  letterheadFontColor?: string;
+  letterheadAlignment?: string;
+  letterheadShowLogo?: boolean;
+  letterheadShowAddress?: boolean;
+  letterheadShowContact?: boolean;
+  letterheadShowRegNo?: boolean;
+  letterheadCustomText?: string;
+  letterheadFooterText?: string;
 }
+
+const FONT_FAMILIES = [
+  { value: 'Arial', label: 'Arial' },
+  { value: 'Helvetica', label: 'Helvetica' },
+  { value: 'Times New Roman', label: 'Times New Roman' },
+  { value: 'Georgia', label: 'Georgia' },
+  { value: 'Verdana', label: 'Verdana' },
+  { value: 'Tahoma', label: 'Tahoma' },
+  { value: 'Trebuchet MS', label: 'Trebuchet MS' },
+  { value: 'Courier New', label: 'Courier New' },
+  { value: 'Calibri', label: 'Calibri' },
+  { value: 'Cambria', label: 'Cambria' },
+];
 
 function CompanySettings() {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<'general' | 'billing' | 'media'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'billing' | 'media' | 'letterhead'>('general');
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [signaturePreview, setSignaturePreview] = useState<string | null>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -82,12 +106,22 @@ function CompanySettings() {
 
   const company = (companyData as any)?.data || companyData;
 
-  const { register, handleSubmit, reset, setValue } = useForm<CompanyForm>({
+  const { register, handleSubmit, reset, setValue, watch } = useForm<CompanyForm>({
     defaultValues: {
       name: '',
       baseCurrency: 'MYR',
+      letterheadFontFamily: 'Arial',
+      letterheadFontSize: 12,
+      letterheadFontColor: '#000000',
+      letterheadAlignment: 'center',
+      letterheadShowLogo: true,
+      letterheadShowAddress: true,
+      letterheadShowContact: true,
+      letterheadShowRegNo: true,
     },
   });
+
+  // Watch is used directly in JSX for live letterhead preview
 
   // Populate form when data loads
   useEffect(() => {
@@ -130,6 +164,17 @@ function CompanySettings() {
         logoPath: company.logoPath || '',
         signaturePath: company.signaturePath || '',
         baseCurrency: company.baseCurrency || 'MYR',
+        // Letterhead settings
+        letterheadFontFamily: company.letterheadFontFamily || 'Arial',
+        letterheadFontSize: company.letterheadFontSize || 12,
+        letterheadFontColor: company.letterheadFontColor || '#000000',
+        letterheadAlignment: company.letterheadAlignment || 'center',
+        letterheadShowLogo: company.letterheadShowLogo ?? true,
+        letterheadShowAddress: company.letterheadShowAddress ?? true,
+        letterheadShowContact: company.letterheadShowContact ?? true,
+        letterheadShowRegNo: company.letterheadShowRegNo ?? true,
+        letterheadCustomText: company.letterheadCustomText || '',
+        letterheadFooterText: company.letterheadFooterText || '',
       });
       if (company.logoPath) setLogoPreview(company.logoPath);
       if (company.signaturePath) setSignaturePreview(company.signaturePath);
@@ -184,6 +229,7 @@ function CompanySettings() {
     { id: 'general', label: 'General Info' },
     { id: 'billing', label: 'Billing Info' },
     { id: 'media', label: 'Logo & Signature' },
+    { id: 'letterhead', label: 'Letterhead' },
   ] as const;
 
   return (
@@ -471,6 +517,163 @@ function CompanySettings() {
                 />
               </div>
               <p className="mt-1 text-xs text-gray-500">Used for document signatures. Transparent PNG works best.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Letterhead Tab */}
+      {activeTab === 'letterhead' && (
+        <div className="space-y-6">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Configure the letterhead style that appears on all printed documents (invoices, quotations, reports).
+          </p>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Settings Panel */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Style Settings</h3>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="label">Font Family</label>
+                  <select {...register('letterheadFontFamily')} className="input">
+                    {FONT_FAMILIES.map(f => (
+                      <option key={f.value} value={f.value}>{f.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Font Size (pt)</label>
+                  <input 
+                    {...register('letterheadFontSize', { valueAsNumber: true })} 
+                    type="number" 
+                    min="8" 
+                    max="24"
+                    className="input" 
+                  />
+                </div>
+                <div>
+                  <label className="label">Font Color</label>
+                  <div className="flex gap-2">
+                    <input 
+                      {...register('letterheadFontColor')} 
+                      type="color" 
+                      className="h-10 w-16 rounded border cursor-pointer"
+                    />
+                    <input 
+                      {...register('letterheadFontColor')} 
+                      type="text" 
+                      className="input flex-1" 
+                      placeholder="#000000"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Text Alignment</label>
+                  <select {...register('letterheadAlignment')} className="input">
+                    <option value="left">Left</option>
+                    <option value="center">Center</option>
+                    <option value="right">Right</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Show on Letterhead</h3>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2">
+                    <input {...register('letterheadShowLogo')} type="checkbox" className="rounded" />
+                    <span className="text-sm">Company Logo</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input {...register('letterheadShowAddress')} type="checkbox" className="rounded" />
+                    <span className="text-sm">Company Address</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input {...register('letterheadShowContact')} type="checkbox" className="rounded" />
+                    <span className="text-sm">Contact Information (Phone, Email)</span>
+                  </label>
+                  <label className="flex items-center gap-2">
+                    <input {...register('letterheadShowRegNo')} type="checkbox" className="rounded" />
+                    <span className="text-sm">Registration Numbers (BRN, TIN)</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Custom Text</h3>
+                <div>
+                  <label className="label">Header Custom Text</label>
+                  <textarea 
+                    {...register('letterheadCustomText')} 
+                    className="input min-h-[60px]" 
+                    placeholder="Additional text to display in header (e.g., slogan, tagline)"
+                  />
+                </div>
+                <div className="mt-4">
+                  <label className="label">Footer Text</label>
+                  <textarea 
+                    {...register('letterheadFooterText')} 
+                    className="input min-h-[60px]" 
+                    placeholder="Footer text for documents (e.g., bank details, terms)"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Live Preview Panel */}
+            <div>
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Live Preview</h3>
+              <div className="border rounded-lg p-6 bg-white min-h-[300px]">
+                <div 
+                  style={{
+                    fontFamily: watch('letterheadFontFamily') || 'Arial',
+                    fontSize: `${watch('letterheadFontSize') || 12}pt`,
+                    color: watch('letterheadFontColor') || '#000000',
+                    textAlign: (watch('letterheadAlignment') as any) || 'center',
+                  }}
+                >
+                  {watch('letterheadShowLogo') && logoPreview && (
+                    <div className="mb-2" style={{ textAlign: watch('letterheadAlignment') as any }}>
+                      <img 
+                        src={logoPreview} 
+                        alt="Logo" 
+                        className="max-h-16 inline-block"
+                      />
+                    </div>
+                  )}
+                  <div className="font-bold text-lg" style={{ fontSize: `${(watch('letterheadFontSize') || 12) + 4}pt` }}>
+                    {watch('name') || 'Company Name'}
+                  </div>
+                  {watch('letterheadShowAddress') && (
+                    <div className="text-sm mt-1">
+                      {[watch('address1'), watch('address2'), watch('city'), watch('state'), watch('postcode'), watch('country')]
+                        .filter(Boolean).join(', ') || '123 Business Street, City, State 12345'}
+                    </div>
+                  )}
+                  {watch('letterheadShowContact') && (
+                    <div className="text-sm">
+                      {[watch('phone') && `Tel: ${watch('phone')}`, watch('email') && `Email: ${watch('email')}`]
+                        .filter(Boolean).join(' | ') || 'Tel: +60 3-1234 5678 | Email: info@company.com'}
+                    </div>
+                  )}
+                  {watch('letterheadShowRegNo') && (
+                    <div className="text-sm">
+                      {[watch('registrationNo') && `BRN: ${watch('registrationNo')}`, watch('tinNo') && `TIN: ${watch('tinNo')}`]
+                        .filter(Boolean).join(' | ') || 'BRN: 202301012345 | TIN: C12345678'}
+                    </div>
+                  )}
+                  {watch('letterheadCustomText') && (
+                    <div className="text-sm mt-2 italic">
+                      {watch('letterheadCustomText')}
+                    </div>
+                  )}
+                </div>
+                <div className="border-t mt-4 pt-2 text-xs text-gray-500 text-center">
+                  — Preview of document header —
+                </div>
+              </div>
             </div>
           </div>
         </div>

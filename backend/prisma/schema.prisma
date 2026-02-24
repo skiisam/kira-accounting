@@ -55,6 +55,17 @@ model Company {
   // Logo and Signature
   logoPath             String?   @db.VarChar(500)
   signaturePath        String?   @db.VarChar(500)
+  // Letterhead Settings
+  letterheadFontFamily   String?   @db.VarChar(100)  @default("Arial")
+  letterheadFontSize     Int?      @default(12)
+  letterheadFontColor    String?   @db.VarChar(20)   @default("#000000")
+  letterheadAlignment    String?   @db.VarChar(20)   @default("center")  // left, center, right
+  letterheadShowLogo     Boolean   @default(true)
+  letterheadShowAddress  Boolean   @default(true)
+  letterheadShowContact  Boolean   @default(true)
+  letterheadShowRegNo    Boolean   @default(true)
+  letterheadCustomText   String?   @db.Text  // Custom header text
+  letterheadFooterText   String?   @db.Text  // Footer text for documents
   // System
   baseCurrency         String    @default("MYR") @db.VarChar(10)
   fiscalYearStart      DateTime?

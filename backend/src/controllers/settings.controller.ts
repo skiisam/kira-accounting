@@ -71,6 +71,17 @@ export class SettingsController {
             billingFax: data.billingFax,
             logoPath: data.logoPath,
             signaturePath: data.signaturePath,
+            // Letterhead settings
+            letterheadFontFamily: data.letterheadFontFamily,
+            letterheadFontSize: data.letterheadFontSize,
+            letterheadFontColor: data.letterheadFontColor,
+            letterheadAlignment: data.letterheadAlignment,
+            letterheadShowLogo: data.letterheadShowLogo,
+            letterheadShowAddress: data.letterheadShowAddress,
+            letterheadShowContact: data.letterheadShowContact,
+            letterheadShowRegNo: data.letterheadShowRegNo,
+            letterheadCustomText: data.letterheadCustomText,
+            letterheadFooterText: data.letterheadFooterText,
             baseCurrency: data.baseCurrency,
           },
         });
