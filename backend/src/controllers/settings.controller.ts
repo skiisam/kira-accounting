@@ -16,7 +16,71 @@ export class SettingsController {
     }
   };
 
-  updateCompany = stubHandler('Update Company');
+  updateCompany = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = req.body;
+      
+      // Get first company or create if doesn't exist
+      let company = await prisma.company.findFirst();
+      
+      if (!company) {
+        company = await prisma.company.create({
+          data: {
+            code: 'MAIN',
+            name: data.name || 'My Company',
+            ...data,
+          },
+        });
+      } else {
+        company = await prisma.company.update({
+          where: { id: company.id },
+          data: {
+            name: data.name,
+            name2: data.name2,
+            registrationNo: data.registrationNo,
+            tinNo: data.tinNo,
+            taxRegistrationNo: data.taxRegistrationNo,
+            salesTaxNo: data.salesTaxNo,
+            serviceTaxNo: data.serviceTaxNo,
+            natureOfBusiness: data.natureOfBusiness,
+            address1: data.address1,
+            address2: data.address2,
+            address3: data.address3,
+            address4: data.address4,
+            postcode: data.postcode,
+            city: data.city,
+            state: data.state,
+            country: data.country,
+            phone: data.phone,
+            mobile: data.mobile,
+            fax: data.fax,
+            email: data.email,
+            website: data.website,
+            contactPerson: data.contactPerson,
+            billingAddress1: data.billingAddress1,
+            billingAddress2: data.billingAddress2,
+            billingAddress3: data.billingAddress3,
+            billingPostcode: data.billingPostcode,
+            billingCity: data.billingCity,
+            billingState: data.billingState,
+            billingCountry: data.billingCountry,
+            billingContactPerson: data.billingContactPerson,
+            billingEmail: data.billingEmail,
+            billingPhone: data.billingPhone,
+            billingMobile: data.billingMobile,
+            billingFax: data.billingFax,
+            logoPath: data.logoPath,
+            signaturePath: data.signaturePath,
+            baseCurrency: data.baseCurrency,
+          },
+        });
+      }
+      
+      res.json({ success: true, data: company, message: 'Company information updated' });
+    } catch (error) {
+      next(error);
+    }
+  };
 
   // Users
   listUsers = async (req: Request, res: Response, next: NextFunction) => {

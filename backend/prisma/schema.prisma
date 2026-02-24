@@ -15,31 +15,53 @@ datasource db {
 // =====================================================
 
 model Company {
-  id                Int       @id @default(autoincrement())
-  code              String    @unique @db.VarChar(20)
-  name              String    @db.VarChar(200)
-  name2             String?   @db.VarChar(200)
-  registrationNo    String?   @db.VarChar(50)
-  taxRegistrationNo String?   @db.VarChar(50)
-  address1          String?   @db.VarChar(100)
-  address2          String?   @db.VarChar(100)
-  address3          String?   @db.VarChar(100)
-  address4          String?   @db.VarChar(100)
-  postcode          String?   @db.VarChar(20)
-  city              String?   @db.VarChar(50)
-  state             String?   @db.VarChar(50)
-  country           String?   @db.VarChar(50)
-  phone             String?   @db.VarChar(50)
-  fax               String?   @db.VarChar(50)
-  email             String?   @db.VarChar(100)
-  website           String?   @db.VarChar(200)
-  logoPath          String?   @db.VarChar(500)
-  baseCurrency      String    @default("MYR") @db.VarChar(10)
-  fiscalYearStart   DateTime?
-  accountCodeFormat String?   @db.VarChar(50)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  isActive          Boolean   @default(true)
+  id                   Int       @id @default(autoincrement())
+  code                 String    @unique @db.VarChar(20)
+  name                 String    @db.VarChar(200)
+  name2                String?   @db.VarChar(200)
+  registrationNo       String?   @db.VarChar(50)  // Business Registration No (BRN)
+  tinNo                String?   @db.VarChar(50)  // TIN / Tax Identification No
+  taxRegistrationNo    String?   @db.VarChar(50)  // Legacy - can be used as SST No
+  salesTaxNo           String?   @db.VarChar(50)  // Sales Tax Registration No
+  serviceTaxNo         String?   @db.VarChar(50)  // Service Tax Registration No
+  natureOfBusiness     String?   @db.VarChar(200)
+  address1             String?   @db.VarChar(100)
+  address2             String?   @db.VarChar(100)
+  address3             String?   @db.VarChar(100)
+  address4             String?   @db.VarChar(100)
+  postcode             String?   @db.VarChar(20)
+  city                 String?   @db.VarChar(50)
+  state                String?   @db.VarChar(50)
+  country              String?   @db.VarChar(50)
+  phone                String?   @db.VarChar(50)
+  mobile               String?   @db.VarChar(50)
+  fax                  String?   @db.VarChar(50)
+  email                String?   @db.VarChar(100)
+  website              String?   @db.VarChar(200)
+  contactPerson        String?   @db.VarChar(100)
+  // Billing Information (can be different from main address)
+  billingAddress1      String?   @db.VarChar(100)
+  billingAddress2      String?   @db.VarChar(100)
+  billingAddress3      String?   @db.VarChar(100)
+  billingPostcode      String?   @db.VarChar(20)
+  billingCity          String?   @db.VarChar(50)
+  billingState         String?   @db.VarChar(50)
+  billingCountry       String?   @db.VarChar(50)
+  billingContactPerson String?   @db.VarChar(100)
+  billingEmail         String?   @db.VarChar(100)
+  billingPhone         String?   @db.VarChar(50)
+  billingMobile        String?   @db.VarChar(50)
+  billingFax           String?   @db.VarChar(50)
+  // Logo and Signature
+  logoPath             String?   @db.VarChar(500)
+  signaturePath        String?   @db.VarChar(500)
+  // System
+  baseCurrency         String    @default("MYR") @db.VarChar(10)
+  fiscalYearStart      DateTime?
+  accountCodeFormat    String?   @db.VarChar(50)
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  isActive             Boolean   @default(true)
 
   users    User[]
   accounts Account[]
@@ -388,9 +410,10 @@ model PaymentMethod {
   displayOrder        Int?
   isActive            Boolean @default(true)
 
-  account    Account       @relation(fields: [accountId], references: [id])
-  arPayments ARPayment[]
-  apPayments APPayment[]
+  account         Account         @relation(fields: [accountId], references: [id])
+  arPayments      ARPayment[]
+  apPayments      APPayment[]
+  cashBookEntries CashBookEntry[]
 
   @@map("payment_methods")
 }
@@ -561,6 +584,7 @@ model Vendor {
   apInvoices      APInvoice[]
   apPayments      APPayment[]
   purchaseHeaders PurchaseHeader[]
+  cashBookEntries CashBookEntry[]
 
   @@map("vendors")
 }
