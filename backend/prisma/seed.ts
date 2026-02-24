@@ -33,32 +33,22 @@ async function main() {
   await prisma.taxCode.upsert({ where: { code: 'TX' }, update: {}, create: { code: 'TX', name: 'Purchase Tax (6%)', rate: 6, taxType: 'INPUT' } });
   console.log('✅ Tax codes created');
 
-  // UOMs
+  // UOMs (common defaults)
   const uoms = await Promise.all([
     prisma.uOM.upsert({ where: { code: 'PCS' }, update: {}, create: { code: 'PCS', name: 'Pieces' } }),
     prisma.uOM.upsert({ where: { code: 'UNIT' }, update: {}, create: { code: 'UNIT', name: 'Unit' } }),
     prisma.uOM.upsert({ where: { code: 'BOX' }, update: {}, create: { code: 'BOX', name: 'Box' } }),
     prisma.uOM.upsert({ where: { code: 'KG' }, update: {}, create: { code: 'KG', name: 'Kilogram' } }),
     prisma.uOM.upsert({ where: { code: 'SET' }, update: {}, create: { code: 'SET', name: 'Set' } }),
+    prisma.uOM.upsert({ where: { code: 'CTN' }, update: {}, create: { code: 'CTN', name: 'Carton' } }),
+    prisma.uOM.upsert({ where: { code: 'PKT' }, update: {}, create: { code: 'PKT', name: 'Packet' } }),
+    prisma.uOM.upsert({ where: { code: 'DOZ' }, update: {}, create: { code: 'DOZ', name: 'Dozen' } }),
+    prisma.uOM.upsert({ where: { code: 'MTR' }, update: {}, create: { code: 'MTR', name: 'Meter' } }),
+    prisma.uOM.upsert({ where: { code: 'LTR' }, update: {}, create: { code: 'LTR', name: 'Litre' } }),
   ]);
   console.log('✅ UOMs created');
 
-  // Product Groups
-  await Promise.all([
-    prisma.productGroup.upsert({ where: { code: 'FG' }, update: {}, create: { code: 'FG', name: 'Finished Goods' } }),
-    prisma.productGroup.upsert({ where: { code: 'RM' }, update: {}, create: { code: 'RM', name: 'Raw Materials' } }),
-    prisma.productGroup.upsert({ where: { code: 'SVC' }, update: {}, create: { code: 'SVC', name: 'Services' } }),
-    prisma.productGroup.upsert({ where: { code: 'CONS' }, update: {}, create: { code: 'CONS', name: 'Consumables' } }),
-  ]);
-  console.log('✅ Product Groups created');
-
-  // Product Types
-  await Promise.all([
-    prisma.productType.upsert({ where: { code: 'STOCK' }, update: {}, create: { code: 'STOCK', name: 'Stock Item' } }),
-    prisma.productType.upsert({ where: { code: 'NON-STOCK' }, update: {}, create: { code: 'NON-STOCK', name: 'Non-Stock Item' } }),
-    prisma.productType.upsert({ where: { code: 'SERVICE' }, update: {}, create: { code: 'SERVICE', name: 'Service' } }),
-  ]);
-  console.log('✅ Product Types created');
+  // Note: Product Group, Type, Category, Brand, Color are user-customizable - no seed data
 
   // Locations
   const location = await prisma.location.upsert({
