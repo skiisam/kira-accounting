@@ -209,13 +209,14 @@ export class VendorController extends BaseController<any> {
       const totalTransactions = purchaseCount + apInvoiceCount;
 
       if (totalTransactions > 0) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: {
             code: 'HAS_TRANSACTIONS',
             message: `Cannot delete vendor "${existing!.code}" - has ${totalTransactions} transaction(s). Deactivate instead.`,
           },
         });
+        return;
       }
 
       // Safe to hard delete

@@ -259,23 +259,23 @@ export class ProductController extends BaseController<any> {
       const existing = await prisma.product.findUnique({ where: { id } });
       if (!existing) this.notFound(id);
 
-      // Check for related transactions (sales, purchases, stock movements)
-      const [salesCount, purchaseCount, stockMoveCount] = await Promise.all([
+      // Check for related transactions (sales, purchases)
+      const [salesCount, purchaseCount] = await Promise.all([
         prisma.salesDetail.count({ where: { productId: id } }),
         prisma.purchaseDetail.count({ where: { productId: id } }),
-        prisma.stockMovement.count({ where: { productId: id } }),
       ]);
 
-      const totalTransactions = salesCount + purchaseCount + stockMoveCount;
+      const totalTransactions = salesCount + purchaseCount;
 
       if (totalTransactions > 0) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: {
             code: 'HAS_TRANSACTIONS',
             message: `Cannot delete product "${existing!.code}" - has ${totalTransactions} transaction(s). Deactivate instead.`,
           },
         });
+        return;
       }
 
       // Safe to hard delete

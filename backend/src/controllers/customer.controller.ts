@@ -362,13 +362,14 @@ export class CustomerController extends BaseController<any> {
       const totalTransactions = salesCount + arInvoiceCount;
 
       if (totalTransactions > 0) {
-        return res.status(400).json({
+        res.status(400).json({
           success: false,
           error: {
             code: 'HAS_TRANSACTIONS',
             message: `Cannot delete customer "${existing!.code}" - has ${totalTransactions} transaction(s). Deactivate instead.`,
           },
         });
+        return;
       }
 
       // Safe to hard delete

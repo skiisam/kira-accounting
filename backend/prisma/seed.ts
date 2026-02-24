@@ -43,6 +43,23 @@ async function main() {
   ]);
   console.log('✅ UOMs created');
 
+  // Product Groups
+  await Promise.all([
+    prisma.productGroup.upsert({ where: { code: 'FG' }, update: {}, create: { code: 'FG', name: 'Finished Goods' } }),
+    prisma.productGroup.upsert({ where: { code: 'RM' }, update: {}, create: { code: 'RM', name: 'Raw Materials' } }),
+    prisma.productGroup.upsert({ where: { code: 'SVC' }, update: {}, create: { code: 'SVC', name: 'Services' } }),
+    prisma.productGroup.upsert({ where: { code: 'CONS' }, update: {}, create: { code: 'CONS', name: 'Consumables' } }),
+  ]);
+  console.log('✅ Product Groups created');
+
+  // Product Types
+  await Promise.all([
+    prisma.productType.upsert({ where: { code: 'STOCK' }, update: {}, create: { code: 'STOCK', name: 'Stock Item' } }),
+    prisma.productType.upsert({ where: { code: 'NON-STOCK' }, update: {}, create: { code: 'NON-STOCK', name: 'Non-Stock Item' } }),
+    prisma.productType.upsert({ where: { code: 'SERVICE' }, update: {}, create: { code: 'SERVICE', name: 'Service' } }),
+  ]);
+  console.log('✅ Product Types created');
+
   // Locations
   const location = await prisma.location.upsert({
     where: { code: 'HQ' },
