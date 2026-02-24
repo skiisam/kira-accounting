@@ -33,22 +33,8 @@ async function main() {
   await prisma.taxCode.upsert({ where: { code: 'TX' }, update: {}, create: { code: 'TX', name: 'Purchase Tax (6%)', rate: 6, taxType: 'INPUT' } });
   console.log('✅ Tax codes created');
 
-  // UOMs (common defaults)
-  const uoms = await Promise.all([
-    prisma.uOM.upsert({ where: { code: 'PCS' }, update: {}, create: { code: 'PCS', name: 'Pieces' } }),
-    prisma.uOM.upsert({ where: { code: 'UNIT' }, update: {}, create: { code: 'UNIT', name: 'Unit' } }),
-    prisma.uOM.upsert({ where: { code: 'BOX' }, update: {}, create: { code: 'BOX', name: 'Box' } }),
-    prisma.uOM.upsert({ where: { code: 'KG' }, update: {}, create: { code: 'KG', name: 'Kilogram' } }),
-    prisma.uOM.upsert({ where: { code: 'SET' }, update: {}, create: { code: 'SET', name: 'Set' } }),
-    prisma.uOM.upsert({ where: { code: 'CTN' }, update: {}, create: { code: 'CTN', name: 'Carton' } }),
-    prisma.uOM.upsert({ where: { code: 'PKT' }, update: {}, create: { code: 'PKT', name: 'Packet' } }),
-    prisma.uOM.upsert({ where: { code: 'DOZ' }, update: {}, create: { code: 'DOZ', name: 'Dozen' } }),
-    prisma.uOM.upsert({ where: { code: 'MTR' }, update: {}, create: { code: 'MTR', name: 'Meter' } }),
-    prisma.uOM.upsert({ where: { code: 'LTR' }, update: {}, create: { code: 'LTR', name: 'Litre' } }),
-  ]);
-  console.log('✅ UOMs created');
-
-  // Note: Product Group, Type, Category, Brand, Color are user-customizable - no seed data
+  // Note: UOM, Product Group, Type, Category, Brand, Color are all user-customizable
+  // Users create these in Settings before creating products
 
   // Locations
   const location = await prisma.location.upsert({
@@ -227,21 +213,7 @@ async function main() {
   });
   console.log('✅ Payment methods created');
 
-  // Product Groups
-  const productGroup = await prisma.productGroup.upsert({
-    where: { code: 'FG' },
-    update: {},
-    create: { code: 'FG', name: 'Finished Goods' },
-  });
-  console.log('✅ Product groups created');
-
-  // Product Types
-  const stockType = await prisma.productType.upsert({
-    where: { code: 'STOCK' },
-    update: {},
-    create: { code: 'STOCK', name: 'Stocked Item' },
-  });
-  console.log('✅ Product types created');
+  // Note: Product Groups, Product Types are user-customizable - no seed data
 
   // Sample Customers
   await prisma.customer.upsert({
@@ -294,45 +266,7 @@ async function main() {
   });
   console.log('✅ Sample vendors created');
 
-  // Sample Products
-  await prisma.product.upsert({
-    where: { code: 'FG-001' },
-    update: {},
-    create: {
-      code: 'FG-001',
-      description: 'Widget A - Standard',
-      groupId: productGroup.id,
-      typeId: stockType.id,
-      baseUOMId: uoms[0].id,
-      costingMethod: 'WEIGHTED_AVG',
-      standardCost: 12,
-      sellingPrice1: 25,
-      sellingPrice2: 23,
-      sellingPrice3: 22,
-      minSellingPrice: 18,
-      reorderLevel: 100,
-      reorderQty: 500,
-      barcode: '8901234567890',
-    },
-  });
-  await prisma.product.upsert({
-    where: { code: 'FG-002' },
-    update: {},
-    create: {
-      code: 'FG-002',
-      description: 'Widget B - Premium',
-      groupId: productGroup.id,
-      typeId: stockType.id,
-      baseUOMId: uoms[0].id,
-      costingMethod: 'WEIGHTED_AVG',
-      standardCost: 18,
-      sellingPrice1: 35,
-      sellingPrice2: 33,
-      minSellingPrice: 25,
-      barcode: '8901234567891',
-    },
-  });
-  console.log('✅ Sample products created');
+  // Note: Products require UOM which is user-defined - no sample products seeded
 
   // Document Series
   const docTypes = ['QUOTATION', 'SALES_ORDER', 'DELIVERY_ORDER', 'INVOICE', 'CASH_SALE', 'CREDIT_NOTE', 'PURCHASE_ORDER', 'GRN', 'PURCHASE_INVOICE', 'AR_INVOICE', 'AR_PAYMENT', 'AP_INVOICE', 'AP_PAYMENT', 'JOURNAL'];
