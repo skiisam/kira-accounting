@@ -84,10 +84,11 @@ export default function VendorFormPage() {
         get<any>('/settings/tax-codes'),
         get<any>('/settings/payment-methods'),
       ]);
-      setAccounts(accountsRes.data || []);
-      setCurrencies(currenciesRes.data || []);
-      setTaxCodes(taxCodesRes.data || []);
-      setPaymentMethods(paymentMethodsRes.data || []);
+      // Handle both direct array and {data: []} wrapper formats
+      setAccounts(Array.isArray(accountsRes) ? accountsRes : (accountsRes as any)?.data || []);
+      setCurrencies((currenciesRes as any)?.data || (Array.isArray(currenciesRes) ? currenciesRes : []));
+      setTaxCodes((taxCodesRes as any)?.data || (Array.isArray(taxCodesRes) ? taxCodesRes : []));
+      setPaymentMethods((paymentMethodsRes as any)?.data || (Array.isArray(paymentMethodsRes) ? paymentMethodsRes : []));
     } catch (error) {
       console.error('Failed to load lookups', error);
     }

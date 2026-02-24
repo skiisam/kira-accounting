@@ -104,9 +104,10 @@ export default function ProductFormPage() {
         get<any>('/settings/product-types'),
         get<any>('/settings/uoms'),
       ]);
-      setGroups(groupsRes.data || []);
-      setTypes(typesRes.data || []);
-      setUoms(uomsRes.data || []);
+      // Handle both direct array and {data: []} wrapper formats
+      setGroups((groupsRes as any)?.data || (Array.isArray(groupsRes) ? groupsRes : []));
+      setTypes((typesRes as any)?.data || (Array.isArray(typesRes) ? typesRes : []));
+      setUoms((uomsRes as any)?.data || (Array.isArray(uomsRes) ? uomsRes : []));
     } catch (error) {
       console.error('Failed to load lookups', error);
     }
