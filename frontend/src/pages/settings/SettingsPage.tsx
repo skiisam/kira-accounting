@@ -20,8 +20,14 @@ const settingsNavItems = [
   { nameKey: 'settings.currencies', path: 'currencies', requiresEdit: false },
   { nameKey: 'settings.taxCodes', path: 'tax-codes', requiresEdit: false },
   { nameKey: 'settings.paymentMethods', path: 'payment-methods', requiresEdit: false },
+  { nameKey: 'settings.terms', path: 'terms', requiresEdit: false },
   { nameKey: 'settings.locations', path: 'locations', requiresEdit: false },
+  { nameKey: 'settings.areas', path: 'areas', requiresEdit: false },
   { nameKey: 'settings.uom', path: 'uom', requiresEdit: false },
+  { nameKey: 'settings.productGroups', path: 'product-groups', requiresEdit: false },
+  { nameKey: 'settings.productTypes', path: 'product-types', requiresEdit: false },
+  { nameKey: 'settings.salesAgents', path: 'sales-agents', requiresEdit: false },
+  { nameKey: 'settings.purchaseAgents', path: 'purchase-agents', requiresEdit: false },
   { nameKey: 'settings.documentSeries', path: 'document-series', requiresEdit: false },
   { nameKey: 'settings.fiscalYears', path: 'fiscal-years', requiresEdit: false },
   { nameKey: 'settings.changeCode', path: 'change-code', requiresEdit: true },
@@ -808,13 +814,16 @@ function GenericSettings({ endpoint, title, columns, canEdit = false }: { endpoi
     queryFn: () => get(`/settings/${endpoint}`),
   });
 
+  // API returns { success: true, data: [...] }
+  const items = (data as any)?.data || [];
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold">{title}</h2>
         {canEdit && <button className="btn btn-primary">Add New</button>}
       </div>
-      <DataTable columns={columns} data={(data as any[]) || []} loading={isLoading} />
+      <DataTable columns={columns} data={items} loading={isLoading} />
     </div>
   );
 }
@@ -890,6 +899,13 @@ export default function SettingsPage() {
                   { key: 'paymentType', header: 'Type' },
                 ]} />
               } />
+              <Route path="terms" element={
+                <GenericSettings endpoint="terms" title="Payment Terms" canEdit={canEditSettings} columns={[
+                  { key: 'code', header: 'Code' },
+                  { key: 'name', header: 'Name' },
+                  { key: 'days', header: 'Days' },
+                ]} />
+              } />
               <Route path="locations" element={
                 <GenericSettings endpoint="locations" title="Locations" canEdit={canEditSettings} columns={[
                   { key: 'code', header: 'Code' },
@@ -898,10 +914,44 @@ export default function SettingsPage() {
                   { key: 'isDefault', header: 'Default', render: (r: any) => r.isDefault ? 'Yes' : '' },
                 ]} />
               } />
+              <Route path="areas" element={
+                <GenericSettings endpoint="areas" title="Areas" canEdit={canEditSettings} columns={[
+                  { key: 'code', header: 'Code' },
+                  { key: 'name', header: 'Name' },
+                ]} />
+              } />
               <Route path="uom" element={
                 <GenericSettings endpoint="uom" title="Units of Measure" canEdit={canEditSettings} columns={[
                   { key: 'code', header: 'Code' },
                   { key: 'name', header: 'Name' },
+                ]} />
+              } />
+              <Route path="product-groups" element={
+                <GenericSettings endpoint="product-groups" title="Product Groups" canEdit={canEditSettings} columns={[
+                  { key: 'code', header: 'Code' },
+                  { key: 'name', header: 'Name' },
+                ]} />
+              } />
+              <Route path="product-types" element={
+                <GenericSettings endpoint="product-types" title="Product Types" canEdit={canEditSettings} columns={[
+                  { key: 'code', header: 'Code' },
+                  { key: 'name', header: 'Name' },
+                ]} />
+              } />
+              <Route path="sales-agents" element={
+                <GenericSettings endpoint="sales-agents" title="Sales Agents" canEdit={canEditSettings} columns={[
+                  { key: 'code', header: 'Code' },
+                  { key: 'name', header: 'Name' },
+                  { key: 'phone', header: 'Phone' },
+                  { key: 'email', header: 'Email' },
+                ]} />
+              } />
+              <Route path="purchase-agents" element={
+                <GenericSettings endpoint="purchase-agents" title="Purchase Agents" canEdit={canEditSettings} columns={[
+                  { key: 'code', header: 'Code' },
+                  { key: 'name', header: 'Name' },
+                  { key: 'phone', header: 'Phone' },
+                  { key: 'email', header: 'Email' },
                 ]} />
               } />
               <Route path="document-series" element={
