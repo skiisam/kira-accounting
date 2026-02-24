@@ -99,6 +99,9 @@ export default function ProductFormPage() {
 
   const loadLookups = async () => {
     console.log('loadLookups() called');
+    // Check auth state
+    const authStore = (await import('../../store/authStore')).useAuthStore.getState();
+    console.log('Auth state:', { hasToken: !!authStore.accessToken, tokenPreview: authStore.accessToken?.substring(0, 20) + '...' });
     try {
       console.log('Fetching lookups from API...');
       const [groupsRes, typesRes, uomsRes] = await Promise.all([
