@@ -1,6 +1,7 @@
 import { NavLink, Routes, Route, Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { get, post, put } from '../../services/api';
 import DataTable from '../../components/common/DataTable';
 import { useState, useEffect, useRef } from 'react';
@@ -13,18 +14,18 @@ import { PhotoIcon, TrashIcon } from '@heroicons/react/24/outline';
 
 // Navigation items with permission requirements
 const settingsNavItems = [
-  { name: 'Company', path: 'company', requiresEdit: false },
-  { name: 'Users', path: 'users', requiresManage: true },
-  { name: 'User Groups', path: 'user-groups', requiresManage: true },
-  { name: 'Currencies', path: 'currencies', requiresEdit: false },
-  { name: 'Tax Codes', path: 'tax-codes', requiresEdit: false },
-  { name: 'Payment Methods', path: 'payment-methods', requiresEdit: false },
-  { name: 'Locations', path: 'locations', requiresEdit: false },
-  { name: 'UOM', path: 'uom', requiresEdit: false },
-  { name: 'Document Series', path: 'document-series', requiresEdit: false },
-  { name: 'Fiscal Years', path: 'fiscal-years', requiresEdit: false },
-  { name: 'Change Code', path: 'change-code', requiresEdit: true },
-  { name: 'Messaging', path: 'messaging', requiresEdit: false },
+  { nameKey: 'settings.company', path: 'company', requiresEdit: false },
+  { nameKey: 'settings.users', path: 'users', requiresManage: true },
+  { nameKey: 'settings.userGroups', path: 'user-groups', requiresManage: true },
+  { nameKey: 'settings.currencies', path: 'currencies', requiresEdit: false },
+  { nameKey: 'settings.taxCodes', path: 'tax-codes', requiresEdit: false },
+  { nameKey: 'settings.paymentMethods', path: 'payment-methods', requiresEdit: false },
+  { nameKey: 'settings.locations', path: 'locations', requiresEdit: false },
+  { nameKey: 'settings.uom', path: 'uom', requiresEdit: false },
+  { nameKey: 'settings.documentSeries', path: 'document-series', requiresEdit: false },
+  { nameKey: 'settings.fiscalYears', path: 'fiscal-years', requiresEdit: false },
+  { nameKey: 'settings.changeCode', path: 'change-code', requiresEdit: true },
+  { nameKey: 'settings.messaging', path: 'messaging', requiresEdit: false },
 ];
 
 interface CompanyForm {
@@ -819,6 +820,7 @@ function GenericSettings({ endpoint, title, columns, canEdit = false }: { endpoi
 }
 
 export default function SettingsPage() {
+  const { t } = useTranslation();
   const { hasPermission, canView, isAdmin } = usePermissions();
   const canManageUsers = isAdmin || hasPermission(MODULES.USERS, 'manage');
   const canEditSettings = isAdmin || hasPermission(MODULES.SETTINGS, 'edit');
@@ -832,7 +834,7 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Settings</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">{t('settings.title')}</h1>
       
       <div className="flex gap-6">
         {/* Sidebar */}
@@ -845,12 +847,12 @@ export default function SettingsPage() {
                   className={({ isActive }) =>
                     `block px-3 py-2 text-sm rounded-md ${
                       isActive
-                        ? 'bg-primary-50 text-primary-700 font-medium'
-                        : 'text-gray-600 hover:bg-gray-100'
+                        ? 'bg-primary-50 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 font-medium'
+                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
                     }`
                   }
                 >
-                  {item.name}
+                  {t(item.nameKey)}
                 </NavLink>
               </li>
             ))}
