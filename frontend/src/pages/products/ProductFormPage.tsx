@@ -98,29 +98,18 @@ export default function ProductFormPage() {
   }, [id]);
 
   const loadLookups = async () => {
-    console.log('loadLookups() called');
-    // Check auth state
-    const authStore = (await import('../../store/authStore')).useAuthStore.getState();
-    console.log('Auth state:', { hasToken: !!authStore.accessToken, tokenPreview: authStore.accessToken?.substring(0, 20) + '...' });
     try {
-      console.log('Fetching lookups from API...');
       const [groupsRes, typesRes, uomsRes] = await Promise.all([
         get<any>('/settings/product-groups'),
         get<any>('/settings/product-types'),
         get<any>('/settings/uom'),
       ]);
       // get() already extracts .data.data, so result is the array directly
-      console.log('API responses:', { 
-        groups: { type: typeof groupsRes, isArray: Array.isArray(groupsRes), length: groupsRes?.length, data: groupsRes },
-        types: { type: typeof typesRes, isArray: Array.isArray(typesRes), length: typesRes?.length },
-        uoms: { type: typeof uomsRes, isArray: Array.isArray(uomsRes), length: uomsRes?.length }
-      });
       setGroups(Array.isArray(groupsRes) ? groupsRes : []);
       setTypes(Array.isArray(typesRes) ? typesRes : []);
       setUoms(Array.isArray(uomsRes) ? uomsRes : []);
-      console.log('State updated');
     } catch (error) {
-      console.error('loadLookups error:', error);
+      console.error('Failed to load lookups', error);
       toast.error('Failed to load dropdown data');
     }
   };

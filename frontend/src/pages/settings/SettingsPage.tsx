@@ -2,7 +2,7 @@ import { NavLink, Routes, Route, Navigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { get, post, put } from '../../services/api';
+import { get, post, put, del } from '../../services/api';
 import DataTable from '../../components/common/DataTable';
 import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
@@ -809,6 +809,11 @@ function UsersSettings() {
 }
 
 function GenericSettings({ endpoint, title, columns, canEdit = false }: { endpoint: string; title: string; columns: any[]; canEdit?: boolean }) {
+  const queryClient = useQueryClient();
+  const [showModal, setShowModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [formData, setFormData] = useState<Record<string, any>>({});
+
   const { data, isLoading } = useQuery({
     queryKey: [endpoint],
     queryFn: () => get(`/settings/${endpoint}`),
@@ -817,13 +822,114 @@ function GenericSettings({ endpoint, title, columns, canEdit = false }: { endpoi
   // API returns { success: true, data: [...] }
   const items = (data as any)?.data || [];
 
+  const saveMutation = useMutation({
+    mutationFn: async (data: any) => {
+      if (editingItem?.id) {
+        return put(`/settings/${endpoint}/${editingItem.id}`, data);
+      } else {
+        return post(`/settings/${endpoint}`, data);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [endpoint] });
+      toast.success(editingItem ? 'Updated successfully' : 'Created successfully');
+      setShowModal(false);
+      setEditingItem(null);
+      setFormData({});
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error?.message || 'Failed to save');
+    }
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      return del(`/settings/${endpoint}/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [endpoint] });
+      toast.success('Deleted successfully');
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error?.message || 'Failed to delete');
+    }
+  });
+
+  const handleAdd = () => {
+    setEditingItem(null);
+    setFormData({});
+    setShowModal(true);
+  };
+
+  const handleEdit = (item: any) => {
+    setEditingItem(item);
+    setFormData(item);
+    setShowModal(true);
+  };
+
+  const handleSave = () => {
+    saveMutation.mutate(formData);
+  };
+
+  const handleDelete = (id: number) => {
+    if (confirm('Are you sure you want to delete this item?')) {
+      deleteMutation.mutate(id);
+    }
+  };
+
+  // Add action column if editable
+  const displayColumns = canEdit ? [
+    ...columns,
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (row: any) => (
+        <div className="flex gap-2">
+          <button onClick={() => handleEdit(row)} className="text-blue-600 hover:text-blue-800 text-sm">Edit</button>
+          <button onClick={() => handleDelete(row.id)} className="text-red-600 hover:text-red-800 text-sm">Delete</button>
+        </div>
+      )
+    }
+  ] : columns;
+
+  // Get editable fields from columns (exclude actions and render-only columns)
+  const editableFields = columns.filter(c => c.key !== 'actions' && !c.render);
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold">{title}</h2>
-        {canEdit && <button className="btn btn-primary">Add New</button>}
+        {canEdit && <button onClick={handleAdd} className="btn btn-primary">Add New</button>}
       </div>
-      <DataTable columns={columns} data={items} loading={isLoading} />
+      <DataTable columns={displayColumns} data={items} loading={isLoading} />
+
+      {/* Add/Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">{editingItem ? 'Edit' : 'Add New'} {title.replace(/s$/, '')}</h3>
+            <div className="space-y-4">
+              {editableFields.map(col => (
+                <div key={col.key}>
+                  <label className="block text-sm font-medium mb-1">{col.header}</label>
+                  <input
+                    type="text"
+                    className="input w-full"
+                    value={formData[col.key] || ''}
+                    onChange={(e) => setFormData({ ...formData, [col.key]: e.target.value })}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => setShowModal(false)} className="btn btn-secondary">Cancel</button>
+              <button onClick={handleSave} disabled={saveMutation.isPending} className="btn btn-primary">
+                {saveMutation.isPending ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
