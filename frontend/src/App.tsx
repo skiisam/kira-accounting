@@ -17,6 +17,7 @@ import VendorListPage from './pages/vendors/VendorListPage';
 import VendorFormPage from './pages/vendors/VendorFormPage';
 import ProductListPage from './pages/products/ProductListPage';
 import ProductFormPage from './pages/products/ProductFormPage';
+import ProductSettingsPage from './pages/products/ProductSettingsPage';
 import SalesListPage from './pages/sales/SalesListPage';
 import SalesFormPage from './pages/sales/SalesFormPage';
 import PurchaseListPage from './pages/purchases/PurchaseListPage';
@@ -106,6 +107,9 @@ export default function App() {
         {/* Products */}
         <Route path="/products" element={<ProductListPage />} />
         <Route path="/products/new" element={<ProductFormPage />} />
+        <Route path="/products/groups" element={<ProductSettingsPage />} />
+        <Route path="/products/types" element={<ProductSettingsPage />} />
+        <Route path="/products/uom" element={<ProductSettingsPage />} />
         <Route path="/products/:id" element={<ProductFormPage />} />
 
         {/* Sales */}

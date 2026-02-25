@@ -86,7 +86,17 @@ const navigation = [
   },
   { nameKey: 'nav.customers', href: '/customers', icon: UsersIcon, iconSolid: UsersIconSolid, color: 'from-blue-500 to-indigo-500' },
   { nameKey: 'nav.vendors', href: '/vendors', icon: BuildingStorefrontIcon, color: 'from-amber-500 to-yellow-500' },
-  { nameKey: 'nav.products', href: '/products', icon: CubeIcon, color: 'from-fuchsia-500 to-purple-500' },
+  {
+    nameKey: 'nav.products',
+    icon: CubeIcon,
+    color: 'from-fuchsia-500 to-purple-500',
+    children: [
+      { nameKey: 'nav.productList', href: '/products' },
+      { nameKey: 'nav.productGroups', href: '/products/groups' },
+      { nameKey: 'nav.productTypes', href: '/products/types' },
+      { nameKey: 'nav.uom', href: '/products/uom' },
+    ],
+  },
   {
     nameKey: 'nav.messaging',
     icon: ChatBubbleLeftRightIcon,

@@ -190,9 +190,6 @@ const settingsNavItems = [
   { nameKey: 'settings.terms', path: 'terms', requiresEdit: false },
   { nameKey: 'settings.locations', path: 'locations', requiresEdit: false },
   { nameKey: 'settings.areas', path: 'areas', requiresEdit: false },
-  { nameKey: 'settings.uom', path: 'uom', requiresEdit: false },
-  { nameKey: 'settings.productGroups', path: 'product-groups', requiresEdit: false },
-  { nameKey: 'settings.productTypes', path: 'product-types', requiresEdit: false },
   { nameKey: 'settings.salesAgents', path: 'sales-agents', requiresEdit: false },
   { nameKey: 'settings.purchaseAgents', path: 'purchase-agents', requiresEdit: false },
   { nameKey: 'settings.documentSeries', path: 'document-series', requiresEdit: false },
@@ -1289,24 +1286,6 @@ export default function SettingsPage() {
               } />
               <Route path="areas" element={
                 <GenericSettings endpoint="areas" title="Areas" canEdit={canEditSettings} columns={[
-                  { key: 'code', header: 'Code' },
-                  { key: 'name', header: 'Name' },
-                ]} />
-              } />
-              <Route path="uom" element={
-                <GenericSettings endpoint="uom" title="Units of Measure" canEdit={canEditSettings} columns={[
-                  { key: 'code', header: 'Code' },
-                  { key: 'name', header: 'Name' },
-                ]} />
-              } />
-              <Route path="product-groups" element={
-                <GenericSettings endpoint="product-groups" title="Product Groups" canEdit={canEditSettings} columns={[
-                  { key: 'code', header: 'Code' },
-                  { key: 'name', header: 'Name' },
-                ]} />
-              } />
-              <Route path="product-types" element={
-                <GenericSettings endpoint="product-types" title="Product Types" canEdit={canEditSettings} columns={[
                   { key: 'code', header: 'Code' },
                   { key: 'name', header: 'Name' },
                 ]} />
