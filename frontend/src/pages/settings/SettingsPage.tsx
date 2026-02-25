@@ -12,6 +12,173 @@ import GlobalChangeCodePage from './GlobalChangeCodePage';
 import { usePermissions, MODULES } from '../../hooks/usePermissions';
 import { PhotoIcon, TrashIcon } from '@heroicons/react/24/outline';
 
+function TaxCodesSettings({ canEdit }: { canEdit: boolean }) {
+  const queryClient = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: ['tax-codes'],
+    queryFn: () => get('/settings/tax-codes'),
+  });
+  const items = Array.isArray(data) ? data : [];
+  const [showModal, setShowModal] = useState(false);
+  const [editing, setEditing] = useState<any>(null);
+  const [form, setForm] = useState<any>({});
+
+  const openAdd = () => { setEditing(null); setForm({ taxType: 'OUTPUT', calcMethod: 'EXCLUSIVE', roundingMode: 'NEAREST', roundingPrecision: 2, includeDiscount: true, includeFreight: true, includeService: true }); setShowModal(true); };
+  const openEdit = (row: any) => { setEditing(row); setForm({ ...row }); setShowModal(true); };
+
+  const saveMutation = useMutation({
+    mutationFn: async (payload: any) => {
+      if (editing) {
+        const { code, ...rest } = payload;
+        return put(`/settings/tax-codes/${editing.code}`, rest);
+      } else {
+        return post('/settings/tax-codes', payload);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tax-codes'] });
+      toast.success(editing ? 'Updated successfully' : 'Created successfully');
+      setShowModal(false); setEditing(null); setForm({});
+    },
+    onError: (err: any) => toast.error(err?.response?.data?.error?.message || 'Failed to save'),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (code: string) => del(`/settings/tax-codes/${code}`),
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['tax-codes'] }); toast.success('Deleted successfully'); },
+    onError: (err: any) => toast.error(err?.response?.data?.error?.message || 'Failed to delete'),
+  });
+
+  const columns = [
+    { key: 'code', header: 'Code' },
+    { key: 'name', header: 'Name' },
+    { key: 'rate', header: 'Rate %' },
+    { key: 'taxType', header: 'Type' },
+    { key: 'calcMethod', header: 'Calc' },
+    { key: 'roundingMode', header: 'Rounding' },
+    { key: 'actions', header: 'Actions', render: (row: any) => canEdit ? (
+      <div className="flex gap-2">
+        <button onClick={() => openEdit(row)} className="text-blue-600 hover:text-blue-800 text-sm">Edit</button>
+        <button onClick={() => deleteMutation.mutate(row.code)} className="text-red-600 hover:text-red-800 text-sm">Delete</button>
+      </div>
+    ) : null },
+  ];
+
+  const onSave = () => saveMutation.mutate(form);
+
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-semibold">Tax Codes</h2>
+        {canEdit && <button onClick={openAdd} className="btn btn-primary">Add New</button>}
+      </div>
+      <DataTable columns={columns} data={items} loading={isLoading} />
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-slate-800 rounded-lg p-6 w-full max-w-xl">
+            <h3 className="text-lg font-semibold mb-4">{editing ? 'Edit' : 'Add New'} Tax Code</h3>
+            <div className="grid grid-cols-2 gap-4">
+              {!editing && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Code</label>
+                    <input className="input w-full" value={form.code || ''} onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })} />
+                  </div>
+                </>
+              )}
+              <div>
+                <label className="block text-sm font-medium mb-1">Name</label>
+                <input className="input w-full" value={form.name || ''} onChange={e => setForm({ ...form, name: e.target.value })} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Rate %</label>
+                <input type="number" step="0.01" className="input w-full" value={form.rate ?? 0} onChange={e => setForm({ ...form, rate: parseFloat(e.target.value) })} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Type</label>
+                <select className="input w-full" value={form.taxType || 'OUTPUT'} onChange={e => setForm({ ...form, taxType: e.target.value })}>
+                  <option value="OUTPUT">OUTPUT</option>
+                  <option value="INPUT">INPUT</option>
+                  <option value="EXEMPT">EXEMPT</option>
+                  <option value="ZERO_RATED">ZERO_RATED</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Calc Method</label>
+                <select className="input w-full" value={form.calcMethod || 'EXCLUSIVE'} onChange={e => setForm({ ...form, calcMethod: e.target.value })}>
+                  <option value="EXCLUSIVE">EXCLUSIVE</option>
+                  <option value="INCLUSIVE">INCLUSIVE</option>
+                  <option value="FIXED">FIXED</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Rounding</label>
+                <select className="input w-full" value={form.roundingMode || 'NEAREST'} onChange={e => setForm({ ...form, roundingMode: e.target.value })}>
+                  <option value="NEAREST">NEAREST</option>
+                  <option value="UP">UP</option>
+                  <option value="DOWN">DOWN</option>
+                  <option value="BANKERS">BANKERS</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Precision</label>
+                <input type="number" className="input w-full" value={form.roundingPrecision ?? 2} onChange={e => setForm({ ...form, roundingPrecision: parseInt(e.target.value || '0') })} />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">SST Type</label>
+                <select className="input w-full" value={form.sstType || ''} onChange={e => setForm({ ...form, sstType: e.target.value || null })}>
+                  <option value="">—</option>
+                  <option value="SALES">SALES</option>
+                  <option value="SERVICE">SERVICE</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">GST Category</label>
+                <select className="input w-full" value={form.gstCategory || ''} onChange={e => setForm({ ...form, gstCategory: e.target.value || null })}>
+                  <option value="">—</option>
+                  <option value="SR">SR</option>
+                  <option value="ZR">ZR</option>
+                  <option value="EXEMPT">EXEMPT</option>
+                  <option value="OS">OS</option>
+                  <option value="IS">IS</option>
+                </select>
+              </div>
+              <div className="col-span-2">
+                <label className="inline-flex items-center gap-2">
+                  <input type="checkbox" checked={!!form.includeDiscount} onChange={e => setForm({ ...form, includeDiscount: e.target.checked })} />
+                  Include Discount in Tax Base
+                </label>
+              </div>
+              <div className="col-span-2">
+                <label className="inline-flex items-center gap-2">
+                  <input type="checkbox" checked={!!form.includeFreight} onChange={e => setForm({ ...form, includeFreight: e.target.checked })} />
+                  Include Freight/Charges in Tax Base
+                </label>
+              </div>
+              <div className="col-span-2">
+                <label className="inline-flex items-center gap-2">
+                  <input type="checkbox" checked={!!form.includeService} onChange={e => setForm({ ...form, includeService: e.target.checked })} />
+                  Include Service Charge in Tax Base
+                </label>
+              </div>
+              <div className="col-span-2">
+                <label className="block text-sm font-medium mb-1">Remarks</label>
+                <textarea className="input w-full" rows={3} value={form.remarks || ''} onChange={e => setForm({ ...form, remarks: e.target.value })} />
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 mt-6">
+              <button onClick={() => setShowModal(false)} className="btn btn-secondary">Cancel</button>
+              <button onClick={onSave} disabled={saveMutation.isPending} className="btn btn-primary">
+                {saveMutation.isPending ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Navigation items with permission requirements
 const settingsNavItems = [
   { nameKey: 'settings.company', path: 'company', requiresEdit: false },
@@ -696,7 +863,10 @@ function CompanySettings() {
 }
 
 function UsersSettings() {
+  const queryClient = useQueryClient();
   const [showModal, setShowModal] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [createForm, setCreateForm] = useState<any>({ code: '', name: '', email: '', password: '', groupId: undefined, isAdmin: false });
   const [targetUser, setTargetUser] = useState<any>(null);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -704,6 +874,10 @@ function UsersSettings() {
   const { data, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: () => get('/settings/users'),
+  });
+  const { data: groups } = useQuery({
+    queryKey: ['user-groups'],
+    queryFn: () => get('/settings/user-groups'),
   });
 
   const columns = [
@@ -755,9 +929,83 @@ function UsersSettings() {
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold">Users</h2>
-        <button className="btn btn-primary">Add User</button>
+        <button
+          className="btn btn-primary"
+          onClick={() => {
+            setCreateForm({ code: '', name: '', email: '', password: '', groupId: (Array.isArray(groups) && groups[0]?.id) || undefined, isAdmin: false });
+            setShowCreate(true);
+          }}
+        >
+          Add User
+        </button>
       </div>
       <DataTable columns={columns} data={(data as any[]) || []} loading={isLoading} />
+      {/* Create User Modal */}
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="card w-full max-w-md">
+            <div className="card-body space-y-4">
+              <h3 className="text-lg font-semibold">Add User</h3>
+              <div>
+                <label className="label">Code</label>
+                <input className="input" value={createForm.code} onChange={e => setCreateForm({ ...createForm, code: e.target.value.toUpperCase() })} />
+              </div>
+              <div>
+                <label className="label">Name</label>
+                <input className="input" value={createForm.name} onChange={e => setCreateForm({ ...createForm, name: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">Email</label>
+                <input className="input" type="email" value={createForm.email} onChange={e => setCreateForm({ ...createForm, email: e.target.value })} />
+              </div>
+              <div>
+                <label className="label">Password</label>
+                <input className="input" type="password" value={createForm.password} onChange={e => setCreateForm({ ...createForm, password: e.target.value })} placeholder="Min 6 characters" />
+              </div>
+              <div>
+                <label className="label">Group</label>
+                <select className="input" value={createForm.groupId || ''} onChange={e => setCreateForm({ ...createForm, groupId: parseInt(e.target.value) })}>
+                  <option value="" disabled>Choose group</option>
+                  {(Array.isArray(groups) ? groups : []).map((g: any) => (
+                    <option key={g.id} value={g.id}>{g.code} - {g.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <input id="isAdmin" type="checkbox" checked={!!createForm.isAdmin} onChange={e => setCreateForm({ ...createForm, isAdmin: e.target.checked })} />
+                <label htmlFor="isAdmin">Administrator</label>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button className="btn btn-secondary" onClick={() => setShowCreate(false)}>Cancel</button>
+                <button
+                  className="btn btn-primary"
+                  onClick={async () => {
+                    try {
+                      if (!createForm.code || !createForm.name || !createForm.groupId) {
+                        toast.error('Code, Name and Group are required');
+                        return;
+                      }
+                      if (!createForm.password || createForm.password.length < 6) {
+                        toast.error('Password must be at least 6 characters');
+                        return;
+                      }
+                      await post('/settings/users', createForm);
+                      toast.success('User created');
+                      setShowCreate(false);
+                      setCreateForm({ code: '', name: '', email: '', password: '', groupId: undefined, isAdmin: false });
+                      await queryClient.invalidateQueries({ queryKey: ['users'] });
+                    } catch (err: any) {
+                      toast.error(err?.response?.data?.error?.message || 'Failed to create user');
+                    }
+                  }}
+                >
+                  Create
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="card w-full max-w-md">
@@ -813,6 +1061,7 @@ function GenericSettings({ endpoint, title, columns, canEdit = false }: { endpoi
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: [endpoint],
@@ -879,6 +1128,20 @@ function GenericSettings({ endpoint, title, columns, canEdit = false }: { endpoi
     }
   };
 
+  const handleRefreshRates = async () => {
+    if (endpoint !== 'currencies') return;
+    try {
+      setIsRefreshing(true);
+      await post('/settings/currencies/refresh-rates', {});
+      await queryClient.invalidateQueries({ queryKey: [endpoint] });
+      toast.success('Currency rates refreshed');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Failed to refresh rates');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   // Add action column if editable
   const displayColumns = canEdit ? [
     ...columns,
@@ -901,7 +1164,14 @@ function GenericSettings({ endpoint, title, columns, canEdit = false }: { endpoi
     <div>
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-lg font-semibold">{title}</h2>
-        {canEdit && <button onClick={handleAdd} className="btn btn-primary">Add New</button>}
+        <div className="flex gap-2">
+          {endpoint === 'currencies' && (
+            <button onClick={handleRefreshRates} disabled={isRefreshing} className="btn btn-secondary">
+              {isRefreshing ? 'Fetching…' : 'Fetch Rates (BNM/Google)'}
+            </button>
+          )}
+          {canEdit && <button onClick={handleAdd} className="btn btn-primary">Add New</button>}
+        </div>
       </div>
       <DataTable columns={displayColumns} data={items} loading={isLoading} />
 
@@ -993,12 +1263,7 @@ export default function SettingsPage() {
                 ]} />
               } />
               <Route path="tax-codes" element={
-                <GenericSettings endpoint="tax-codes" title="Tax Codes" canEdit={canEditSettings} columns={[
-                  { key: 'code', header: 'Code' },
-                  { key: 'name', header: 'Name' },
-                  { key: 'rate', header: 'Rate %' },
-                  { key: 'taxType', header: 'Type' },
-                ]} />
+                <TaxCodesSettings canEdit={canEditSettings} />
               } />
               <Route path="payment-methods" element={
                 <GenericSettings endpoint="payment-methods" title="Payment Methods" canEdit={canEditSettings} columns={[

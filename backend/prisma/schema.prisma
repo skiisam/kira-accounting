@@ -107,6 +107,17 @@ model TaxCode {
   effectiveFrom DateTime?
   effectiveTo   DateTime?
   isActive      Boolean   @default(true)
+  // Calculation & compliance (GST/SST)
+  calcMethod        String?  @db.VarChar(20) // EXCLUSIVE, INCLUSIVE, FIXED
+  roundingMode      String?  @db.VarChar(20) // NEAREST, UP, DOWN, BANKERS
+  roundingPrecision Int?     @default(2)
+  includeDiscount   Boolean? @default(true)
+  includeFreight    Boolean? @default(true)
+  includeService    Boolean? @default(true)
+  sstType           String?  @db.VarChar(20) // SALES, SERVICE
+  gstCategory       String?  @db.VarChar(20) // SR, ZR, EXEMPT, OS, IS, etc.
+  remarks           String?  @db.Text
+  customRules       Json?
 
   taxAccount Account? @relation(fields: [taxAccountId], references: [id])
 

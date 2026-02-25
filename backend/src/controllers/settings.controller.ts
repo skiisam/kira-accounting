@@ -726,6 +726,36 @@ export class SettingsController {
     } catch (error) { next(error); }
   };
 
+  refreshCurrencyRates = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const company = await prisma.company.findFirst();
+      const base = company?.baseCurrency || 'MYR';
+      const currencies = await prisma.currency.findMany({ where: { isActive: true } });
+      const url = `https://api.exchangerate.host/latest?base=${encodeURIComponent(base)}`;
+      let rates: Record<string, number> = {};
+      try {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error('rate fetch failed');
+        const data = (await resp.json()) as any;
+        if (!data || !data.rates) throw new Error('invalid rate payload');
+        rates = data.rates as Record<string, number>;
+      } catch {
+        return res.status(502).json({ success: false, message: 'Failed to fetch live rates' });
+      }
+      const updates = [];
+      for (const c of currencies) {
+        if (c.code === base) continue;
+        const r = rates[c.code];
+        if (typeof r === 'number' && isFinite(r)) {
+          updates.push(prisma.currency.update({ where: { code: c.code }, data: { exchangeRate: r } }));
+        }
+      }
+      await Promise.all(updates);
+      const updated = await prisma.currency.findMany({ orderBy: { code: 'asc' } });
+      res.json({ success: true, data: updated, message: 'Currency rates refreshed' });
+    } catch (error) { next(error); }
+  };
+
   // Tax Codes
   listTaxCodes = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -738,16 +768,38 @@ export class SettingsController {
 
   createTaxCode = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { code, name, rate, taxType, isActive } = req.body;
-      const taxCode = await prisma.taxCode.create({ data: { code, name, rate, taxType, isActive: isActive ?? true } });
+      const {
+        code, name, rate, taxType, isActive,
+        calcMethod, roundingMode, roundingPrecision,
+        includeDiscount, includeFreight, includeService,
+        sstType, gstCategory, remarks, customRules,
+      } = req.body;
+      const data = {
+        code, name, rate, taxType, isActive: isActive ?? true,
+        calcMethod, roundingMode, roundingPrecision,
+        includeDiscount, includeFreight, includeService,
+        sstType, gstCategory, remarks, customRules,
+      } as any;
+      const taxCode = await prisma.taxCode.create({ data });
       res.status(201).json({ success: true, data: taxCode, message: 'Tax code created' });
     } catch (error) { next(error); }
   };
   updateTaxCode = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { code } = req.params;
-      const { name, rate, taxType, isActive } = req.body;
-      const taxCode = await prisma.taxCode.update({ where: { code }, data: { name, rate, taxType, isActive } });
+      const {
+        name, rate, taxType, isActive,
+        calcMethod, roundingMode, roundingPrecision,
+        includeDiscount, includeFreight, includeService,
+        sstType, gstCategory, remarks, customRules,
+      } = req.body;
+      const data = {
+        name, rate, taxType, isActive,
+        calcMethod, roundingMode, roundingPrecision,
+        includeDiscount, includeFreight, includeService,
+        sstType, gstCategory, remarks, customRules,
+      } as any;
+      const taxCode = await prisma.taxCode.update({ where: { code }, data });
       res.json({ success: true, data: taxCode, message: 'Tax code updated' });
     } catch (error) { next(error); }
   };
@@ -762,7 +814,18 @@ export class SettingsController {
   // UOM
   listUOM = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const uoms = await prisma.uOM.findMany({ orderBy: { code: 'asc' } });
+      let uoms = await prisma.uOM.findMany({ orderBy: { code: 'asc' } });
+      if (uoms.length === 0) {
+        await prisma.uOM.createMany({
+          data: [
+            { code: 'PCS', name: 'Pieces' },
+            { code: 'UNIT', name: 'Unit' },
+            { code: 'BOX', name: 'Box' },
+          ],
+          skipDuplicates: true,
+        });
+        uoms = await prisma.uOM.findMany({ orderBy: { code: 'asc' } });
+      }
       res.json({ success: true, data: uoms });
     } catch (error) {
       next(error);
@@ -870,7 +933,13 @@ export class SettingsController {
   // Product Groups
   listProductGroups = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const groups = await prisma.productGroup.findMany({ where: { isActive: true }, orderBy: { code: 'asc' } });
+      let groups = await prisma.productGroup.findMany({ where: { isActive: true }, orderBy: { code: 'asc' } });
+      if (groups.length === 0) {
+        await prisma.productGroup.create({
+          data: { code: 'GENERAL', name: 'General', displayOrder: 1, isActive: true },
+        }).catch(() => null);
+        groups = await prisma.productGroup.findMany({ where: { isActive: true }, orderBy: { code: 'asc' } });
+      }
       res.json({ success: true, data: groups });
     } catch (error) {
       next(error);
@@ -884,7 +953,18 @@ export class SettingsController {
   // Product Types
   listProductTypes = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const types = await prisma.productType.findMany({ where: { isActive: true }, orderBy: { code: 'asc' } });
+      let types = await prisma.productType.findMany({ where: { isActive: true }, orderBy: { code: 'asc' } });
+      if (types.length === 0) {
+        await prisma.productType.createMany({
+          data: [
+            { code: 'FINISHED', name: 'Finished Goods' },
+            { code: 'SERVICE', name: 'Service' },
+            { code: 'RAW', name: 'Raw Material' },
+          ],
+          skipDuplicates: true,
+        });
+        types = await prisma.productType.findMany({ where: { isActive: true }, orderBy: { code: 'asc' } });
+      }
       res.json({ success: true, data: types });
     } catch (error) {
       next(error);

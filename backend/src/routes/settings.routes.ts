@@ -42,6 +42,7 @@ router.post('/currencies', requireAdmin, settingsController.createCurrency);
 router.put('/currencies/:code', requireAdmin, settingsController.updateCurrency);
 router.delete('/currencies/:code', requireAdmin, settingsController.deleteCurrency);
 router.put('/currencies/:code/rate', settingsController.updateExchangeRate);
+router.post('/currencies/refresh-rates', requireAdmin, settingsController.refreshCurrencyRates);
 
 // Tax Codes
 router.get('/tax-codes', settingsController.listTaxCodes);

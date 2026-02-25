@@ -157,47 +157,27 @@ async function main() {
   });
   console.log('✅ Admin user created');
 
-  // Chart of Accounts
+  // Chart of Accounts (use findFirst + create pattern since accountNo+companyId is compound unique)
   const caType = accountTypes.find(t => t.code === 'CA')!;
   const clType = accountTypes.find(t => t.code === 'CL')!;
   const revenueType = accountTypes.find(t => t.code === 'REVENUE')!;
   const expenseType = accountTypes.find(t => t.code === 'EXPENSE')!;
 
-  const cashAccount = await prisma.account.upsert({
-    where: { accountNo: '110-0001' },
-    update: {},
-    create: { accountNo: '110-0001', name: 'Cash on Hand', typeId: caType.id, specialType: 'CASH' },
-  });
-  const bankAccount = await prisma.account.upsert({
-    where: { accountNo: '110-0002' },
-    update: {},
-    create: { accountNo: '110-0002', name: 'Maybank Current Account', typeId: caType.id, specialType: 'BANK' },
-  });
-  const arControl = await prisma.account.upsert({
-    where: { accountNo: '120-0001' },
-    update: {},
-    create: { accountNo: '120-0001', name: 'Trade Debtors Control', typeId: caType.id, specialType: 'AR_CONTROL' },
-  });
-  const stockControl = await prisma.account.upsert({
-    where: { accountNo: '130-0001' },
-    update: {},
-    create: { accountNo: '130-0001', name: 'Stock Control', typeId: caType.id, specialType: 'STOCK' },
-  });
-  const apControl = await prisma.account.upsert({
-    where: { accountNo: '210-0001' },
-    update: {},
-    create: { accountNo: '210-0001', name: 'Trade Creditors Control', typeId: clType.id, specialType: 'AP_CONTROL' },
-  });
-  await prisma.account.upsert({
-    where: { accountNo: '400-0001' },
-    update: {},
-    create: { accountNo: '400-0001', name: 'Sales Revenue', typeId: revenueType.id },
-  });
-  await prisma.account.upsert({
-    where: { accountNo: '500-0001' },
-    update: {},
-    create: { accountNo: '500-0001', name: 'Cost of Goods Sold', typeId: expenseType.id },
-  });
+  const findOrCreateAccount = async (accountNo: string, data: any) => {
+    let account = await prisma.account.findFirst({ where: { accountNo } });
+    if (!account) {
+      account = await prisma.account.create({ data: { accountNo, ...data } });
+    }
+    return account;
+  };
+
+  const cashAccount = await findOrCreateAccount('110-0001', { name: 'Cash on Hand', typeId: caType.id, specialType: 'CASH' });
+  const bankAccount = await findOrCreateAccount('110-0002', { name: 'Maybank Current Account', typeId: caType.id, specialType: 'BANK' });
+  const arControl = await findOrCreateAccount('120-0001', { name: 'Trade Debtors Control', typeId: caType.id, specialType: 'AR_CONTROL' });
+  const stockControl = await findOrCreateAccount('130-0001', { name: 'Stock Control', typeId: caType.id, specialType: 'STOCK' });
+  const apControl = await findOrCreateAccount('210-0001', { name: 'Trade Creditors Control', typeId: clType.id, specialType: 'AP_CONTROL' });
+  await findOrCreateAccount('400-0001', { name: 'Sales Revenue', typeId: revenueType.id });
+  await findOrCreateAccount('500-0001', { name: 'Cost of Goods Sold', typeId: expenseType.id });
   console.log('✅ Chart of accounts created');
 
   // Payment Methods

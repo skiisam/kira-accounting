@@ -99,15 +99,29 @@ export default function ProductFormPage() {
 
   const loadLookups = async () => {
     try {
-      const [groupsRes, typesRes, uomsRes] = await Promise.all([
-        get<any>('/settings/product-groups'),
-        get<any>('/settings/product-types'),
-        get<any>('/settings/uom'),
+      let [groupsRes, typesRes, uomsRes] = await Promise.all([
+        get<any>('/settings/product-groups').catch(() => []),
+        get<any>('/settings/product-types').catch(() => []),
+        get<any>('/settings/uom').catch(() => []),
       ]);
-      // get() already extracts .data.data, so result is the array directly
-      setGroups(Array.isArray(groupsRes) ? groupsRes : []);
-      setTypes(Array.isArray(typesRes) ? typesRes : []);
-      setUoms(Array.isArray(uomsRes) ? uomsRes : []);
+      let groupsArr = Array.isArray(groupsRes) ? groupsRes : [];
+      let typesArr = Array.isArray(typesRes) ? typesRes : [];
+      let uomsArr = Array.isArray(uomsRes) ? uomsRes : [];
+
+      if (groupsArr.length === 0) {
+        groupsArr = await get<any>('/products/groups/list').catch(() => []);
+      }
+      if (typesArr.length === 0) {
+        typesArr = await get<any>('/products/types/list').catch(() => []);
+      }
+      if (uomsArr.length === 0) {
+        // Support alternative plural path if server uses /uoms
+        uomsArr = await get<any>('/settings/uoms').catch(() => []);
+      }
+
+      setGroups(groupsArr || []);
+      setTypes(typesArr || []);
+      setUoms(uomsArr || []);
     } catch (error) {
       console.error('Failed to load lookups', error);
       toast.error('Failed to load dropdown data');
