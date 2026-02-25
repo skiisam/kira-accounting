@@ -25,16 +25,39 @@ export class AppError extends Error {
 }
 
 export const errorHandler = (
-  err: Error | AppError,
+  err: Error | AppError | any,
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   const isAppError = err instanceof AppError;
   
-  const statusCode = isAppError ? err.statusCode : 500;
-  const code = isAppError ? err.code : 'INTERNAL_ERROR';
-  const message = isAppError ? err.message : 'An unexpected error occurred';
+  // Handle Prisma errors
+  let statusCode = isAppError ? err.statusCode : 500;
+  let code = isAppError ? err.code : 'INTERNAL_ERROR';
+  let message = isAppError ? err.message : 'An unexpected error occurred';
+  
+  // Prisma unique constraint violation
+  if (err.code === 'P2002') {
+    statusCode = 400;
+    code = 'DUPLICATE_KEY';
+    const field = err.meta?.target?.[0] || 'field';
+    message = `A record with this ${field} already exists`;
+  }
+  
+  // Prisma record not found
+  if (err.code === 'P2025') {
+    statusCode = 404;
+    code = 'NOT_FOUND';
+    message = 'Record not found';
+  }
+  
+  // Prisma foreign key constraint
+  if (err.code === 'P2003') {
+    statusCode = 400;
+    code = 'FOREIGN_KEY_ERROR';
+    message = 'Referenced record does not exist';
+  }
 
   // Log error
   logger.error(`${req.method} ${req.url} - ${statusCode} - ${err.message}`, {
