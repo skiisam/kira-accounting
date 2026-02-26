@@ -75,10 +75,54 @@ model Company {
   updatedAt            DateTime  @updatedAt
   isActive             Boolean   @default(true)
 
+  // Subscription
+  planCode             String    @default("FREE") @db.VarChar(20)
+  subscriptionStatus   String    @default("TRIAL") @db.VarChar(20)  // TRIAL, ACTIVE, EXPIRED, CANCELLED
+  trialEndsAt          DateTime?
+  subscriptionStartAt  DateTime?
+  subscriptionEndsAt   DateTime?
+  billingCycle         String?   @db.VarChar(20)  // MONTHLY, YEARLY
+  stripeCustomerId     String?   @db.VarChar(100)
+  stripeSubscriptionId String?   @db.VarChar(100)
+
   users    User[]
   accounts Account[]
+  plan     SubscriptionPlan? @relation(fields: [planCode], references: [code])
 
   @@map("companies")
+}
+
+// =====================================================
+// SUBSCRIPTION PLANS
+// =====================================================
+
+model SubscriptionPlan {
+  code             String   @id @db.VarChar(20)
+  name             String   @db.VarChar(50)
+  description      String?  @db.VarChar(500)
+  monthlyPrice     Decimal  @default(0) @db.Decimal(10, 2)
+  yearlyPrice      Decimal  @default(0) @db.Decimal(10, 2)
+  currency         String   @default("MYR") @db.VarChar(10)
+  isActive         Boolean  @default(true)
+  sortOrder        Int      @default(0)
+  
+  // Limits
+  maxUsers         Int      @default(1)
+  maxCompanies     Int      @default(1)
+  maxInvoicesMonth Int      @default(50)     // 0 = unlimited
+  maxProducts      Int      @default(100)    // 0 = unlimited
+  maxCustomers     Int      @default(100)    // 0 = unlimited
+  storageGb        Int      @default(1)
+  
+  // Features (JSON for flexibility)
+  features         Json?    // { "einvoice": true, "multiCurrency": true, ... }
+  
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  
+  companies        Company[]
+  
+  @@map("subscription_plans")
 }
 
 model Currency {
