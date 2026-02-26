@@ -19,6 +19,7 @@ import backupRoutes from './backup.routes';
 import einvoiceRoutes from './einvoice.routes';
 import filesRoutes from './files.routes';
 import dashboardRoutes from './dashboard.routes';
+import accessRightsRoutes from './accessRights.routes';
 // import crmRoutes from './crm.routes'; // TODO: Fix CRM models
 
 const router = Router();
@@ -46,6 +47,7 @@ router.use('/messaging', messagingRoutes);
 router.use('/backup', backupRoutes);
 router.use('/einvoice', einvoiceRoutes);
 router.use('/files', filesRoutes);
+router.use('/access-rights', accessRightsRoutes);
 // router.use('/crm', crmRoutes); // TODO: Fix CRM models
 
 export default router;

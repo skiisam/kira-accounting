@@ -1,5 +1,12 @@
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { 
+  MODULES, 
+  ADMIN_PERMISSIONS, 
+  STAFF_PERMISSIONS, 
+  MODULE_PERMISSIONS,
+  ActionType 
+} from '../src/constants/permissions';
 
 const prisma = new PrismaClient();
 
@@ -61,84 +68,39 @@ async function main() {
   await prisma.userGroup.upsert({ where: { code: 'SALES' }, update: {}, create: { code: 'SALES', name: 'Sales Staff', description: 'Sales transactions only' } });
   console.log('✅ User groups created');
 
-  // Access Rights for Admin (full access)
-  const MODULES = ['SALES', 'PURCHASE', 'AR', 'AP', 'STOCK', 'REPORTS', 'SETTINGS', 'USERS'];
-  const ADMIN_PERMISSIONS: Record<string, { view: boolean; create: boolean; edit: boolean; delete: boolean; custom: Record<string, boolean> }> = {
-    SALES: { view: true, create: true, edit: true, delete: true, custom: { post: true, void: true } },
-    PURCHASE: { view: true, create: true, edit: true, delete: true, custom: { post: true, void: true } },
-    AR: { view: true, create: true, edit: true, delete: true, custom: {} },
-    AP: { view: true, create: true, edit: true, delete: true, custom: {} },
-    STOCK: { view: true, create: false, edit: false, delete: false, custom: { adjust: true, transfer: true } },
-    REPORTS: { view: true, create: false, edit: false, delete: false, custom: {} },
-    SETTINGS: { view: true, create: false, edit: true, delete: false, custom: {} },
-    USERS: { view: true, create: false, edit: false, delete: false, custom: { manage: true } },
-  };
-
-  for (const moduleCode of MODULES) {
-    const perms = ADMIN_PERMISSIONS[moduleCode];
-    await prisma.accessRight.upsert({
-      where: { id: -1 }, // Force create
-      update: {},
-      create: {
-        groupId: adminGroup.id,
-        moduleCode,
-        functionCode: 'ALL',
-        canView: perms.view,
-        canAdd: perms.create,
-        canEdit: perms.edit,
-        canDelete: perms.delete,
-        canPrint: perms.view,
-        canExport: perms.view,
-        customPermissions: perms.custom,
-      },
-    }).catch(() => {
-      // Ignore duplicate errors, create if not exists
-      return prisma.accessRight.create({
+  // Access Rights for Admin (full access) - using constants from permissions.ts
+  const createAccessRights = async (groupId: number, permissions: Record<string, ActionType[]>) => {
+    for (const [moduleCode, actions] of Object.entries(permissions)) {
+      const actionsSet = new Set(actions);
+      await prisma.accessRight.create({
         data: {
-          groupId: adminGroup.id,
+          groupId,
           moduleCode,
           functionCode: 'ALL',
-          canView: perms.view,
-          canAdd: perms.create,
-          canEdit: perms.edit,
-          canDelete: perms.delete,
-          canPrint: perms.view,
-          canExport: perms.view,
-          customPermissions: perms.custom,
+          canView: actionsSet.has('view'),
+          canAdd: actionsSet.has('create'),
+          canEdit: actionsSet.has('edit'),
+          canDelete: actionsSet.has('delete'),
+          canPrint: actionsSet.has('view'),
+          canExport: actionsSet.has('view'),
+          customPermissions: {
+            post: actionsSet.has('post'),
+            void: actionsSet.has('void'),
+            adjust: actionsSet.has('adjust'),
+            transfer: actionsSet.has('transfer'),
+            manage: actionsSet.has('manage'),
+          },
         },
-      }).catch(() => null);
-    });
-  }
-
-  // Access Rights for Staff (limited access)
-  const STAFF_PERMISSIONS: Record<string, { view: boolean; create: boolean; edit: boolean; delete: boolean; custom: Record<string, boolean> }> = {
-    SALES: { view: true, create: true, edit: true, delete: false, custom: { post: false, void: false } },
-    PURCHASE: { view: true, create: true, edit: true, delete: false, custom: { post: false, void: false } },
-    AR: { view: true, create: false, edit: false, delete: false, custom: {} },
-    AP: { view: true, create: false, edit: false, delete: false, custom: {} },
-    STOCK: { view: true, create: false, edit: false, delete: false, custom: { adjust: false, transfer: false } },
-    REPORTS: { view: true, create: false, edit: false, delete: false, custom: {} },
-    SETTINGS: { view: true, create: false, edit: false, delete: false, custom: {} },
-    USERS: { view: false, create: false, edit: false, delete: false, custom: { manage: false } },
+      }).catch(() => null); // Ignore duplicates
+    }
   };
 
-  for (const moduleCode of MODULES) {
-    const perms = STAFF_PERMISSIONS[moduleCode];
-    await prisma.accessRight.create({
-      data: {
-        groupId: staffGroup.id,
-        moduleCode,
-        functionCode: 'ALL',
-        canView: perms.view,
-        canAdd: perms.create,
-        canEdit: perms.edit,
-        canDelete: perms.delete,
-        canPrint: perms.view,
-        canExport: perms.view,
-        customPermissions: perms.custom,
-      },
-    }).catch(() => null);
-  }
+  // Create Admin access rights (full permissions from constants)
+  await createAccessRights(adminGroup.id, ADMIN_PERMISSIONS);
+
+  // Create Staff access rights (limited permissions from constants)
+  await createAccessRights(staffGroup.id, STAFF_PERMISSIONS);
+
   console.log('✅ Access rights created');
 
   // Admin User

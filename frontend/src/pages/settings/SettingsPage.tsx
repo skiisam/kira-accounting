@@ -10,6 +10,7 @@ import UserGroupsPage from './UserGroupsPage';
 import MessagingSettingsPage from './MessagingSettingsPage';
 import GlobalChangeCodePage from './GlobalChangeCodePage';
 import ToolsPage from './ToolsPage';
+import AccessRightsPage from './AccessRightsPage';
 import { usePermissions, MODULES } from '../../hooks/usePermissions';
 import { PhotoIcon, TrashIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import { useAuthStore } from '../../store/authStore';
@@ -187,6 +188,7 @@ const settingsNavItems = [
   { nameKey: 'Run Setup Wizard', path: 'setup-wizard', requiresEdit: false },
   { nameKey: 'settings.users', path: 'users', requiresManage: true },
   { nameKey: 'settings.userGroups', path: 'user-groups', requiresManage: true },
+  { nameKey: 'settings.accessRights', path: 'access-rights', requiresManage: true },
   { nameKey: 'settings.currencies', path: 'currencies', requiresEdit: false },
   { nameKey: 'settings.taxCodes', path: 'tax-codes', requiresEdit: false },
   { nameKey: 'settings.tools', path: 'tools', requiresEdit: false },
@@ -1380,6 +1382,7 @@ export default function SettingsPage() {
               <Route path="company" element={<CompanySettings />} />
               <Route path="users" element={canManageUsers ? <UsersSettings /> : <NoAccess />} />
               <Route path="user-groups" element={canManageUsers ? <UserGroupsPage /> : <NoAccess />} />
+              <Route path="access-rights" element={canManageUsers ? <AccessRightsPage /> : <NoAccess />} />
               <Route path="currencies" element={
                 <GenericSettings endpoint="currencies" title="Currencies" canEdit={canEditSettings} columns={[
                   { key: 'code', header: 'Code' },
