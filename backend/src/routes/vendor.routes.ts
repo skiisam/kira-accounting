@@ -11,6 +11,7 @@ router.use(authenticate);
 router.get('/', requirePermission('AP', 'VENDOR'), vendorController.list);
 router.get('/search', requirePermission('AP', 'VENDOR'), vendorController.search);
 router.get('/lookup', requirePermission('AP', 'VENDOR'), vendorController.lookup);
+router.get('/next-code', requirePermission('AP', 'VENDOR'), vendorController.nextCode);
 
 // CRUD
 router.get('/:id', requirePermission('AP', 'VENDOR'), vendorController.getById);

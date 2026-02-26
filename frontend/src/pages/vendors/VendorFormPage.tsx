@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { get, post, put } from '../../services/api';
+import { DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 import {
   BuildingStorefrontIcon,
   ArrowLeftIcon,
@@ -61,6 +62,8 @@ export default function VendorFormPage() {
     handleSubmit,
     reset,
     formState: { errors },
+    setValue,
+    watch,
   } = useForm<VendorForm>({
     defaultValues: {
       creditTermDays: 30,
@@ -68,6 +71,7 @@ export default function VendorFormPage() {
       isActive: true,
     },
   });
+  const watchName = watch('name');
 
   useEffect(() => {
     loadLookups();
@@ -173,12 +177,41 @@ export default function VendorFormPage() {
           <div className="card-body grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div>
               <label className="label">Vendor Code *</label>
-              <input
-                type="text"
-                className={`input ${errors.code ? 'input-error' : ''}`}
-                placeholder="V001"
-                {...register('code', { required: 'Vendor code is required' })}
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  className={`input flex-1 ${errors.code ? 'input-error' : ''}`}
+                  placeholder="V001"
+                  {...register('code', { required: 'Vendor code is required' })}
+                />
+                {!isEdit && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    title="Auto Generate"
+                    onClick={async () => {
+                      const initial = (watchName || '').trim().charAt(0)?.toUpperCase();
+                      if (!initial) {
+                        toast.error('Enter Vendor Name first');
+                        return;
+                      }
+                      try {
+                        const prefix = `500-${initial}`;
+                        const resp = await get<any>('/vendors/next-code', { prefix });
+                        if (resp?.code) {
+                          setValue('code', resp.code);
+                          toast.success(`Generated ${resp.code}`);
+                        }
+                      } catch {
+                        toast.error('Failed to generate code');
+                      }
+                    }}
+                  >
+                    <DocumentDuplicateIcon className="w-5 h-5" />
+                    Auto
+                  </button>
+                )}
+              </div>
               {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code.message}</p>}
             </div>
 

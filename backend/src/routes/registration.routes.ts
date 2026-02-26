@@ -7,6 +7,8 @@ const registrationController = new RegistrationController();
 
 // Public routes
 router.post('/register', registrationController.register);
+router.post('/verify-email', registrationController.verifyEmail);
+router.post('/resend-verification', registrationController.resendVerification);
 
 // Protected routes (require auth after registration)
 router.get('/setup/status', authenticate, registrationController.getSetupStatus);

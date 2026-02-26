@@ -17,5 +17,11 @@ router.post('/lookup-username', authController.lookupUsername);
 router.get('/me', authenticate, authController.getCurrentUser);
 router.post('/change-password', authenticate, authController.changePassword);
 router.post('/logout', authenticate, authController.logout);
+router.post('/delete-account', authenticate, authController.deleteAccount);
+// MFA management
+router.post('/mfa/setup', authenticate, authController.mfaSetup);
+router.post('/mfa/enable', authenticate, authController.mfaEnable);
+router.post('/mfa/disable', authenticate, authController.mfaDisable);
+router.get('/mfa/qrcode', authenticate, authController.mfaQrCode);
 
 export default router;

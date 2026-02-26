@@ -17,6 +17,8 @@ import codeChangeRoutes from './codeChange.routes';
 import messagingRoutes from './messaging.routes';
 import backupRoutes from './backup.routes';
 import einvoiceRoutes from './einvoice.routes';
+import filesRoutes from './files.routes';
+import dashboardRoutes from './dashboard.routes';
 // import crmRoutes from './crm.routes'; // TODO: Fix CRM models
 
 const router = Router();
@@ -26,6 +28,7 @@ router.use('/auth', authRoutes);
 router.use('/auth', registrationRoutes);
 
 // Protected routes (authentication required)
+router.use('/dashboard', dashboardRoutes);
 router.use('/customers', customerRoutes);
 router.use('/vendors', vendorRoutes);
 router.use('/products', productRoutes);
@@ -42,6 +45,7 @@ router.use('/settings/change-code', codeChangeRoutes);
 router.use('/messaging', messagingRoutes);
 router.use('/backup', backupRoutes);
 router.use('/einvoice', einvoiceRoutes);
+router.use('/files', filesRoutes);
 // router.use('/crm', crmRoutes); // TODO: Fix CRM models
 
 export default router;

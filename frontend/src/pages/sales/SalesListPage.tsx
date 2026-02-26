@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
-import { getPaginated } from '../../services/api';
+import { MagnifyingGlassIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
+import { get, getPaginated } from '../../services/api';
 import DataTable from '../../components/common/DataTable';
 import NewDocumentDropdown from '../../components/common/NewDocumentDropdown';
 import { format } from 'date-fns';
@@ -14,6 +14,8 @@ interface SalesDocument {
   documentDate: string;
   customerCode: string;
   customerName: string;
+  subTotal: number;
+  taxAmount: number;
   netTotal: number;
   status: string;
   currencyCode: string;
@@ -63,11 +65,34 @@ export default function SalesListPage({ type }: { type: string }) {
     { key: 'documentDate', header: 'Date', render: (row: SalesDocument) => format(new Date(row.documentDate), 'dd/MM/yyyy') },
     { key: 'customerCode', header: 'Customer' },
     { key: 'customerName', header: 'Name' },
+    { key: 'subTotal', header: 'Amount', render: (row: SalesDocument) => formatCurrency(row.subTotal, row.currencyCode) },
+    { key: 'taxAmount', header: 'Tax', render: (row: SalesDocument) => formatCurrency(row.taxAmount, row.currencyCode) },
     { key: 'netTotal', header: 'Total', render: (row: SalesDocument) => formatCurrency(row.netTotal, row.currencyCode) },
     {
       key: 'status',
       header: 'Status',
       render: (row: SalesDocument) => <span className={`badge ${getStatusBadge(row.status)}`}>{row.status}</span>,
+    },
+    {
+      key: 'actions',
+      header: '',
+      render: (row: SalesDocument) => (
+        <button
+          title="Copy"
+          className="btn btn-ghost btn-xs"
+          onClick={async (e) => {
+            e.stopPropagation();
+            try {
+              const doc = await get<any>(`${typeConfig[type].endpoint}/${row.id}`);
+              navigate(typeConfig[type].newPath, { state: { transferFrom: doc } });
+            } catch {
+              // no-op
+            }
+          }}
+        >
+          <DocumentDuplicateIcon className="w-5 h-5" />
+        </button>
+      ),
     },
   ];
 

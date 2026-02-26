@@ -68,9 +68,13 @@ export default function APInvoiceListPage({ type = 'invoice' }: { type?: string 
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-        <button onClick={() => navigate(`/ap/${type}s/new`)} className="btn btn-primary">
+        <button
+          onClick={() => (type === 'payment' ? navigate('/ap/payments/new') : navigate('/purchases/new/invoice'))}
+          className="btn btn-primary"
+          title={type === 'payment' ? 'New AP Payment' : 'Create Purchase Invoice (auto-posts to AP)'}
+        >
           <PlusIcon className="w-5 h-5 mr-2" />
-          New
+          {type === 'payment' ? 'New Payment' : 'New Purchase Invoice'}
         </button>
       </div>
 

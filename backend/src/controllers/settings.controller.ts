@@ -4,13 +4,205 @@ import { stubHandler } from './base.controller';
 import bcrypt from 'bcryptjs';
 import { MODULE_PERMISSIONS, ADMIN_PERMISSIONS, STAFF_PERMISSIONS, ActionType } from '../constants/permissions';
 import { clearPermissionCache } from '../middleware/auth';
+import { provisionTenantDatabase } from '../services/tenantProvisioning.service';
+import { PrismaClient } from '@prisma/client';
+import { config } from '../config/config';
 
 export class SettingsController {
+  // Companies
+  listCompanies = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const companies = await prisma.company.findMany({
+        orderBy: { name: 'asc' },
+        select: { id: true, code: true, name: true, country: true, baseCurrency: true },
+      });
+      res.json({ success: true, data: companies });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  createCompany = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { code, name, country, baseCurrency } = req.body;
+      if (!code || !name) {
+        return res.status(400).json({ success: false, error: { message: 'Code and name are required' } });
+      }
+      const company = await prisma.company.create({
+        data: {
+          code,
+          name,
+          country: country ?? null,
+          baseCurrency: baseCurrency ?? null,
+        },
+      });
+      res.json({ success: true, data: company, message: 'Company created' });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  selectCompany = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { companyId } = req.body as { companyId: number };
+      if (!companyId) {
+        return res.status(400).json({ success: false, error: { message: 'companyId is required' } });
+      }
+      // ensure company exists
+      const company = await prisma.company.findUnique({ where: { id: companyId } });
+      if (!company) {
+        return res.status(404).json({ success: false, error: { message: 'Company not found' } });
+      }
+      // update current user
+      await prisma.user.update({
+        where: { id: req.user!.userId },
+        data: { companyId },
+      });
+      res.json({ success: true, message: 'Company selected', data: { companyId } });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  setupStatus = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const companyId = req.user?.companyId ?? null;
+      if (!companyId) {
+        return res.json({ success: true, data: { setupRequired: true, reason: 'No company selected' } });
+      }
+      const company = await prisma.company.findUnique({ where: { id: companyId } });
+      if (!company) {
+        return res.json({ success: true, data: { setupRequired: true, reason: 'Company not found' } });
+      }
+      const fiscalYearCount = await prisma.fiscalYear.count({ where: { companyId } as any });
+      const accountCount = await prisma.account.count({ where: { companyId } as any });
+      // Heuristic: consider setup complete if company has baseCurrency and at least one fiscal year and minimal accounts
+      const hasBasics = !!company.baseCurrency && fiscalYearCount > 0 && accountCount >= 10;
+      res.json({ success: true, data: { setupRequired: !hasBasics, details: { fiscalYearCount, accountCount, hasBaseCurrency: !!company.baseCurrency } } });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   // Company
   getCompany = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const company = await prisma.company.findFirst();
       res.json({ success: true, data: company });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // Tenants - Provision missing tenant databases
+  provisionMissingTenants = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const companies: any[] = await (prisma as any).company.findMany({ where: { dbUrl: null } });
+      const results: Array<{ companyId: number; code: string; ok: boolean; error?: string }> = [];
+      for (const c of companies) {
+        try {
+          const admin = await prisma.user.findFirst({
+            where: { companyId: c.id, isAdmin: true },
+            orderBy: { id: 'asc' },
+          });
+          if (!admin) {
+            results.push({ companyId: c.id, code: c.code, ok: false, error: 'No admin user found' });
+            continue;
+          }
+          const adminWithHash = await prisma.user.findUnique({ where: { id: admin.id } });
+          if (!adminWithHash) {
+            results.push({ companyId: c.id, code: c.code, ok: false, error: 'Admin user missing' });
+            continue;
+          }
+          const tenantUrl = await provisionTenantDatabase({
+            companyId: c.id,
+            companyCode: c.code,
+            companyName: c.name,
+            userGroupId: admin.groupId,
+            userId: admin.id,
+            userCode: admin.code,
+            userName: admin.name,
+            email: admin.email,
+            passwordHash: adminWithHash.passwordHash,
+          });
+          await (prisma as any).company.update({ where: { id: c.id }, data: { dbUrl: tenantUrl } });
+          results.push({ companyId: c.id, code: c.code, ok: true });
+        } catch (e: any) {
+          results.push({ companyId: c.id, code: c.code, ok: false, error: String(e?.message || e) });
+        }
+      }
+      res.json({ success: true, data: results });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // Tenants - Minimal migrate masters to a specific company's tenant DB
+  migrateCompanyMinimal = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const companyId = parseInt(req.params.id || req.body.companyId);
+      if (!companyId) {
+        return res.status(400).json({ success: false, error: { message: 'companyId is required' } });
+      }
+      const baseClient = new PrismaClient({ datasources: { db: { url: config.database.url } } });
+      const company: any = await (baseClient as any).company.findUnique({ where: { id: companyId } });
+      if (!company) {
+        return res.status(404).json({ success: false, error: { message: 'Company not found' } });
+      }
+      let tenantUrl: string | undefined = company.dbUrl || undefined;
+      if (!tenantUrl) {
+        const admin = await baseClient.user.findFirst({ where: { companyId, isAdmin: true } });
+        if (!admin) {
+          return res.status(400).json({ success: false, error: { message: 'Admin user not found for company' } });
+        }
+        const adminWithHash = await baseClient.user.findUnique({ where: { id: admin.id } });
+        tenantUrl = await provisionTenantDatabase({
+          companyId: company.id,
+          companyCode: company.code,
+          companyName: company.name,
+          userGroupId: admin.groupId,
+          userId: admin.id,
+          userCode: admin.code,
+          userName: admin.name,
+          email: admin.email,
+          passwordHash: adminWithHash!.passwordHash,
+        });
+        await (prisma as any).company.update({ where: { id: company.id }, data: { dbUrl: tenantUrl } });
+      }
+      const tenantClient = new PrismaClient({ datasources: { db: { url: tenantUrl! } } });
+
+      const [currencies, taxCodes, uoms, locations, productGroups, productTypes] = await Promise.all([
+        baseClient.currency.findMany({ where: { isActive: true } }),
+        baseClient.taxCode.findMany({ where: { isActive: true } }),
+        baseClient.uOM.findMany(),
+        baseClient.location.findMany({ where: { isActive: true } }),
+        baseClient.productGroup.findMany({ where: { isActive: true } }),
+        baseClient.productType.findMany({ where: { isActive: true } }),
+      ]);
+
+      for (const r of currencies) {
+        await tenantClient.currency.upsert({ where: { code: r.code }, update: { ...r }, create: { ...r } });
+      }
+      for (const r of taxCodes) {
+        await tenantClient.taxCode.upsert({ where: { code: r.code }, update: { ...r }, create: { ...r } as any });
+      }
+      for (const r of uoms) {
+        await tenantClient.uOM.upsert({ where: { code: r.code }, update: { name: r.name, isActive: r.isActive }, create: { code: r.code, name: r.name, isActive: r.isActive } });
+      }
+      for (const r of locations) {
+        await tenantClient.location.upsert({ where: { code: r.code }, update: { name: r.name, address: r.address, isDefault: r.isDefault, isActive: r.isActive }, create: { code: r.code, name: r.name, address: r.address, isDefault: r.isDefault, isActive: r.isActive } });
+      }
+      for (const r of productGroups) {
+        await tenantClient.productGroup.upsert({ where: { code: r.code }, update: { name: r.name, displayOrder: r.displayOrder, isActive: r.isActive }, create: { code: r.code, name: r.name, displayOrder: r.displayOrder, isActive: r.isActive } as any });
+      }
+      for (const r of productTypes) {
+        await tenantClient.productType.upsert({ where: { code: r.code }, update: { name: r.name, isActive: r.isActive }, create: { code: r.code, name: r.name, isActive: r.isActive } });
+      }
+
+      await baseClient.$disconnect();
+      await tenantClient.$disconnect();
+
+      res.json({ success: true, data: { companyId, migrated: ['currencies', 'taxCodes', 'uoms', 'locations', 'productGroups', 'productTypes'] } });
     } catch (error) {
       next(error);
     }
@@ -288,11 +480,35 @@ export class SettingsController {
 
     // Industry-specific additions
     const industryAccounts: Record<string, any[]> = {
+      'trading': [
+        { accountNo: formatCode(3110), name: 'Reserves', typeId: typeIds.EQUITY },
+        { accountNo: formatCode(3300), name: 'Current Year Earnings', typeId: typeIds.EQUITY },
+        { accountNo: formatCode(1131), name: 'Trade Debtors', typeId: typeIds.ASSET },
+        { accountNo: formatCode(1113), name: 'Cash at Bank', typeId: typeIds.ASSET },
+        { accountNo: formatCode(1114), name: 'Cash in Hand', typeId: typeIds.ASSET },
+        { accountNo: formatCode(1145), name: 'Deposits & Prepayments', typeId: typeIds.ASSET },
+        { accountNo: formatCode(2111), name: 'Trade Creditors', typeId: typeIds.LIABILITY },
+        { accountNo: formatCode(2121), name: 'Accruals', typeId: typeIds.LIABILITY },
+        { accountNo: formatCode(2131), name: 'Sales/Service Tax Payable', typeId: typeIds.LIABILITY },
+        { accountNo: formatCode(4205), name: 'Discount Received', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(4100), name: 'Sales', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(5110), name: 'Purchases', typeId: typeIds.COGS },
+        { accountNo: formatCode(5120), name: 'Purchases Return', typeId: typeIds.COGS },
+        { accountNo: formatCode(5130), name: 'Carriage Inwards', typeId: typeIds.COGS },
+        { accountNo: formatCode(5105), name: 'Stock at Beginning of Year', typeId: typeIds.COGS },
+        { accountNo: formatCode(5205), name: 'Stock at End of Year', typeId: typeIds.COGS },
+        { accountNo: formatCode(4115), name: 'Return Inwards', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(6125), name: 'Discount Allowed', typeId: typeIds.EXPENSE },
+      ],
       'manufacturing': [
         { accountNo: formatCode(1135), name: 'Raw Materials', typeId: typeIds.ASSET },
         { accountNo: formatCode(1136), name: 'Work in Progress', typeId: typeIds.ASSET },
         { accountNo: formatCode(1137), name: 'Finished Goods', typeId: typeIds.ASSET },
         { accountNo: formatCode(5300), name: 'Manufacturing Overhead', typeId: typeIds.COGS },
+      ],
+      'services': [
+        { accountNo: formatCode(4140), name: 'Service Income', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(6415), name: 'Subcontractor Fees', typeId: typeIds.EXPENSE },
       ],
       'it-services': [
         { accountNo: formatCode(4110), name: 'Software Development Revenue', typeId: typeIds.REVENUE },
@@ -316,6 +532,13 @@ export class SettingsController {
         { accountNo: formatCode(4110), name: 'Commission Income', typeId: typeIds.REVENUE },
         { accountNo: formatCode(4120), name: 'Renewal Commission', typeId: typeIds.REVENUE },
         { accountNo: formatCode(6440), name: 'Agent Commissions Paid', typeId: typeIds.EXPENSE },
+      ],
+      'banking': [
+        { accountNo: formatCode(4110), name: 'Interest Income', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(4125), name: 'Fee & Commission Income', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(2215), name: 'Customer Deposits', typeId: typeIds.LIABILITY },
+        { accountNo: formatCode(1215), name: 'Loan Portfolio', typeId: typeIds.ASSET },
+        { accountNo: formatCode(6610), name: 'Interest Expense', typeId: typeIds.EXPENSE },
       ],
       'travel': [
         { accountNo: formatCode(4110), name: 'Tour Package Sales', typeId: typeIds.REVENUE },
@@ -341,6 +564,40 @@ export class SettingsController {
         { accountNo: formatCode(1138), name: 'Food Inventory', typeId: typeIds.ASSET },
         { accountNo: formatCode(5110), name: 'Cost of Food', typeId: typeIds.COGS },
         { accountNo: formatCode(5120), name: 'Cost of Beverages', typeId: typeIds.COGS },
+      ],
+      'construction': [
+        { accountNo: formatCode(4110), name: 'Contract Revenue', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(5110), name: 'Direct Contract Costs', typeId: typeIds.COGS },
+        { accountNo: formatCode(5120), name: 'Subcontractor Costs', typeId: typeIds.COGS },
+        { accountNo: formatCode(6416), name: 'CIDB Levies & Fees', typeId: typeIds.EXPENSE },
+        { accountNo: formatCode(1146), name: 'Progress Billings Receivable', typeId: typeIds.ASSET },
+      ],
+      'property': [
+        { accountNo: formatCode(4110), name: 'Rental Income', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(1216), name: 'Investment Properties', typeId: typeIds.ASSET },
+        { accountNo: formatCode(5115), name: 'Property Maintenance', typeId: typeIds.COGS },
+      ],
+      'healthcare': [
+        { accountNo: formatCode(4110), name: 'Consultation Fees', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(4120), name: 'Medication Revenue', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(1139), name: 'Medical Supplies Inventory', typeId: typeIds.ASSET },
+        { accountNo: formatCode(5112), name: 'Cost of Medication', typeId: typeIds.COGS },
+      ],
+      'education': [
+        { accountNo: formatCode(4110), name: 'Tuition Fees', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(4120), name: 'Course Material Sales', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(6417), name: 'Trainer/Instructor Fees', typeId: typeIds.EXPENSE },
+      ],
+      'logistics': [
+        { accountNo: formatCode(4110), name: 'Freight Income', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(5110), name: 'Freight Charges', typeId: typeIds.COGS },
+        { accountNo: formatCode(6615), name: 'Fuel & Toll', typeId: typeIds.EXPENSE },
+        { accountNo: formatCode(6620), name: 'Vehicle Maintenance', typeId: typeIds.EXPENSE },
+      ],
+      'agriculture': [
+        { accountNo: formatCode(4110), name: 'Crop Sales', typeId: typeIds.REVENUE },
+        { accountNo: formatCode(1134), name: 'Biological Assets', typeId: typeIds.ASSET },
+        { accountNo: formatCode(5113), name: 'Cultivation Costs', typeId: typeIds.COGS },
       ],
     };
 
@@ -414,7 +671,34 @@ export class SettingsController {
   };
 
   updateUser = stubHandler('Update User');
-  deleteUser = stubHandler('Delete User');
+  deleteUser = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      if (!id) {
+        return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: 'Invalid user id' } });
+      }
+      // Prevent deleting yourself from admin panel
+      if (req.user?.userId === id) {
+        return res.status(400).json({ success: false, error: { code: 'NOT_ALLOWED', message: 'You cannot delete your own account here' } });
+      }
+      const user = await prisma.user.findUnique({ where: { id } });
+      if (!user) {
+        return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'User not found' } });
+      }
+      // Prevent removing the last active admin
+      if (user.isAdmin) {
+        const otherAdmins = await prisma.user.count({ where: { isAdmin: true, isActive: true, id: { not: id } } });
+        if (otherAdmins === 0) {
+          return res.status(400).json({ success: false, error: { code: 'NOT_ALLOWED', message: 'Cannot delete the last active administrator' } });
+        }
+      }
+      // Deactivate rather than hard delete to preserve audit integrity
+      await prisma.user.update({ where: { id }, data: { isActive: false } });
+      res.json({ success: true, message: 'User removed (deactivated)' });
+    } catch (error) {
+      next(error);
+    }
+  };
 
   // User Groups
   listUserGroups = async (req: Request, res: Response, next: NextFunction) => {

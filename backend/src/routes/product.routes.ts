@@ -12,6 +12,7 @@ router.get('/', requirePermission('STOCK', 'PRODUCT'), productController.list);
 router.get('/search', requirePermission('STOCK', 'PRODUCT'), productController.search);
 router.get('/lookup', requirePermission('STOCK', 'PRODUCT'), productController.lookup);
 router.get('/barcode/:barcode', requirePermission('STOCK', 'PRODUCT'), productController.getByBarcode);
+router.get('/next-code', requirePermission('STOCK', 'PRODUCT'), productController.nextCode);
 
 // CRUD
 router.get('/:id', requirePermission('STOCK', 'PRODUCT'), productController.getById);

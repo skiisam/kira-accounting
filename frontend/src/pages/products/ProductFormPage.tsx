@@ -13,6 +13,7 @@ import {
   ArchiveBoxIcon,
   DocumentTextIcon,
   ScaleIcon,
+  DocumentDuplicateIcon,
 } from '@heroicons/react/24/outline';
 
 interface ProductForm {
@@ -74,6 +75,7 @@ export default function ProductFormPage() {
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<ProductForm>({
     defaultValues: {
@@ -89,6 +91,8 @@ export default function ProductFormPage() {
 
   const watchStandardCost = watch('standardCost');
   const watchSellingPrice1 = watch('sellingPrice1');
+  const watchDescription = watch('description');
+  const watchGroupId = watch('groupId');
 
   useEffect(() => {
     loadLookups();
@@ -215,12 +219,43 @@ export default function ProductFormPage() {
           <div className="card-body grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div>
               <label className="label">Product Code *</label>
-              <input
-                type="text"
-                className={`input ${errors.code ? 'input-error' : ''}`}
-                placeholder="FG-001"
-                {...register('code', { required: 'Product code is required' })}
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  className={`input flex-1 ${errors.code ? 'input-error' : ''}`}
+                  placeholder="FG-001"
+                  {...register('code', { required: 'Product code is required' })}
+                />
+                {!isEdit && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    title="Auto Generate"
+                    onClick={async () => {
+                      const initial = (watchDescription || '').trim().charAt(0)?.toUpperCase();
+                      if (!initial) {
+                        toast.error('Enter Description first');
+                        return;
+                      }
+                      const group = groups.find((g) => g.id === watchGroupId);
+                      const base = (group?.code || 'PRD').toUpperCase();
+                      const prefix = `${base}-${initial}`;
+                      try {
+                        const resp = await get<any>('/products/next-code', { prefix });
+                        if (resp?.code) {
+                          setValue('code', resp.code);
+                          toast.success(`Generated ${resp.code}`);
+                        }
+                      } catch {
+                        toast.error('Failed to generate code');
+                      }
+                    }}
+                  >
+                    <DocumentDuplicateIcon className="w-5 h-5" />
+                    Auto
+                  </button>
+                )}
+              </div>
               {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code.message}</p>}
             </div>
 

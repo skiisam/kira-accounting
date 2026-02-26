@@ -19,6 +19,9 @@ router.post('/', requirePermission('GL', 'ACCOUNT'), accountController.create);
 router.put('/:id', requirePermission('GL', 'ACCOUNT'), accountController.update);
 router.delete('/:id', requirePermission('GL', 'ACCOUNT'), accountController.delete);
 
+// Load COA template
+router.post('/load-template', requirePermission('GL', 'ACCOUNT'), accountController.loadTemplate);
+
 // Related
 router.get('/:id/ledger', accountController.getLedger);
 router.get('/:id/balance', accountController.getBalance);

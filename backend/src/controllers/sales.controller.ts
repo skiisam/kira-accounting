@@ -4,6 +4,9 @@ import { BaseController, stubHandler } from './base.controller';
 import { BadRequestError, ConflictError, NotFoundError } from '../middleware/errorHandler';
 import { Prisma } from '@prisma/client';
 import { DocumentService } from '../services/document.service';
+import fs from 'fs';
+import path from 'path';
+import { config } from '../config/config';
 
 export class SalesController extends BaseController<any> {
   protected modelName = 'Sales';
@@ -249,6 +252,58 @@ export class SalesController extends BaseController<any> {
     }
   };
 
+  /**
+   * GET /sales/orders/:id/stock-check
+   * Returns per-line availableQty and shortfallQty based on total stock on hand
+   */
+  stockCheckForOrder = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const order = await prisma.salesHeader.findFirst({
+        where: { id, documentType: 'SALES_ORDER' },
+        include: { details: true },
+      });
+      if (!order) this.notFound(id);
+
+      const results: Array<{
+        lineId: number;
+        lineNo: number;
+        productId: number;
+        productCode: string | null;
+        description: string | null;
+        outstandingQty: number;
+        availableQty: number;
+        shortfallQty: number;
+      }> = [];
+
+      // Aggregate stock per product across all locations
+      for (const d of order!.details) {
+        if (!d.productId) continue;
+        const agg = await prisma.productLocation.aggregate({
+          where: { productId: d.productId },
+          _sum: { balanceQty: true },
+        });
+        const available = Number(agg._sum.balanceQty || 0);
+        const outstanding = Number(d.outstandingQty || d.quantity || 0);
+        const shortfall = Math.max(0, outstanding - available);
+        results.push({
+          lineId: d.id,
+          lineNo: d.lineNo,
+          productId: d.productId,
+          productCode: d.productCode,
+          description: d.description,
+          outstandingQty: outstanding,
+          availableQty: available,
+          shortfallQty: shortfall,
+        });
+      }
+
+      this.successResponse(res, results);
+    } catch (error) {
+      next(error);
+    }
+  };
+
   // ==================== DELIVERY ORDERS ====================
 
   listDeliveryOrders = async (req: Request, res: Response, next: NextFunction) => {
@@ -357,7 +412,19 @@ export class SalesController extends BaseController<any> {
         },
       });
       if (!doc) this.notFound(id);
-      this.successResponse(res, doc);
+      // Backfill arInvoiceId for legacy records based on source link
+      if (!doc.arInvoiceId) {
+        const ar = await prisma.aRInvoice.findFirst({
+          where: { sourceType: 'SALES_INVOICE', sourceId: doc.id },
+          select: { id: true },
+        });
+        if (ar) {
+          // do not persist if not necessary; respond with populated value
+          this.successResponse(res, { ...doc, arInvoiceId: ar.id } as any);
+          return;
+        }
+      }
+      this.successResponse(res, doc as any);
     } catch (error) {
       next(error);
     }
@@ -373,13 +440,56 @@ export class SalesController extends BaseController<any> {
       const documentNo = await this.documentService.getNextNumber('INVOICE');
       const doc = await this.createSalesDocument('INVOICE', documentNo, data, customer, req.user?.userId);
 
-      this.createdResponse(res, doc);
+      // Auto-post to AR Invoice
+      const arInvoice = await this.createARInvoice({
+        ...doc,
+        customer,
+      });
+      const posted = await prisma.salesHeader.update({
+        where: { id: doc.id },
+        data: { isPosted: true, arInvoiceId: arInvoice.id, status: 'POSTED' },
+        include: { details: true, customer: true },
+      });
+
+      this.createdResponse(res, { ...posted, arInvoiceId: arInvoice.id } as any);
     } catch (error) {
       next(error);
     }
   };
-  updateInvoice = this.updateQuotation;
-  deleteInvoice = this.deleteQuotation;
+  // updateInvoice implemented below to ensure AR sync
+  deleteInvoice = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const existing = await prisma.salesHeader.findFirst({
+        where: { id, documentType: 'INVOICE' },
+      });
+      if (!existing) this.notFound(id);
+
+      // Block delete if linked/posted
+      if (existing.isPosted || existing.arInvoiceId) {
+        res.status(400).json({
+          success: false,
+          error: { code: 'LINKED_DOCUMENT', message: 'Cannot delete posted/linked invoice. Void instead.' },
+        });
+        return;
+      }
+
+      // Block if fiscal period locked
+      if (await this.isDateLocked(existing.documentDate)) {
+        res.status(400).json({
+          success: false,
+          error: { code: 'PERIOD_LOCKED', message: 'Cannot delete invoice in a locked period.' },
+        });
+        return;
+      }
+
+      await prisma.salesDetail.deleteMany({ where: { salesId: id } });
+      await prisma.salesHeader.delete({ where: { id } });
+      this.deletedResponse(res, 'Invoice deleted');
+    } catch (error) {
+      next(error);
+    }
+  };
 
   postInvoice = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -401,6 +511,54 @@ export class SalesController extends BaseController<any> {
       });
 
       this.successResponse(res, { salesId: id, arInvoiceId: arInvoice.id }, 'Invoice posted successfully');
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // ==================== PRICING HELPERS ====================
+  /**
+   * GET /sales/price-history
+   * Query params: customerId, productId, limit=10
+   * Returns recent sales of the product to the customer with unit prices
+   */
+  getPriceHistory = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const customerId = parseInt(req.query.customerId as string);
+      const productId = parseInt(req.query.productId as string);
+      const limit = Math.min(50, parseInt((req.query.limit as string) || '10'));
+
+      if (!customerId || !productId) {
+        throw BadRequestError('customerId and productId are required');
+      }
+
+      const rows = await prisma.salesDetail.findMany({
+        where: {
+          productId,
+          header: {
+            customerId,
+            documentType: 'INVOICE',
+            isVoid: false,
+          },
+        },
+        take: limit,
+        orderBy: { header: { documentDate: 'desc' } },
+        include: {
+          header: {
+            select: { id: true, documentNo: true, documentDate: true },
+          },
+        },
+      });
+
+      const data = rows.map((r) => ({
+        date: r.header?.documentDate,
+        documentNo: r.header?.documentNo,
+        unitPrice: Number(r.unitPrice || 0),
+        discountAmount: Number(r.discountAmount || 0),
+        subTotal: Number(r.subTotal || 0),
+      }));
+
+      this.successResponse(res, data);
     } catch (error) {
       next(error);
     }
@@ -557,23 +715,159 @@ export class SalesController extends BaseController<any> {
 
   // ==================== COMMON ====================
 
+  printDocument = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const doc = await prisma.salesHeader.findUnique({
+        where: { id },
+        include: { customer: true, details: { include: { product: true }, orderBy: { lineNo: 'asc' } } },
+      });
+      if (!doc) this.notFound(id);
+
+      const company = await prisma.company.findFirst({ where: { isActive: true } });
+      const titleMap: Record<string, string> = {
+        QUOTATION: 'Quotation',
+        SALES_ORDER: 'Sales Order',
+        DELIVERY_ORDER: 'Delivery Order',
+        INVOICE: 'Invoice',
+        CREDIT_NOTE: 'Credit Note',
+        DEBIT_NOTE: 'Debit Note',
+      };
+      const title = titleMap[doc.documentType] || 'Document';
+
+      const rows = (doc.details || []).map(d => `
+        <tr>
+          <td>${d.lineNo}</td>
+          <td>${d.productCode || ''}</td>
+          <td>${d.description || ''}</td>
+          <td style="text-align:right">${Number(d.quantity).toFixed(2)}</td>
+          <td style="text-align:right">${Number(d.unitPrice).toFixed(2)}</td>
+          <td style="text-align:right">${Number(d.subTotal).toFixed(2)}</td>
+        </tr>
+      `).join('');
+
+      // Try template override
+      const tmplPath = path.join(path.resolve(process.cwd(), config.upload.dir), 'templates', `sales-${doc.documentType}.html`);
+      if (fs.existsSync(tmplPath)) {
+        const tmpl = fs.readFileSync(tmplPath, 'utf8');
+        const replacements: Record<string, string> = {
+          '{{title}}': title,
+          '{{documentNo}}': doc.documentNo,
+          '{{documentDate}}': doc.documentDate.toISOString().split('T')[0],
+          '{{customer.code}}': doc.customerCode,
+          '{{customer.name}}': doc.customerName,
+          '{{customer.address}}': doc.customer?.address1 || '',
+          '{{totals.subTotal}}': Number(doc.subTotal).toFixed(2),
+          '{{totals.discount}}': Number(doc.discountAmount).toFixed(2),
+          '{{totals.tax}}': Number(doc.taxAmount).toFixed(2),
+          '{{totals.netTotal}}': Number(doc.netTotal).toFixed(2),
+          '{{details.table}}': rows,
+          '{{company.name}}': company?.name || '',
+          '{{company.address}}': company?.address1 || '',
+        };
+        let out = tmpl;
+        for (const [k, v] of Object.entries(replacements)) {
+          out = out.split(k).join(v);
+        }
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.send(out);
+      }
+
+      const html = `
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>${title} ${doc.documentNo}</title>
+  <style>
+    body { font-family: -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 24px; color: #111827; }
+    h1 { margin: 0; }
+    .header { display: flex; justify-content: space-between; margin-bottom: 16px; }
+    .muted { color: #6b7280; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    th, td { border: 1px solid #e5e7eb; padding: 8px; font-size: 14px; }
+    th { background: #f3f4f6; text-align: left; }
+    .totals { margin-top: 16px; width: 300px; margin-left: auto; }
+    .totals td { border: none; padding: 4px 0; }
+  </style>
+  <script>window.onload = () => window.print?.()</script>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>${company?.name || 'Company'}</h1>
+      <div class="muted">${company?.address1 || ''}</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-size:24px; font-weight:600">${title}</div>
+      <div class="muted">No: ${doc.documentNo}</div>
+      <div class="muted">Date: ${doc.documentDate.toISOString().split('T')[0]}</div>
+    </div>
+  </div>
+  <div>
+    <div><strong>Customer:</strong> ${doc.customerName}</div>
+    <div class="muted">${doc.customer?.address1 || ''}</div>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Product</th>
+        <th>Description</th>
+        <th style="text-align:right">Qty</th>
+        <th style="text-align:right">Unit Price</th>
+        <th style="text-align:right">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows}
+    </tbody>
+  </table>
+  <table class="totals">
+    <tr><td>Sub Total:</td><td style="text-align:right">${Number(doc.subTotal).toFixed(2)}</td></tr>
+    <tr><td>Discount:</td><td style="text-align:right">${Number(doc.discountAmount).toFixed(2)}</td></tr>
+    <tr><td>Tax:</td><td style="text-align:right">${Number(doc.taxAmount).toFixed(2)}</td></tr>
+    <tr><td style="font-weight:700">Net Total:</td><td style="text-align:right; font-weight:700">${Number(doc.netTotal).toFixed(2)}</td></tr>
+  </table>
+</body>
+</html>`;
+
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.send(html);
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // Unified void handler for sales documents (keeps record, marks as VOID)
   voidDocument = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = parseInt(req.params.id);
-      const { reason } = req.body;
+      const doc = await prisma.salesHeader.findUnique({ where: { id } });
+      if (!doc) this.notFound(id);
+      if (doc.isVoid) return this.successResponse(res, null, 'Document already voided');
 
+      // Mark sales document as void
       await prisma.salesHeader.update({
         where: { id },
         data: { isVoid: true, status: 'VOID' },
       });
+
+      // If Sales Invoice linked to AR, void AR as well
+      if (doc.documentType === 'INVOICE') {
+        const ar = doc.arInvoiceId
+          ? await prisma.aRInvoice.findUnique({ where: { id: doc.arInvoiceId } })
+          : await prisma.aRInvoice.findFirst({ where: { sourceType: 'SALES_INVOICE', sourceId: doc.id } });
+        if (ar && !ar.isVoid) {
+          await prisma.aRInvoice.update({ where: { id: ar.id }, data: { isVoid: true, status: 'VOID' } });
+        }
+      }
 
       this.successResponse(res, null, 'Document voided');
     } catch (error) {
       next(error);
     }
   };
-
-  printDocument = stubHandler('Print document');
 
   // ==================== HELPERS ====================
 
@@ -585,13 +879,18 @@ export class SalesController extends BaseController<any> {
     userId?: number
   ) {
     const { subTotal, discountAmount, taxAmount, netTotal } = this.calculateTotals(data.details);
+    const docDate = new Date(data.documentDate || new Date());
+    const computedDueDate =
+      documentType === 'INVOICE' && !data.dueDate
+        ? new Date(docDate.getTime() + (customer.creditTermDays || 0) * 24 * 60 * 60 * 1000)
+        : (data.dueDate ? new Date(data.dueDate) : null);
 
-    return prisma.salesHeader.create({
+    const header = await prisma.salesHeader.create({
       data: {
         documentType,
         documentNo,
-        documentDate: new Date(data.documentDate || new Date()),
-        dueDate: data.dueDate ? new Date(data.dueDate) : null,
+        documentDate: docDate,
+        dueDate: computedDueDate,
         sourceType: data.sourceType,
         sourceId: data.sourceId,
         customerId: customer.id,
@@ -642,15 +941,29 @@ export class SalesController extends BaseController<any> {
       },
       include: { details: true, customer: true },
     });
+
+    if (documentType === 'INVOICE') {
+      const ar = await this.createARInvoice(header);
+      await prisma.salesHeader.update({
+        where: { id: header.id },
+        data: { isPosted: true, arInvoiceId: ar.id, status: 'POSTED' },
+      });
+      const updated = await prisma.salesHeader.findUnique({ where: { id: header.id } });
+      return updated!;
+    }
+
+    return header;
   }
 
   private async updateSalesDocument(id: number, data: any, userId?: number) {
+    const existing = await prisma.salesHeader.findUnique({ where: { id }, include: { customer: true } });
+    if (!existing) this.notFound(id);
     const { subTotal, discountAmount, taxAmount, netTotal } = this.calculateTotals(data.details);
 
     // Delete existing details
     await prisma.salesDetail.deleteMany({ where: { salesId: id } });
 
-    return prisma.salesHeader.update({
+    const updated = await prisma.salesHeader.update({
       where: { id },
       data: {
         documentDate: data.documentDate ? new Date(data.documentDate) : undefined,
@@ -683,7 +996,60 @@ export class SalesController extends BaseController<any> {
       },
       include: { details: true },
     });
+
+    // Auto-sync AR Invoice if linked and this is a Sales Invoice
+    if (existing.documentType === 'INVOICE') {
+      // Find linked AR invoice
+      const ar = existing.arInvoiceId
+        ? await prisma.aRInvoice.findUnique({ where: { id: existing.arInvoiceId } })
+        : await prisma.aRInvoice.findFirst({ where: { sourceType: 'SALES_INVOICE', sourceId: existing.id } });
+
+      if (ar) {
+        const paid = Number(ar.paidAmount || 0);
+        const newOutstanding = Math.max(0, Number(netTotal) - paid);
+        // Compute due date
+        const baseDate = updated.documentDate || existing.documentDate;
+        const newDue =
+          updated.dueDate ??
+          (existing.dueDate ??
+            (baseDate ? new Date(new Date(baseDate).getTime() + (existing.customer?.creditTermDays || 0) * 86400000) : null));
+
+        await prisma.aRInvoice.update({
+          where: { id: ar.id },
+          data: {
+            invoiceDate: updated.documentDate ?? ar.invoiceDate,
+            dueDate: newDue ?? ar.dueDate,
+            reference: updated.reference ?? ar.reference,
+            description: updated.description ?? ar.description,
+            subTotal: subTotal,
+            discountAmount: discountAmount,
+            taxAmount: taxAmount,
+            netTotal: netTotal,
+            outstandingAmount: newOutstanding,
+            currencyCode: updated.currencyCode ?? ar.currencyCode,
+            exchangeRate: updated.exchangeRate ?? ar.exchangeRate,
+            status: newOutstanding <= 0.01 ? 'PAID' : paid > 0 ? 'PARTIAL' : 'OPEN',
+          },
+        });
+      }
+    }
+
+    return updated;
   }
+
+  // Replace aliasing with a real update for Invoice to ensure AR sync
+  updateInvoice = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const data = this.normalizeData(req.body);
+      const existing = await prisma.salesHeader.findFirst({ where: { id, documentType: 'INVOICE' } });
+      if (!existing) this.notFound(id);
+      const doc = await this.updateSalesDocument(id, data, req.user?.userId);
+      this.successResponse(res, doc, 'Invoice updated successfully');
+    } catch (error) {
+      next(error);
+    }
+  };
 
   private mapTargetType(targetType: string): string {
     const mapping: Record<string, string> = {

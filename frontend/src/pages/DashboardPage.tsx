@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useQuery } from '@tanstack/react-query';
+import { get } from '../services/api';
 import {
   BanknotesIcon,
   CreditCardIcon,
@@ -26,6 +28,37 @@ interface DashboardStats {
 
 export default function DashboardPage() {
   const { t } = useTranslation();
+  const { data: companyData } = useQuery({
+    queryKey: ['settings:company'],
+    queryFn: () => get('/settings/company'),
+  });
+  const company = (companyData as any)?.data || companyData || {};
+
+  const { data: statsResp } = useQuery({
+    queryKey: ['dashboard:stats'],
+    queryFn: () => get('/dashboard/stats'),
+  });
+  const statsData: DashboardStats = ((statsResp as any)?.data || statsResp || {
+    arOutstanding: 0, apOutstanding: 0, salesThisMonth: 0, lowStockItems: 0, totalLeads: 0, dealsValue: 0,
+  }) as DashboardStats;
+
+  const { data: recentResp } = useQuery({
+    queryKey: ['dashboard:recent'],
+    queryFn: () => get('/dashboard/recent'),
+  });
+  const recentActivity = Array.isArray((recentResp as any)?.data) ? (recentResp as any).data : (Array.isArray(recentResp) ? recentResp : []);
+
+  const { data: topProductsResp } = useQuery({
+    queryKey: ['dashboard:top-products'],
+    queryFn: () => get('/dashboard/top-products'),
+  });
+  const topProducts = Array.isArray((topProductsResp as any)?.data) ? (topProductsResp as any).data : (Array.isArray(topProductsResp) ? topProductsResp : []);
+
+  const { data: alertsResp } = useQuery({
+    queryKey: ['dashboard:alerts'],
+    queryFn: () => get('/dashboard/alerts'),
+  });
+  const alertsData = (alertsResp as any)?.data || alertsResp || {};
 
   // Stats configuration with translation keys
   const stats = [
@@ -99,33 +132,17 @@ export default function DashboardPage() {
     { nameKey: 'dashboard.newDeal', href: '/crm/deals/new', icon: CurrencyDollarIcon, color: 'from-indigo-500 to-violet-600' },
   ];
 
-  const recentActivity = [
-    { type: 'invoice', doc: 'INV-000123', status: 'Posted', statusColor: 'badge-success' },
-    { type: 'receipt', doc: 'OR-000045', status: 'RM 5,000', statusColor: 'badge-info' },
-    { type: 'po', doc: 'PO-000089', status: 'Pending', statusColor: 'badge-warning' },
-    { type: 'grn', doc: 'GRN-000034', status: 'Received', statusColor: 'badge-success' },
-  ];
-
   const alerts = [
-    { type: 'warning', icon: ExclamationTriangleIcon, messageKey: 'dashboard.productsBelow', count: 12, bgColor: 'bg-amber-50 dark:bg-amber-900/20', textColor: 'text-amber-800 dark:text-amber-300', iconColor: 'text-amber-500', href: '/stock/balance' },
-    { type: 'danger', icon: ClockIcon, messageKey: 'dashboard.invoicesOverdue', count: 5, bgColor: 'bg-red-50 dark:bg-red-900/20', textColor: 'text-red-800 dark:text-red-300', iconColor: 'text-red-500', href: '/ar/invoices' },
-    { type: 'info', icon: ClipboardDocumentListIcon, messageKey: 'dashboard.quotationsExpiring', count: 3, bgColor: 'bg-blue-50 dark:bg-blue-900/20', textColor: 'text-blue-800 dark:text-blue-300', iconColor: 'text-blue-500', href: '/sales/quotations' },
+    { type: 'warning', icon: ExclamationTriangleIcon, messageKey: 'dashboard.productsBelow', count: alertsData.productsBelow || 0, bgColor: 'bg-amber-50 dark:bg-amber-900/20', textColor: 'text-amber-800 dark:text-amber-300', iconColor: 'text-amber-500', href: '/stock/balance' },
+    { type: 'danger', icon: ClockIcon, messageKey: 'dashboard.invoicesOverdue', count: alertsData.invoicesOverdue || 0, bgColor: 'bg-red-50 dark:bg-red-900/20', textColor: 'text-red-800 dark:text-red-300', iconColor: 'text-red-500', href: '/ar/invoices' },
+    { type: 'info', icon: ClipboardDocumentListIcon, messageKey: 'dashboard.quotationsExpiring', count: alertsData.quotationsExpiring || 0, bgColor: 'bg-blue-50 dark:bg-blue-900/20', textColor: 'text-blue-800 dark:text-blue-300', iconColor: 'text-blue-500', href: '/sales/quotations' },
   ];
-
-  // In production, this would fetch real data
-  const mockStats: DashboardStats = {
-    arOutstanding: 125000,
-    apOutstanding: 85000,
-    salesThisMonth: 250000,
-    lowStockItems: 12,
-    totalLeads: 47,
-    dealsValue: 320000,
-  };
 
   const formatCurrency = (value: number) => {
+    const currency = company?.baseCurrency || 'MYR';
     return new Intl.NumberFormat('en-MY', {
       style: 'currency',
-      currency: 'MYR',
+      currency,
       minimumFractionDigits: 0,
       maximumFractionDigits: 0,
     }).format(value);
@@ -142,7 +159,7 @@ export default function DashboardPage() {
       {/* Stats Grid - Clickable */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {stats.map((stat, index) => {
-          const value = mockStats[stat.key as keyof DashboardStats];
+          const value = statsData[stat.key as keyof DashboardStats] as number;
           const displayValue = stat.key === 'lowStockItems' || (stat as any).isNumber
             ? value.toString() 
             : formatCurrency(value);
@@ -211,7 +228,7 @@ export default function DashboardPage() {
           </div>
           <div className="card-body">
             <div className="space-y-4">
-              {recentActivity.map((item, index) => (
+              {recentActivity.map((item: any, index: number) => (
                 <div 
                   key={index}
                   className="flex justify-between items-center p-3 rounded-lg bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
@@ -260,14 +277,9 @@ export default function DashboardPage() {
           </div>
           <div className="card-body">
             <div className="space-y-4">
-              {[
-                { name: 'Widget A', sales: 1234, color: 'from-blue-500 to-indigo-500' },
-                { name: 'Widget B', sales: 987, color: 'from-emerald-500 to-teal-500' },
-                { name: 'Widget C', sales: 654, color: 'from-orange-500 to-amber-500' },
-                { name: 'Widget D', sales: 432, color: 'from-pink-500 to-rose-500' },
-              ].map((product, index) => (
+              {topProducts.map((product: any, index: number) => (
                 <div key={index} className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-lg bg-gradient-to-br ${product.color} flex items-center justify-center text-white font-bold text-sm shadow-lg`}>
+                  <div className={`w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm shadow-lg`}>
                     {index + 1}
                   </div>
                   <div className="flex-1">

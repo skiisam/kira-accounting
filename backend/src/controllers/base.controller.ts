@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import { prisma } from '../config/database';
 import { NotFoundError, ValidationError } from '../middleware/errorHandler';
 
 /**
@@ -135,6 +136,19 @@ export abstract class BaseController<T> {
    */
   protected notFound(id: number | string) {
     throw NotFoundError(`${this.modelName} with ID ${id} not found`);
+  }
+
+  /**
+   * Check if a date falls within a locked fiscal period or closed fiscal year
+   */
+  protected async isDateLocked(date: Date | null | undefined): Promise<boolean> {
+    if (!date) return false;
+    const period = await prisma.fiscalPeriod.findFirst({
+      where: { startDate: { lte: date }, endDate: { gte: date } },
+      include: { fiscalYear: true },
+    });
+    if (!period) return false;
+    return Boolean(period.isLocked || period.fiscalYear?.isClosed);
   }
 
   /**

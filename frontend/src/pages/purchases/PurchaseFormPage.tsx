@@ -3,7 +3,7 @@ import { useForm, useFieldArray } from 'react-hook-form';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { get, post, put } from '../../services/api';
+import { get, post, put, del } from '../../services/api';
 import { PlusIcon, TrashIcon, MagnifyingGlassIcon, DocumentDuplicateIcon, XCircleIcon } from '@heroicons/react/24/outline';
 import PurchaseTransferDialog from '../../components/purchases/TransferDialog';
 import SearchDialog from '../../components/common/SearchDialog';
@@ -14,6 +14,7 @@ interface PurchaseDetail {
   description: string;
   quantity: number;
   unitPrice: number;
+  discountText?: string;
   discountAmount: number;
   taxCode?: string;
   taxRate: number;
@@ -36,6 +37,7 @@ interface PurchaseForm {
 }
 
 const typeLabels: Record<string, string> = {
+  request: 'Purchase Request',
   order: 'Purchase Order',
   grn: 'Goods Received Note',
   invoice: 'Purchase Invoice',
@@ -44,6 +46,7 @@ const typeLabels: Record<string, string> = {
 };
 
 const typeEndpoints: Record<string, string> = {
+  request: 'requests',
   order: 'orders',
   grn: 'grn',
   invoice: 'invoices',
@@ -52,6 +55,9 @@ const typeEndpoints: Record<string, string> = {
 };
 
 const transferTargets: Record<string, { label: string; target: string }[]> = {
+  request: [
+    { label: 'PO', target: 'PURCHASE_ORDER' },
+  ],
   order: [
     { label: 'GRN', target: 'GRN' },
     { label: 'Invoice', target: 'PURCHASE_INVOICE' },
@@ -72,6 +78,7 @@ export default function PurchaseFormPage() {
   const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [selectedTransfer, setSelectedTransfer] = useState<{ target: string; label: string } | null>(null);
   const [voidModalOpen, setVoidModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [vendorSearchOpen, setVendorSearchOpen] = useState(false);
   const [productSearchOpen, setProductSearchOpen] = useState<number | null>(null);
   
@@ -103,6 +110,7 @@ export default function PurchaseFormPage() {
         description: d.description || '',
         quantity: Number(d.quantity) || 1,
         unitPrice: Number(d.unitPrice) || 0,
+        discountText: d.discountText || (d.discountAmount ? String(d.discountAmount) : ''),
         discountAmount: Number(d.discountAmount) || 0,
         taxRate: Number(d.taxRate) || 6,
         taxAmount: Number(d.taxAmount) || 0,
@@ -119,7 +127,7 @@ export default function PurchaseFormPage() {
         reference: existingDoc.reference || '',
         description: existingDoc.description || '',
         reason: existingDoc.reason || '',
-        details: details.length > 0 ? details : [{ productId: 0, productCode: '', description: '', quantity: 1, unitPrice: 0, discountAmount: 0, taxRate: 6, taxAmount: 0, subTotal: 0 }],
+        details: details.length > 0 ? details : [{ productId: 0, productCode: '', description: '', quantity: 1, unitPrice: 0, discountText: '', discountAmount: 0, taxRate: 6, taxAmount: 0, subTotal: 0 }],
       });
     }
   }, [existingDoc, reset]);
@@ -135,6 +143,7 @@ export default function PurchaseFormPage() {
           description: d.description || '',
           quantity: Number(d.outstandingQty || d.quantity) || 1,
           unitPrice: Number(d.unitPrice) || 0,
+          discountText: d.discountText || (d.discountAmount ? String(d.discountAmount) : ''),
           discountAmount: Number(d.discountAmount) || 0,
           taxRate: Number(d.taxRate) || 6,
           taxAmount: Number(d.taxAmount) || 0,
@@ -150,7 +159,7 @@ export default function PurchaseFormPage() {
           supplierInvoiceNo: '',
           supplierDONo: '',
           reference: `Transfer from ${transferFrom.documentNo}`,
-          description: transferFrom.description || '',
+          description: `Copied from ${transferFrom.documentNo}` + (transferFrom.description ? ` — ${transferFrom.description}` : ''),
           details,
         });
       }
@@ -220,8 +229,23 @@ export default function PurchaseFormPage() {
   // Update line calculations
   const updateLine = (index: number) => {
     const line = details[index];
-    const lineSubTotal = line.quantity * line.unitPrice - line.discountAmount;
-    const taxAmount = lineSubTotal * (line.taxRate / 100);
+    let discountAmount = Number(line.discountAmount) || 0;
+    const raw = (line.discountText || '').toString().trim();
+    if (raw) {
+      if (raw.endsWith('%')) {
+        const pct = parseFloat(raw.slice(0, -1));
+        if (!isNaN(pct)) {
+          const base = (Number(line.quantity) || 0) * (Number(line.unitPrice) || 0);
+          discountAmount = base * (pct / 100);
+        }
+      } else {
+        const amt = parseFloat(raw.replace(/,/g, ''));
+        if (!isNaN(amt)) discountAmount = amt;
+      }
+    }
+    setValue(`details.${index}.discountAmount`, discountAmount);
+    const lineSubTotal = (Number(line.quantity) || 0) * (Number(line.unitPrice) || 0) - discountAmount;
+    const taxAmount = lineSubTotal * ((Number(line.taxRate) || 0) / 100);
     setValue(`details.${index}.subTotal`, lineSubTotal);
     setValue(`details.${index}.taxAmount`, taxAmount);
   };
@@ -275,9 +299,38 @@ export default function PurchaseFormPage() {
     voidMutation.mutate();
   };
 
+  const deleteMutation = useMutation({
+    mutationFn: () => del(`/purchases/${typeEndpoints[docType]}/${id}`),
+    onSuccess: () => {
+      toast.success('Document deleted');
+      queryClient.invalidateQueries({ queryKey: ['purchase'] });
+      navigate(-1);
+    },
+    onError: (err: any) => toast.error(err.response?.data?.error?.message || 'Failed to delete document'),
+  });
+
+  const handleDelete = () => setDeleteModalOpen(true);
+  const confirmDelete = () => deleteMutation.mutate();
+
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('en-MY', { style: 'currency', currency: 'MYR' }).format(val);
 
+  const handlePrint = async () => {
+    if (!id) return;
+    try {
+      const html = await post<string>(`/purchases/${typeEndpoints[docType]}/${id}/print`);
+      const win = window.open('', '_blank');
+      if (win) {
+        win.document.open();
+        win.document.write(typeof html === 'string' ? html : String(html));
+        win.document.close();
+      } else {
+        toast.error('Popup blocked. Please allow popups to preview.');
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error?.message || 'Failed to print');
+    }
+  };
   const canTransfer = isEdit && transferTargets[docType] && existingDoc?.status === 'OPEN';
   const canPost = isEdit && docType === 'invoice' && !existingDoc?.isPosted && existingDoc?.status === 'OPEN';
 
@@ -291,6 +344,11 @@ export default function PurchaseFormPage() {
           )}
         </h1>
         <div className="flex gap-2">
+          {isEdit && (
+            <button type="button" onClick={handlePrint} className="btn text-sm">
+              Print
+            </button>
+          )}
           {canTransfer && transferTargets[docType].map((t) => (
             <button
               key={t.target}
@@ -454,10 +512,10 @@ export default function PurchaseFormPage() {
                     </td>
                     <td>
                       <input
-                        {...register(`details.${index}.discountAmount`, { valueAsNumber: true })}
-                        type="number"
-                        step="0.01"
+                        {...register(`details.${index}.discountText`)}
+                        type="text"
                         className="input py-1 text-sm text-right"
+                        placeholder="10 or 10%"
                         onBlur={() => updateLine(index)}
                       />
                     </td>
@@ -511,14 +569,24 @@ export default function PurchaseFormPage() {
         {/* Actions */}
         <div className="flex justify-end gap-4">
           {id && (
-            <button
-              type="button"
-              onClick={handleVoid}
-              className="btn bg-red-600 hover:bg-red-700 text-white"
-            >
-              <XCircleIcon className="w-4 h-4 mr-1" />
-              Void
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={handleDelete}
+                className="btn bg-red-50 hover:bg-red-100 text-red-700 border border-red-200"
+              >
+                <TrashIcon className="w-4 h-4 mr-1" />
+                Delete
+              </button>
+              <button
+                type="button"
+                onClick={handleVoid}
+                className="btn bg-red-600 hover:bg-red-700 text-white"
+              >
+                <XCircleIcon className="w-4 h-4 mr-1" />
+                Void
+              </button>
+            </>
           )}
           <button type="button" onClick={() => navigate(-1)} className="btn btn-secondary">
             Cancel
@@ -564,6 +632,33 @@ export default function PurchaseFormPage() {
                 className="btn bg-red-600 hover:bg-red-700 text-white"
               >
                 {voidMutation.isPending ? 'Voiding...' : 'Void Document'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Modal */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setDeleteModalOpen(false)} />
+          <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+              Delete {typeLabels[docType]}
+            </h3>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Are you sure you want to permanently delete this document?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setDeleteModalOpen(false)} className="btn btn-secondary">
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                disabled={deleteMutation.isPending}
+                className="btn bg-red-600 hover:bg-red-700 text-white"
+              >
+                {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>

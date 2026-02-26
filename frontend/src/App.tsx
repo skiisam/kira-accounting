@@ -9,7 +9,9 @@ import AuthLayout from './components/layout/AuthLayout';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
+import VerifyEmailPage from './pages/auth/VerifyEmailPage';
 import SetupWizardPage from './pages/setup/SetupWizardPage';
+import CompanySelectPage from './pages/setup/CompanySelectPage';
 import DashboardPage from './pages/DashboardPage';
 import CustomerListPage from './pages/customers/CustomerListPage';
 import CustomerFormPage from './pages/customers/CustomerFormPage';
@@ -71,7 +73,18 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
       </Route>
+
+      {/* Setup Wizard (requires auth but no main layout) */}
+      <Route
+        path="/company/select"
+        element={
+          <PrivateRoute>
+            <CompanySelectPage />
+          </PrivateRoute>
+        }
+      />
 
       {/* Setup Wizard (requires auth but no main layout) */}
       <Route
@@ -124,6 +137,7 @@ export default function App() {
         <Route path="/sales/:type/:id" element={<SalesFormPage />} />
 
         {/* Purchases */}
+        <Route path="/purchases/requests" element={<PurchaseListPage type="request" />} />
         <Route path="/purchases/orders" element={<PurchaseListPage type="order" />} />
         <Route path="/purchases/grn" element={<PurchaseListPage type="grn" />} />
         <Route path="/purchases/invoices" element={<PurchaseListPage type="invoice" />} />

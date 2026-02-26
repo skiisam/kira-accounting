@@ -40,7 +40,12 @@ export class APController extends BaseController<any> {
       });
 
       if (!invoice) this.notFound(id);
-      this.successResponse(res, invoice);
+      let sourceNo: string | undefined = undefined;
+      if (invoice.sourceType === 'PURCHASE_INVOICE' && invoice.sourceId) {
+        const src = await prisma.purchaseHeader.findUnique({ where: { id: invoice.sourceId } });
+        sourceNo = src?.documentNo || undefined;
+      }
+      this.successResponse(res, { ...invoice, sourceNo } as any);
     } catch (error) {
       next(error);
     }
@@ -55,12 +60,17 @@ export class APController extends BaseController<any> {
       if (!vendor) throw BadRequestError('Vendor not found');
 
       const invoiceNo = await this.documentService.getNextNumber('AP_INVOICE');
+      const invoiceDate = new Date(data.invoiceDate || new Date());
+      const dueDate =
+        data.dueDate
+          ? new Date(data.dueDate)
+          : new Date(invoiceDate.getTime() + (vendor.creditTermDays || 0) * 24 * 60 * 60 * 1000);
 
       const invoice = await prisma.aPInvoice.create({
         data: {
           invoiceNo,
-          invoiceDate: new Date(data.invoiceDate || new Date()),
-          dueDate: data.dueDate ? new Date(data.dueDate) : null,
+          invoiceDate,
+          dueDate,
           vendorId: vendor.id,
           vendorCode: vendor.code,
           vendorName: vendor.name,
@@ -98,9 +108,53 @@ export class APController extends BaseController<any> {
   };
 
   updateInvoice = stubHandler('Update AP Invoice');
-  deleteInvoice = stubHandler('Delete AP Invoice');
+  deleteInvoice = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const existing = await prisma.aPInvoice.findUnique({ where: { id } });
+      if (!existing) this.notFound(id);
+
+      if (existing.sourceType === 'PURCHASE_INVOICE' || existing.sourceId) {
+        res.status(400).json({
+          success: false,
+          error: { code: 'LINKED_DOCUMENT', message: 'Cannot delete linked AP Invoice. Void instead.' },
+        });
+        return;
+      }
+
+      if (await this.isDateLocked(existing.invoiceDate)) {
+        res.status(400).json({
+          success: false,
+          error: { code: 'PERIOD_LOCKED', message: 'Cannot delete invoice in a locked period.' },
+        });
+        return;
+      }
+
+      if (Number(existing!.paidAmount) > 0) {
+        await prisma.aPInvoice.update({ where: { id }, data: { isVoid: true, status: 'VOID' } });
+        this.successResponse(res, null, 'Invoice voided');
+        return;
+      }
+
+      await prisma.aPInvoiceDetail.deleteMany({ where: { invoiceId: id } });
+      await prisma.aPInvoice.delete({ where: { id } });
+      this.deletedResponse(res);
+    } catch (error) {
+      next(error);
+    }
+  };
   postInvoice = stubHandler('Post AP Invoice');
-  voidInvoice = stubHandler('Void AP Invoice');
+  voidInvoice = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const existing = await prisma.aPInvoice.findUnique({ where: { id } });
+      if (!existing) this.notFound(id);
+      await prisma.aPInvoice.update({ where: { id }, data: { isVoid: true, status: 'VOID' } });
+      this.successResponse(res, null, 'Invoice voided');
+    } catch (error) {
+      next(error);
+    }
+  };
 
   listPayments = async (req: Request, res: Response, next: NextFunction) => {
     try {

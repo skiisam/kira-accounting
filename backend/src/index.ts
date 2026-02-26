@@ -7,6 +7,8 @@ import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
 import { logger } from './utils/logger';
 import routes from './routes';
+import path from 'path';
+import fs from 'fs';
 
 const app = express();
 
@@ -59,6 +61,17 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use(config.apiPrefix, routes);
+
+// Static files for uploads (customer PO attachments, templates, etc.)
+const uploadsDir = path.resolve(process.cwd(), config.upload.dir);
+try {
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+} catch (e) {
+  logger.error('Failed to ensure uploads directory', { uploadsDir, error: (e as Error).message });
+}
+app.use('/uploads', express.static(uploadsDir, { fallthrough: true }));
 
 // Error handling
 app.use(notFoundHandler);

@@ -18,6 +18,7 @@ model Company {
   id                   Int       @id @default(autoincrement())
   code                 String    @unique @db.VarChar(20)
   name                 String    @db.VarChar(200)
+  dbUrl                String?   @db.VarChar(500)
   name2                String?   @db.VarChar(200)
   registrationNo       String?   @db.VarChar(50)  // Business Registration No (BRN)
   tinNo                String?   @db.VarChar(50)  // TIN / Tax Identification No
@@ -302,13 +303,32 @@ model User {
   lastLoginAt         DateTime?
   isAdmin             Boolean   @default(false)
   isActive            Boolean   @default(true)
+  // MFA
+  mfaEnabled          Boolean   @default(false)
+  mfaSecret           String?   @db.VarChar(64)
+  mfaRecoveryCodes    Json?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
   group   UserGroup @relation(fields: [groupId], references: [id])
   company Company?  @relation(fields: [companyId], references: [id])
+  refreshTokens RefreshToken[]
 
   @@map("users")
+}
+
+model RefreshToken {
+  id          Int       @id @default(autoincrement())
+  userId      Int
+  tokenHash   String    @unique @db.VarChar(128) // sha256 hex
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  replacedById Int?
+  userAgent   String?   @db.VarChar(255)
+  ipAddress   String?   @db.VarChar(50)
+
+  user User @relation(fields: [userId], references: [id])
 }
 
 model AccessRight {

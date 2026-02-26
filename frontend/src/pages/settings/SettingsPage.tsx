@@ -1,4 +1,4 @@
-import { NavLink, Routes, Route, Navigate } from 'react-router-dom';
+import { NavLink, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
@@ -9,8 +9,10 @@ import toast from 'react-hot-toast';
 import UserGroupsPage from './UserGroupsPage';
 import MessagingSettingsPage from './MessagingSettingsPage';
 import GlobalChangeCodePage from './GlobalChangeCodePage';
+import ToolsPage from './ToolsPage';
 import { usePermissions, MODULES } from '../../hooks/usePermissions';
-import { PhotoIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PhotoIcon, TrashIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
+import { useAuthStore } from '../../store/authStore';
 
 function TaxCodesSettings({ canEdit }: { canEdit: boolean }) {
   const queryClient = useQueryClient();
@@ -182,10 +184,12 @@ function TaxCodesSettings({ canEdit }: { canEdit: boolean }) {
 // Navigation items with permission requirements
 const settingsNavItems = [
   { nameKey: 'settings.company', path: 'company', requiresEdit: false },
+  { nameKey: 'Run Setup Wizard', path: 'setup-wizard', requiresEdit: false },
   { nameKey: 'settings.users', path: 'users', requiresManage: true },
   { nameKey: 'settings.userGroups', path: 'user-groups', requiresManage: true },
   { nameKey: 'settings.currencies', path: 'currencies', requiresEdit: false },
   { nameKey: 'settings.taxCodes', path: 'tax-codes', requiresEdit: false },
+  { nameKey: 'settings.tools', path: 'tools', requiresEdit: false },
   { nameKey: 'settings.paymentMethods', path: 'payment-methods', requiresEdit: false },
   { nameKey: 'settings.terms', path: 'terms', requiresEdit: false },
   { nameKey: 'settings.locations', path: 'locations', requiresEdit: false },
@@ -196,6 +200,7 @@ const settingsNavItems = [
   { nameKey: 'settings.fiscalYears', path: 'fiscal-years', requiresEdit: false },
   { nameKey: 'settings.changeCode', path: 'change-code', requiresEdit: true },
   { nameKey: 'settings.messaging', path: 'messaging', requiresEdit: false },
+  { nameKey: 'Danger Zone', path: 'danger', requiresEdit: false },
 ];
 
 interface CompanyForm {
@@ -263,6 +268,7 @@ const FONT_FAMILIES = [
 ];
 
 function CompanySettings() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'general' | 'billing' | 'media' | 'letterhead'>('general');
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -275,6 +281,37 @@ function CompanySettings() {
     queryFn: () => get('/settings/company'),
   });
 
+  const { data: setupStatus } = useQuery({
+    queryKey: ['setup-status'],
+    queryFn: () => get<{ setupRequired: boolean; details?: any }>('/settings/setup-status'),
+  });
+
+  const { data: currenciesData } = useQuery({
+    queryKey: ['currencies:list'],
+    queryFn: () => get('/settings/currencies'),
+  });
+  const currencies = Array.isArray((currenciesData as any)?.data)
+    ? (currenciesData as any).data
+    : (Array.isArray(currenciesData) ? (currenciesData as any) : []);
+  const currencyOptions = currencies.map((c: any) => ({ code: c.code, name: c.name, symbol: c.symbol }));
+  const countryOptions = [
+    { code: 'MY', name: 'Malaysia' },
+    { code: 'SG', name: 'Singapore' },
+    { code: 'ID', name: 'Indonesia' },
+    { code: 'TH', name: 'Thailand' },
+    { code: 'PH', name: 'Philippines' },
+    { code: 'VN', name: 'Vietnam' },
+    { code: 'MM', name: 'Myanmar' },
+    { code: 'KH', name: 'Cambodia' },
+    { code: 'BN', name: 'Brunei' },
+    { code: 'US', name: 'United States' },
+    { code: 'GB', name: 'United Kingdom' },
+    { code: 'AU', name: 'Australia' },
+    { code: 'IN', name: 'India' },
+    { code: 'CN', name: 'China' },
+    { code: 'HK', name: 'Hong Kong' },
+    { code: 'TW', name: 'Taiwan' },
+  ];
   const company = (companyData as any)?.data || companyData;
 
   const { register, handleSubmit, reset, setValue, watch } = useForm<CompanyForm>({
@@ -408,6 +445,16 @@ function CompanySettings() {
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Company Information</h2>
       </div>
+      <div className="rounded-xl border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 p-4 flex items-center justify-between">
+        <div className="text-sm text-amber-800 dark:text-amber-200">
+          {setupStatus?.setupRequired
+            ? 'First-time setup is not fully completed.'
+            : 'First-time setup completed. You can re-run the wizard anytime.'}
+        </div>
+        <button type="button" className="btn btn-secondary" onClick={() => navigate('/setup')}>
+          Run Setup Wizard
+        </button>
+      </div>
 
       {/* Tabs */}
       <div className="border-b border-gray-200 dark:border-gray-700">
@@ -506,7 +553,12 @@ function CompanySettings() {
               </div>
               <div>
                 <label className="label">Country</label>
-                <input {...register('country')} className="input" placeholder="e.g. Malaysia" />
+                <select {...register('country')} className="input">
+                  <option value="">— Select —</option>
+                  {countryOptions.map((co) => (
+                    <option key={co.code} value={co.code}>{co.code} — {co.name}</option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
@@ -546,7 +598,14 @@ function CompanySettings() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="label">Base Currency</label>
-                <input {...register('baseCurrency')} className="input" placeholder="MYR" />
+                <select {...register('baseCurrency')} className="input">
+                  <option value="">— Select —</option>
+                  {currencyOptions.map((cur: any) => (
+                    <option key={cur.code} value={cur.code}>
+                      {cur.code} {cur.symbol ? `(${cur.symbol})` : ''} — {cur.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
@@ -586,7 +645,12 @@ function CompanySettings() {
             </div>
             <div>
               <label className="label">Country</label>
-              <input {...register('billingCountry')} className="input" />
+              <select {...register('billingCountry')} className="input">
+                <option value="">— Select —</option>
+                {countryOptions.map((co) => (
+                  <option key={co.code} value={co.code}>{co.code} — {co.name}</option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -868,6 +932,8 @@ function UsersSettings() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [saving, setSaving] = useState(false);
+  const [deleteUser, setDeleteUser] = useState<any>(null);
+  const [deleting, setDeleting] = useState(false);
   const { data, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: () => get('/settings/users'),
@@ -885,18 +951,31 @@ function UsersSettings() {
     { key: 'isAdmin', header: 'Admin', render: (row: any) => row.isAdmin ? 'Yes' : 'No' },
     { key: 'isActive', header: 'Active', render: (row: any) => row.isActive ? 'Yes' : 'No' },
     { key: 'actions', header: 'Actions', render: (row: any) => (
-      <button
-        className="btn btn-secondary btn-sm"
-        onClick={(e) => {
-          e.stopPropagation();
-          setTargetUser(row);
-          setNewPassword('');
-          setConfirmPassword('');
-          setShowModal(true);
-        }}
-      >
-        Change Password
-      </button>
+      <div className="flex gap-2">
+        <button
+          className="btn btn-secondary btn-sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            setTargetUser(row);
+            setNewPassword('');
+            setConfirmPassword('');
+            setShowModal(true);
+          }}
+        >
+          Change Password
+        </button>
+        <button
+          className="btn btn-danger btn-sm"
+          onClick={(e) => {
+            e.stopPropagation();
+            setDeleteUser(row);
+          }}
+          disabled={!row.isActive}
+          title={!row.isActive ? 'User already removed' : 'Remove user'}
+        >
+          Remove
+        </button>
+      </div>
     ) },
   ];
 
@@ -1043,6 +1122,41 @@ function UsersSettings() {
                   disabled={saving}
                 >
                   {saving ? 'Updating...' : 'Update Password'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Remove User Modal */}
+      {deleteUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="card w-full max-w-md">
+            <div className="card-body space-y-4">
+              <h3 className="text-lg font-semibold">Remove User</h3>
+              <p className="text-gray-600">
+                Remove user <strong>{deleteUser.code}</strong> - {deleteUser.name}? This deactivates the account and prevents login.
+              </p>
+              <div className="flex justify-end gap-2">
+                <button className="btn" onClick={() => setDeleteUser(null)} disabled={deleting}>Cancel</button>
+                <button
+                  className="btn btn-danger"
+                  onClick={async () => {
+                    setDeleting(true);
+                    try {
+                      await del(`/settings/users/${deleteUser.id}`);
+                      toast.success('User removed');
+                      setDeleteUser(null);
+                      await queryClient.invalidateQueries({ queryKey: ['users'] });
+                    } catch (err: any) {
+                      toast.error(err?.response?.data?.error?.message || 'Failed to remove user');
+                    } finally {
+                      setDeleting(false);
+                    }
+                  }}
+                  disabled={deleting}
+                >
+                  {deleting ? 'Removing...' : 'Remove'}
                 </button>
               </div>
             </div>
@@ -1209,12 +1323,16 @@ export default function SettingsPage() {
   const canManageUsers = isAdmin || hasPermission(MODULES.USERS, 'manage');
   const canEditSettings = isAdmin || hasPermission(MODULES.SETTINGS, 'edit');
   const canViewSettings = isAdmin || canView(MODULES.SETTINGS);
+  const [navSearch, setNavSearch] = useState('');
 
   // Filter nav items based on permissions
   const settingsNav = settingsNavItems.filter((item) => {
     if (item.requiresManage) return canManageUsers;
     return canViewSettings;
   });
+  const filteredNav = settingsNav.filter((item) =>
+    t(item.nameKey).toLowerCase().includes(navSearch.toLowerCase())
+  );
 
   return (
     <div>
@@ -1223,8 +1341,18 @@ export default function SettingsPage() {
       <div className="flex gap-6">
         {/* Sidebar */}
         <nav className="w-48 flex-shrink-0">
+          <div className="relative mb-3">
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <input
+              type="text"
+              value={navSearch}
+              onChange={(e) => setNavSearch(e.target.value)}
+              placeholder={t('common.search') || 'Search settings...'}
+              className="input pl-10 w-full"
+            />
+          </div>
           <ul className="space-y-1">
-            {settingsNav.map((item) => (
+            {filteredNav.map((item) => (
               <li key={item.path}>
                 <NavLink
                   to={`/settings/${item.path}`}
@@ -1248,6 +1376,7 @@ export default function SettingsPage() {
           <div className="card-body">
             <Routes>
               <Route path="" element={<Navigate to="company" replace />} />
+              <Route path="setup-wizard" element={<Navigate to="/setup" replace />} />
               <Route path="company" element={<CompanySettings />} />
               <Route path="users" element={canManageUsers ? <UsersSettings /> : <NoAccess />} />
               <Route path="user-groups" element={canManageUsers ? <UserGroupsPage /> : <NoAccess />} />
@@ -1262,6 +1391,7 @@ export default function SettingsPage() {
               <Route path="tax-codes" element={
                 <TaxCodesSettings canEdit={canEditSettings} />
               } />
+              <Route path="tools" element={<ToolsPage />} />
               <Route path="payment-methods" element={
                 <GenericSettings endpoint="payment-methods" title="Payment Methods" canEdit={canEditSettings} columns={[
                   { key: 'code', header: 'Code' },
@@ -1324,6 +1454,7 @@ export default function SettingsPage() {
               } />
               <Route path="change-code" element={canEditSettings ? <GlobalChangeCodePage /> : <NoAccess />} />
               <Route path="messaging" element={<MessagingSettingsPage />} />
+              <Route path="danger" element={<DangerSettings />} />
             </Routes>
           </div>
         </div>
@@ -1337,6 +1468,79 @@ function NoAccess() {
     <div className="text-center py-8 text-gray-500">
       <p className="text-lg">Access Denied</p>
       <p className="text-sm mt-2">You don't have permission to view this page.</p>
+    </div>
+  );
+}
+
+function DangerSettings() {
+  const [confirmText, setConfirmText] = useState('');
+  const [password, setPassword] = useState('');
+  const logout = useAuthStore(s => s.logout);
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState(false);
+
+  const canDelete = confirmText === 'DELETE' && password.length >= 6;
+
+  const onDelete = async () => {
+    if (!canDelete) return;
+    setBusy(true);
+    try {
+      await post('/auth/delete-account', { password, confirm: 'DELETE' });
+      toast.success('Your account has been deleted');
+      logout();
+      navigate('/register');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error?.message || 'Failed to delete account');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl">
+      <h2 className="text-xl font-semibold text-red-600">Danger Zone</h2>
+      <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+        This action permanently removes your user account and personal data. This cannot be undone.
+      </p>
+
+      <div className="mt-6 p-4 border border-red-300 dark:border-red-800 rounded-lg bg-red-50 dark:bg-red-900/20">
+        <div className="flex items-center gap-2">
+          <TrashIcon className="w-6 h-6 text-red-600" />
+          <h3 className="text-lg font-medium text-red-700 dark:text-red-400">Delete My Account</h3>
+        </div>
+        <p className="mt-2 text-sm text-red-700 dark:text-red-300">
+          Type DELETE to confirm and enter your password.
+        </p>
+
+        <div className="mt-4 grid grid-cols-1 gap-3">
+          <input
+            className="input"
+            placeholder="Type DELETE to confirm"
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value.toUpperCase())}
+          />
+          <input
+            className="input"
+            type="password"
+            placeholder="Enter your password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <button
+            onClick={onDelete}
+            disabled={!canDelete || busy}
+            className="btn bg-red-600 hover:bg-red-700 text-white"
+          >
+            {busy ? 'Deleting...' : 'Delete My Account'}
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-6 p-4 rounded-lg bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300 dark:border-yellow-800">
+        <p className="text-sm text-yellow-800 dark:text-yellow-300">
+          Company data is not deleted by this action. Contact your administrator to remove company records if required.
+        </p>
+      </div>
     </div>
   );
 }

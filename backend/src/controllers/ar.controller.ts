@@ -45,7 +45,12 @@ export class ARController extends BaseController<any> {
       });
 
       if (!invoice) this.notFound(id);
-      this.successResponse(res, invoice);
+      let sourceNo: string | undefined = undefined;
+      if (invoice.sourceType === 'SALES_INVOICE' && invoice.sourceId) {
+        const src = await prisma.salesHeader.findUnique({ where: { id: invoice.sourceId } });
+        sourceNo = src?.documentNo || undefined;
+      }
+      this.successResponse(res, { ...invoice, sourceNo } as any);
     } catch (error) {
       next(error);
     }
@@ -60,12 +65,17 @@ export class ARController extends BaseController<any> {
       if (!customer) throw BadRequestError('Customer not found');
 
       const invoiceNo = await this.documentService.getNextNumber('AR_INVOICE');
+      const invoiceDate = new Date(data.invoiceDate || new Date());
+      const dueDate =
+        data.dueDate
+          ? new Date(data.dueDate)
+          : new Date(invoiceDate.getTime() + (customer.creditTermDays || 0) * 24 * 60 * 60 * 1000);
 
       const invoice = await prisma.aRInvoice.create({
         data: {
           invoiceNo,
-          invoiceDate: new Date(data.invoiceDate || new Date()),
-          dueDate: data.dueDate ? new Date(data.dueDate) : null,
+          invoiceDate,
+          dueDate,
           customerId: customer.id,
           customerCode: customer.code,
           customerName: customer.name,
@@ -153,14 +163,34 @@ export class ARController extends BaseController<any> {
       const existing = await prisma.aRInvoice.findUnique({ where: { id } });
       if (!existing) this.notFound(id);
 
+      // Block delete if linked to Sales document
+      if (existing.sourceType === 'SALES_INVOICE' || existing.sourceId) {
+        res.status(400).json({
+          success: false,
+          error: { code: 'LINKED_DOCUMENT', message: 'Cannot delete linked AR Invoice. Void instead.' },
+        });
+        return;
+      }
+
+      // Block delete if fiscal period locked
+      if (await this.isDateLocked(existing.invoiceDate)) {
+        res.status(400).json({
+          success: false,
+          error: { code: 'PERIOD_LOCKED', message: 'Cannot delete invoice in a locked period.' },
+        });
+        return;
+      }
+
+      // If has payments, void instead of delete
       if (Number(existing!.paidAmount) > 0) {
         await prisma.aRInvoice.update({ where: { id }, data: { isVoid: true, status: 'VOID' } });
         this.successResponse(res, null, 'Invoice voided');
-      } else {
-        await prisma.aRInvoiceDetail.deleteMany({ where: { invoiceId: id } });
-        await prisma.aRInvoice.delete({ where: { id } });
-        this.deletedResponse(res);
+        return;
       }
+
+      await prisma.aRInvoiceDetail.deleteMany({ where: { invoiceId: id } });
+      await prisma.aRInvoice.delete({ where: { id } });
+      this.deletedResponse(res);
     } catch (error) {
       next(error);
     }

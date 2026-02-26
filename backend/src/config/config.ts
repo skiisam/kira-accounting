@@ -20,6 +20,7 @@ export const config = {
   // Database
   database: {
     url: process.env.DATABASE_URL || '',
+    superUrl: process.env.DATABASE_SUPER_URL || process.env.DATABASE_URL || '',
   },
 
   // Logging

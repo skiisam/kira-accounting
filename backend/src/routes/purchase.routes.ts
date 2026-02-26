@@ -7,6 +7,16 @@ const purchaseController = new PurchaseController();
 
 router.use(authenticate);
 
+// Purchase Requests
+router.get('/requests', requirePermission('PURCHASE', 'PURCHASE_ORDER'), purchaseController.listRequests);
+router.get('/requests/:id', requirePermission('PURCHASE', 'PURCHASE_ORDER'), purchaseController.getRequest);
+router.post('/requests', requirePermission('PURCHASE', 'PURCHASE_ORDER'), purchaseController.createRequest);
+router.put('/requests/:id', requirePermission('PURCHASE', 'PURCHASE_ORDER'), purchaseController.updateRequest);
+router.delete('/requests/:id', requirePermission('PURCHASE', 'PURCHASE_ORDER'), purchaseController.deleteRequest);
+router.post('/requests/:id/transfer', requirePermission('PURCHASE', 'PURCHASE_ORDER'), purchaseController.transferRequest);
+router.get('/requests/:id/transferable-lines', requirePermission('PURCHASE', 'PURCHASE_ORDER'), purchaseController.getTransferableLines);
+router.post('/requests/:id/void', requirePermission('PURCHASE', 'PURCHASE_ORDER'), purchaseController.voidDocument);
+
 // Purchase Orders
 router.get('/orders', requirePermission('PURCHASE', 'PURCHASE_ORDER'), purchaseController.listOrders);
 router.get('/orders/:id', requirePermission('PURCHASE', 'PURCHASE_ORDER'), purchaseController.getOrder);

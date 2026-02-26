@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/config';
+import { resolveTenantClientByCompanyId, withTenantClient } from '../config/tenant';
 import { UnauthorizedError, ForbiddenError } from './errorHandler';
 import { prisma } from '../config/database';
 import { ModuleCode, ActionType } from '../constants/permissions';
@@ -84,21 +85,35 @@ export const authenticate = async (
     // Verify user still exists and is active
     const user = await prisma.user.findUnique({
       where: { id: decoded.userId },
-      select: { id: true, code: true, isActive: true, groupId: true },
+      select: { id: true, code: true, isActive: true, groupId: true, companyId: true, isAdmin: true, email: true },
     });
 
     if (!user || !user.isActive) {
       throw UnauthorizedError('User not found or inactive');
     }
 
-    req.user = decoded;
+    req.user = {
+      userId: user.id,
+      userCode: user.code,
+      email: user.email ?? undefined,
+      groupId: user.groupId,
+      companyId: user.companyId ?? undefined,
+      isAdmin: user.isAdmin,
+    };
     
     // Load permissions for non-admin users
     if (!decoded.isAdmin) {
       req.permissions = await loadGroupPermissions(decoded.groupId);
     }
-    
-    next();
+    const companyId = req.user.companyId;
+    if (companyId) {
+      const tenantClient = await resolveTenantClientByCompanyId(companyId);
+      await withTenantClient(tenantClient, async () => {
+        next();
+      });
+    } else {
+      next();
+    }
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
       next(UnauthorizedError('Token expired'));

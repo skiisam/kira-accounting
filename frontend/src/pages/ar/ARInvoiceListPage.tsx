@@ -68,9 +68,13 @@ export default function ARInvoiceListPage({ type = 'invoice' }: { type?: string 
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-        <button onClick={() => navigate(`/ar/${type}s/new`)} className="btn btn-primary">
+        <button
+          onClick={() => isPayment ? navigate('/ar/payments/new') : navigate('/sales/new/invoice')}
+          className="btn btn-primary"
+          title={isPayment ? 'New AR Payment' : 'Create Sales Invoice (auto-posts to AR)'}
+        >
           <PlusIcon className="w-5 h-5 mr-2" />
-          New
+          {isPayment ? 'New Payment' : 'New Sales Invoice'}
         </button>
       </div>
 

@@ -23,25 +23,32 @@ interface RegisterForm {
   phone?: string;
 }
 
-interface RegisterResponse {
-  user: {
-    id: number;
-    code: string;
-    name: string;
-    email?: string;
-    isAdmin: boolean;
-    group: string;
-    company?: string;
-  };
-  company: {
-    id: number;
-    code: string;
-    name: string;
-    setupComplete: boolean;
-  };
-  accessToken: string;
-  refreshToken: string;
-}
+type RegisterResponse =
+  | {
+      verificationRequired: true;
+      verificationToken: string;
+      email: string;
+      userCode: string;
+    }
+  | {
+      user: {
+        id: number;
+        code: string;
+        name: string;
+        email?: string;
+        isAdmin: boolean;
+        group: string;
+        company?: string;
+      };
+      company: {
+        id: number;
+        code: string;
+        name: string;
+        setupComplete: boolean;
+      };
+      accessToken: string;
+      refreshToken: string;
+    };
 
 export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
@@ -67,9 +74,21 @@ export default function RegisterPage() {
         phone: data.phone,
       });
       
-      login(response.user, response.accessToken, response.refreshToken);
-      toast.success('Registration successful! Let\'s set up your company.');
-      navigate('/setup');
+      if ('verificationRequired' in response && response.verificationRequired) {
+        toast.success('We sent a verification code to your email');
+        navigate('/verify-email', {
+          state: {
+            token: response.verificationToken,
+            email: response.email,
+            userCode: response.userCode,
+          },
+        });
+      } else {
+        const r = response as any;
+        login(r.user, r.accessToken, r.refreshToken);
+        toast.success('Registration successful! Let\'s set up your company.');
+        navigate('/setup');
+      }
     } catch (error: any) {
       toast.error(error.response?.data?.error?.message || 'Registration failed');
     } finally {

@@ -7,6 +7,33 @@ import { Prisma } from '@prisma/client';
 export class ProductController extends BaseController<any> {
   protected modelName = 'Product';
 
+  nextCode = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const prefix = (req.query.prefix as string)?.toUpperCase();
+      const width = parseInt((req.query.width as string) || '3');
+      if (!prefix) throw BadRequestError('Missing prefix');
+
+      const existing = await prisma.product.findMany({
+        where: { code: { startsWith: prefix } },
+        select: { code: true },
+        orderBy: { code: 'asc' },
+      });
+
+      let max = 0;
+      for (const p of existing) {
+        const m = p.code.match(/(\d+)$/);
+        if (m) {
+          const num = parseInt(m[1], 10);
+          if (num > max) max = num;
+        }
+      }
+      const next = (max + 1).toString().padStart(width, '0');
+      this.successResponse(res, { code: `${prefix}${next}` });
+    } catch (error) {
+      next(error);
+    }
+  };
+
   list = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { skip, take, page, pageSize } = this.getPagination(req);

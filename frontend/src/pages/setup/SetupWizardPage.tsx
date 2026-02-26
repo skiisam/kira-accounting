@@ -201,6 +201,9 @@ export default function SetupWizardPage() {
   };
 
   const selectedCountry = COUNTRIES.find((c) => c.code === data.country);
+  const handleSkip = () => {
+    navigate('/dashboard');
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-slate-900">
@@ -761,14 +764,19 @@ export default function SetupWizardPage() {
           </div>
 
           {/* Footer */}
-          <div className="px-8 py-4 bg-gray-50 dark:bg-slate-900/50 flex justify-between">
-            <button
+          <div className="px-8 py-4 bg-gray-50 dark:bg-slate-900/50 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <button
               onClick={handleBack}
               disabled={currentStep === 1}
               className={`btn btn-secondary ${currentStep === 1 ? 'invisible' : ''}`}
             >
               Back
             </button>
+              <button onClick={handleSkip} className="btn">
+                Skip for now
+              </button>
+            </div>
             {currentStep < 7 ? (
               <button onClick={handleNext} className="btn btn-primary">
                 Next

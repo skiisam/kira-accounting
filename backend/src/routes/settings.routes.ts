@@ -7,8 +7,18 @@ const settingsController = new SettingsController();
 
 router.use(authenticate);
 
+// Companies
+router.get('/companies', settingsController.listCompanies);
+router.post('/companies', requireAdmin, settingsController.createCompany);
+router.post('/select-company', settingsController.selectCompany);
+router.get('/setup-status', settingsController.setupStatus);
+
 // My Permissions (for current user)
 router.get('/my-permissions', settingsController.getMyPermissions);
+
+// Tenants
+router.post('/tenants/provision-missing', requireAdmin, settingsController.provisionMissingTenants);
+router.post('/tenants/migrate/:id?', requireAdmin, settingsController.migrateCompanyMinimal);
 
 // Setup Wizard
 router.post('/setup-wizard', requireAdmin, settingsController.setupWizard);

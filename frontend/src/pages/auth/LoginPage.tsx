@@ -34,6 +34,8 @@ interface LoginResponse {
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
+  const [needsMfa, setNeedsMfa] = useState(false);
+  const [totpCode, setTotpCode] = useState('');
   const navigate = useNavigate();
   const login = useAuthStore((state) => state.login);
   const { isDark, setMode } = useThemeStore();
@@ -43,12 +45,21 @@ export default function LoginPage() {
   const onSubmit = async (data: LoginForm) => {
     setLoading(true);
     try {
-      const response = await post<LoginResponse>('/auth/login', data);
+      const body = needsMfa ? { ...data, totpCode } : data;
+      const response = await post<LoginResponse>('/auth/login', body);
       login(response.user, response.accessToken, response.refreshToken);
       toast.success(`Welcome, ${response.user.name}!`);
-      navigate('/dashboard');
+      navigate('/company/select');
     } catch (error: any) {
-      toast.error(error.response?.data?.error?.message || 'Login failed');
+      const err = error.response?.data?.error;
+      if (err?.code === 'MFA_REQUIRED') {
+        setNeedsMfa(true);
+        toast.error('Two-factor code required');
+      } else if (err?.code === 'MFA_INVALID') {
+        toast.error('Invalid two-factor code');
+      } else {
+        toast.error(err?.message || 'Login failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -177,6 +188,23 @@ export default function LoginPage() {
                   <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
                 )}
               </div>
+              
+              {needsMfa && (
+                <div>
+                  <label htmlFor="totpCode" className="label">Two-Factor Code</label>
+                  <input
+                    id="totpCode"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    placeholder="Enter 6-digit code"
+                    value={totpCode}
+                    onChange={(e) => setTotpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    className="input"
+                  />
+                </div>
+              )}
 
               <button
                 type="submit"

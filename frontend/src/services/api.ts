@@ -5,7 +5,22 @@ import * as mockData from './mockData';
 // Check if we're in demo mode (explicit opt-in only)
 const DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
+let API_BASE_URL: string = import.meta.env.VITE_API_URL || '/api/v1';
+if (typeof window !== 'undefined') {
+  const cached = localStorage.getItem('apiBaseURL');
+  if (cached) {
+    API_BASE_URL = cached;
+  } else {
+    const configured = import.meta.env.VITE_API_URL || '/api/v1';
+    const isAbsolute = /^https?:\/\//i.test(configured);
+    if (!isAbsolute) {
+      const host = window.location.hostname;
+      if (host === 'localhost' || host === '127.0.0.1') {
+        API_BASE_URL = 'http://localhost:3001' + (configured.startsWith('/') ? configured : '/' + configured);
+      }
+    }
+  }
+}
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -13,6 +28,32 @@ export const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+async function detectApiBase() {
+  if (typeof window === 'undefined') return;
+  const configured = import.meta.env.VITE_API_URL;
+  if (configured && /^https?:\/\//i.test(configured)) return;
+  const rel = import.meta.env.VITE_API_URL || '/api/v1';
+  const origins: string[] = [window.location.origin];
+  const host = window.location.hostname;
+  if (host === 'localhost' || host === '127.0.0.1') {
+    origins.push('http://localhost:3001', 'http://127.0.0.1:3001');
+  }
+  for (const origin of origins) {
+    try {
+      const health = origin.replace(/\/$/, '') + '/health';
+      const r = await fetch(health, { credentials: 'include' });
+      if (r.ok) {
+        const base = origin.replace(/\/$/, '') + (rel.startsWith('/') ? rel : '/' + rel);
+        api.defaults.baseURL = base;
+        localStorage.setItem('apiBaseURL', base);
+        return;
+      }
+    } catch {}
+  }
+  api.defaults.baseURL = rel;
+}
+detectApiBase();
 
 // Request interceptor - add auth token
 api.interceptors.request.use(
@@ -534,8 +575,31 @@ export async function post<T>(url: string, data?: any): Promise<T> {
       return Promise.reject(err);
     }
   }
-  const response = await api.post<ApiResponse<T>>(url, data);
-  return response.data.data;
+  try {
+    const response = await api.post<ApiResponse<T>>(url, data);
+    return response.data.data;
+  } catch (err: any) {
+    const status = err?.response?.status;
+    const configuredBase = API_BASE_URL;
+    const altBase = configuredBase.endsWith('/v1') ? configuredBase.replace(/\/v1$/, '') : '';
+    if (status === 404 && altBase && altBase !== configuredBase) {
+      try {
+        const token = useAuthStore.getState().accessToken;
+        const alt = axios.create({ 
+          baseURL: altBase, 
+          headers: { 
+            'Content-Type': 'application/json', 
+            ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+          } 
+        });
+        const resp = await alt.post<ApiResponse<T>>(url, data);
+        return resp.data.data;
+      } catch (err2) {
+        throw err;
+      }
+    }
+    throw err;
+  }
 }
 
 export async function put<T>(url: string, data?: any): Promise<T> {

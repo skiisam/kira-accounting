@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
 import { isDemoMode } from '../../services/api';
+import { useQuery } from '@tanstack/react-query';
+import { get } from '../../services/api';
 import LanguageSwitcher from '../common/LanguageSwitcher';
 import {
   HomeIcon,
@@ -245,6 +247,7 @@ function ThemeToggle() {
 export default function MainLayout() {
   const { t } = useTranslation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [navSearch, setNavSearch] = useState('');
   const { user, logout } = useAuthStore();
   const { isDark } = useThemeStore();
   const navigate = useNavigate();
@@ -253,6 +256,30 @@ export default function MainLayout() {
     logout();
     navigate('/login');
   };
+
+  const { data: companyData } = useQuery({
+    queryKey: ['current-company'],
+    queryFn: () => get('/settings/company'),
+  });
+  const currentCompany = (companyData as any)?.data || companyData;
+
+  const filteredNavigation = useMemo(() => {
+    const q = navSearch.trim().toLowerCase();
+    if (!q) return navigation;
+    const match = (label: string) => t(label).toLowerCase().includes(q) || label.toLowerCase().includes(q);
+    return navigation
+      .map((item) => {
+        if ('children' in item && item.children) {
+          const childMatches = item.children.filter((c) => match(c.nameKey));
+          if (match(item.nameKey) || childMatches.length > 0) {
+            return { ...item, children: childMatches.length > 0 || match(item.nameKey) ? (childMatches.length > 0 ? childMatches : item.children) : [] };
+          }
+          return null;
+        }
+        return match(item.nameKey) ? item : null;
+      })
+      .filter(Boolean) as typeof navigation;
+  }, [navSearch, t]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900 transition-colors duration-300">
@@ -277,8 +304,18 @@ export default function MainLayout() {
               <XMarkIcon className="w-6 h-6" />
             </button>
           </div>
-          <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-4rem)]">
-            {navigation.map((item) => (
+          <div className="p-4 border-b border-white/10">
+            <div className="relative">
+              <input
+                value={navSearch}
+                onChange={(e) => setNavSearch(e.target.value)}
+                placeholder="Find menu..."
+                className="w-full input bg-white/10 text-white placeholder-white/60 border-white/20"
+              />
+            </div>
+          </div>
+          <nav className="p-4 space-y-2 overflow-y-auto h-[calc(100vh-6.5rem)]">
+            {filteredNavigation.map((item) => (
               <NavItem key={item.nameKey} item={item} mobile t={t} />
             ))}
           </nav>
@@ -301,8 +338,16 @@ export default function MainLayout() {
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-1.5 overflow-y-auto h-[calc(100vh-8rem)]">
-          {navigation.map((item, index) => (
+        <div className="p-4">
+          <input
+            value={navSearch}
+            onChange={(e) => setNavSearch(e.target.value)}
+            placeholder="Find menu..."
+            className="input w-full bg-white/10 text-white placeholder-white/60 border-white/20"
+          />
+        </div>
+        <nav className="px-4 pb-4 space-y-1.5 overflow-y-auto h-[calc(100vh-10.5rem)]">
+          {filteredNavigation.map((item, index) => (
             <div key={item.nameKey} style={{ animationDelay: `${index * 50}ms` }} className="animate-slide-in">
               <NavItem item={item} t={t} />
             </div>
@@ -329,10 +374,15 @@ export default function MainLayout() {
               <Bars3Icon className="w-6 h-6" />
             </button>
             
-            {/* Demo mode indicator & search placeholder */}
-            <div className="flex-1 px-4 flex items-center gap-4">
+            {/* Left section: company name + demo indicator */}
+            <div className="flex-1 px-4 flex items-center gap-3 min-w-0">
+              {currentCompany?.name && (
+                <h1 className="text-sm sm:text-base font-semibold tracking-wide text-gray-800 dark:text-gray-100 truncate">
+                  {currentCompany.name}
+                </h1>
+              )}
               {isDemoMode && (
-                <span className="px-3 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-medium shadow-lg animate-pulse">
+                <span className="px-2.5 py-1 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[11px] font-medium shadow-lg">
                   🎮 DEMO MODE
                 </span>
               )}
@@ -364,6 +414,16 @@ export default function MainLayout() {
                   {user?.name?.charAt(0) || 'U'}
                 </div>
               </div>
+              {/* Quick company switch (icon) */}
+              {currentCompany?.name && (
+                <button
+                  title="Switch company"
+                  onClick={() => navigate('/company/select')}
+                  className="hidden sm:inline-flex ml-2 px-2 py-1 text-xs rounded-md bg-indigo-100 text-indigo-700 hover:bg-indigo-200 dark:bg-slate-700 dark:text-indigo-200 dark:hover:bg-slate-600"
+                >
+                  Switch
+                </button>
+              )}
               
               <button
                 onClick={handleLogout}

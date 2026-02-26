@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { get, post, put } from '../../services/api';
+import { DocumentDuplicateIcon } from '@heroicons/react/24/outline';
 
 // Social platform config
 const socialPlatforms = [
@@ -63,7 +64,7 @@ export default function CustomerFormPage() {
   const [socialProfiles, setSocialProfiles] = useState<SocialProfile[]>([]);
   const [showSocialActivities, setShowSocialActivities] = useState(false);
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<CustomerForm>({
+  const { register, handleSubmit, reset, formState: { errors }, setValue, watch } = useForm<CustomerForm>({
     defaultValues: {
       currencyCode: 'MYR',
       creditTermDays: 30,
@@ -71,6 +72,7 @@ export default function CustomerFormPage() {
       country: 'Malaysia',
     },
   });
+  const watchName = watch('name');
 
   const handleAddSocialProfile = (platform: string, handle: string) => {
     if (!handle.trim()) return;
@@ -128,11 +130,40 @@ export default function CustomerFormPage() {
           <div className="card-body grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div>
               <label className="label">Customer Code *</label>
-              <input
-                {...register('code', { required: 'Code is required' })}
-                className={`input ${errors.code ? 'input-error' : ''}`}
-                disabled={isEdit}
-              />
+              <div className="flex gap-2">
+                <input
+                  {...register('code', { required: 'Code is required' })}
+                  className={`input flex-1 ${errors.code ? 'input-error' : ''}`}
+                  disabled={isEdit}
+                />
+                {!isEdit && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    title="Auto Generate"
+                    onClick={async () => {
+                      const initial = (watchName || '').trim().charAt(0)?.toUpperCase();
+                      if (!initial) {
+                        toast.error('Enter Company Name first');
+                        return;
+                      }
+                      try {
+                        const prefix = `300-${initial}`;
+                        const resp = await get<any>('/customers/next-code', { prefix });
+                        if (resp?.code) {
+                          setValue('code', resp.code);
+                          toast.success(`Generated ${resp.code}`);
+                        }
+                      } catch (e: any) {
+                        toast.error('Failed to generate code');
+                      }
+                    }}
+                  >
+                    <DocumentDuplicateIcon className="w-5 h-5" />
+                    Auto
+                  </button>
+                )}
+              </div>
               {errors.code && <p className="mt-1 text-sm text-red-600">{errors.code.message}</p>}
             </div>
             <div className="md:col-span-2">

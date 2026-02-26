@@ -12,6 +12,7 @@ router.use(authenticate);
 router.get('/', requirePermission('AR', 'CUSTOMER'), customerController.list);
 router.get('/search', requirePermission('AR', 'CUSTOMER'), customerController.search);
 router.get('/lookup', requirePermission('AR', 'CUSTOMER'), customerController.lookup);
+router.get('/next-code', requirePermission('AR', 'CUSTOMER'), customerController.nextCode);
 
 // CRUD
 router.get('/:id', requirePermission('AR', 'CUSTOMER'), customerController.getById);

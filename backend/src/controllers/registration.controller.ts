@@ -6,6 +6,8 @@ import { config } from '../config/config';
 import { BadRequestError } from '../middleware/errorHandler';
 import { logger } from '../utils/logger';
 import { JwtPayload } from '../middleware/auth';
+import { messagingService } from '../services/messaging.service';
+import { provisionTenantDatabase } from '../services/tenantProvisioning.service';
 
 export class RegistrationController {
   /**
@@ -74,21 +76,120 @@ export class RegistrationController {
             groupId: userGroup.id,
             companyId: company.id,
             isAdmin: true,
-            isActive: true,
+            isActive: false,
           },
         });
 
-        return { company, userGroup, user };
+        return { company, userGroup, user, hashedPassword };
       });
 
-      // Generate tokens
+      // Provision dedicated tenant database for this company
+      try {
+        const tenantUrl = await provisionTenantDatabase({
+          companyId: result.company.id,
+          companyCode: result.company.code,
+          companyName: result.company.name,
+          userGroupId: result.userGroup.id,
+          userId: result.user.id,
+          userCode: result.user.code,
+          userName: result.user.name,
+          email: result.user.email,
+          passwordHash: result.hashedPassword,
+        });
+        await (prisma as any).company.update({
+          where: { id: result.company.id },
+          data: { dbUrl: tenantUrl },
+        });
+      } catch (e) {
+        // If provisioning fails, abort registration
+        throw BadRequestError('Failed to provision dedicated database. Please try again later.');
+      }
+
+      // Generate a 6-digit email verification code
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const verificationToken = jwt.sign(
+        { type: 'email_verification', userId: result.user.id, email: result.user.email, code },
+        config.jwt.secret,
+        { expiresIn: '15m' as any }
+      );
+
+      // Send verification email (placeholder implementation)
+      const maskedEmail = this.maskEmail(result.user.email || '');
+      try {
+        await messagingService.sendEmail({
+          to: result.user.email || '',
+          subject: 'Verify your email',
+          body: [
+            `Hi ${result.user.name},`,
+            '',
+            'Welcome to KIRA Accounting!',
+            '',
+            `Your verification code is: ${code}`,
+            '',
+            'This code will expire in 15 minutes.',
+            '',
+            'If you did not create this account, please ignore this email.'
+          ].join('\n')
+        });
+      } catch (e) {
+        logger.warn('Failed to send verification email, but proceeding with registration:', e);
+      }
+
+      logger.info(`New company registered: ${result.company.code} by user: ${result.user.code}. Email verification required.`);
+
+      res.status(201).json({
+        success: true,
+        data: {
+          verificationRequired: true,
+          verificationToken,
+          email: maskedEmail,
+          userCode: result.user.code,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Verify email with code
+   */
+  verifyEmail = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { token, code } = req.body as { token?: string; code?: string };
+      if (!token || !code) {
+        throw BadRequestError('Verification token and code are required');
+      }
+
+      const decoded = jwt.verify(token, config.jwt.secret) as any;
+      if (!decoded || decoded.type !== 'email_verification') {
+        throw BadRequestError('Invalid verification token');
+      }
+
+      if (decoded.code !== code) {
+        throw BadRequestError('Invalid verification code');
+      }
+
+      const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+      if (!user) {
+        throw BadRequestError('User not found');
+      }
+
+      // Activate user
+      const updated = await prisma.user.update({
+        where: { id: user.id },
+        data: { isActive: true },
+        include: { group: true, company: true },
+      });
+
+      // Issue tokens after successful verification
       const payload: JwtPayload = {
-        userId: result.user.id,
-        userCode: result.user.code,
-        email: result.user.email ?? undefined,
-        groupId: result.user.groupId,
-        companyId: result.company.id,
-        isAdmin: result.user.isAdmin,
+        userId: updated.id,
+        userCode: updated.code,
+        email: updated.email ?? undefined,
+        groupId: updated.groupId,
+        companyId: updated.companyId ?? undefined,
+        isAdmin: updated.isAdmin,
       };
 
       const accessToken = jwt.sign(payload, config.jwt.secret, {
@@ -99,29 +200,85 @@ export class RegistrationController {
         expiresIn: config.jwt.refreshExpiresIn as any,
       });
 
-      logger.info(`New company registered: ${result.company.code} by user: ${result.user.code}`);
-
-      res.status(201).json({
+      res.json({
         success: true,
         data: {
           user: {
-            id: result.user.id,
-            code: result.user.code,
-            name: result.user.name,
-            email: result.user.email,
-            isAdmin: result.user.isAdmin,
-            group: result.userGroup.name,
-            company: result.company.name,
+            id: updated.id,
+            code: updated.code,
+            name: updated.name,
+            email: updated.email,
+            isAdmin: updated.isAdmin,
+            group: updated.group.name,
+            company: updated.company?.name,
           },
-          company: {
-            id: result.company.id,
-            code: result.company.code,
-            name: result.company.name,
-            setupComplete: false,
-          },
+          company: updated.company
+            ? {
+                id: updated.company.id,
+                code: updated.company.code,
+                name: updated.company.name,
+                setupComplete: false,
+              }
+            : undefined,
           accessToken,
           refreshToken,
           expiresIn: config.jwt.expiresIn,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Resend verification email
+   */
+  resendVerification = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { token } = req.body as { token?: string };
+      if (!token) {
+        throw BadRequestError('Verification token is required');
+      }
+
+      const decoded = jwt.verify(token, config.jwt.secret) as any;
+      if (!decoded || decoded.type !== 'email_verification') {
+        throw BadRequestError('Invalid verification token');
+      }
+
+      const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
+      if (!user || user.isActive) {
+        throw BadRequestError('User not found or already verified');
+      }
+
+      const newCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const newToken = jwt.sign(
+        { type: 'email_verification', userId: user.id, email: user.email, code: newCode },
+        config.jwt.secret,
+        { expiresIn: '15m' as any }
+      );
+
+      const maskedEmail = this.maskEmail(user.email || '');
+      try {
+        await messagingService.sendEmail({
+          to: user.email || '',
+          subject: 'Your new verification code',
+          body: [
+            `Hi ${user.name},`,
+            '',
+            `Your new verification code is: ${newCode}`,
+            '',
+            'This code will expire in 15 minutes.',
+          ].join('\n')
+        });
+      } catch (e) {
+        logger.warn('Failed to resend verification email:', e);
+      }
+
+      res.json({
+        success: true,
+        data: {
+          verificationToken: newToken,
+          email: maskedEmail,
         },
       });
     } catch (error) {
@@ -164,6 +321,13 @@ export class RegistrationController {
       next(error);
     }
   };
+
+  private maskEmail(email: string): string {
+    const [user, domain] = email.split('@');
+    if (!user || !domain) return email;
+    const maskedUser = user.length <= 2 ? user[0] + '*' : user[0] + '*'.repeat(user.length - 2) + user[user.length - 1];
+    return `${maskedUser}@${domain}`;
+  }
 
   /**
    * Setup wizard - Step 2: Fiscal Year

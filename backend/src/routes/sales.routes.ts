@@ -26,6 +26,7 @@ router.delete('/orders/:id', requirePermission('SALES', 'SALES_ORDER'), salesCon
 router.post('/orders/:id/transfer', requirePermission('SALES', 'SALES_ORDER'), salesController.transferOrder);
 router.get('/orders/:id/transferable-lines', requirePermission('SALES', 'SALES_ORDER'), salesController.getTransferableLines);
 router.post('/orders/:id/void', requirePermission('SALES', 'SALES_ORDER'), salesController.voidDocument);
+router.get('/orders/:id/stock-check', requirePermission('SALES', 'SALES_ORDER'), salesController.stockCheckForOrder);
 
 // Delivery Orders
 router.get('/delivery-orders', requirePermission('SALES', 'DELIVERY_ORDER'), salesController.listDeliveryOrders);
@@ -45,6 +46,9 @@ router.put('/invoices/:id', requirePermission('SALES', 'INVOICE'), salesControll
 router.delete('/invoices/:id', requirePermission('SALES', 'INVOICE'), salesController.deleteInvoice);
 router.post('/invoices/:id/post', requirePermission('SALES', 'INVOICE'), salesController.postInvoice);
 router.post('/invoices/:id/void', requirePermission('SALES', 'INVOICE'), salesController.voidDocument);
+
+// Pricing helpers
+router.get('/price-history', requirePermission('SALES', 'VIEW'), salesController.getPriceHistory);
 
 // Cash Sales
 router.get('/cash-sales', requirePermission('SALES', 'CASH_SALE'), salesController.listCashSales);

@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { MagnifyingGlassIcon } from '@heroicons/react/24/outline';
-import { getPaginated } from '../../services/api';
+import { MagnifyingGlassIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
+import { get, getPaginated } from '../../services/api';
 import DataTable from '../../components/common/DataTable';
 import NewDocumentDropdown from '../../components/common/NewDocumentDropdown';
 import { format } from 'date-fns';
@@ -19,6 +19,7 @@ interface PurchaseDocument {
 }
 
 const typeConfig: Record<string, { title: string; endpoint: string; newPath: string }> = {
+  request: { title: 'Purchase Requests', endpoint: '/purchases/requests', newPath: '/purchases/new/request' },
   order: { title: 'Purchase Orders', endpoint: '/purchases/orders', newPath: '/purchases/new/order' },
   grn: { title: 'Goods Received Notes', endpoint: '/purchases/grn', newPath: '/purchases/new/grn' },
   invoice: { title: 'Purchase Invoices', endpoint: '/purchases/invoices', newPath: '/purchases/new/invoice' },
@@ -55,6 +56,27 @@ export default function PurchaseListPage({ type }: { type: string }) {
         <span className={`badge ${row.status === 'OPEN' ? 'badge-info' : row.status === 'POSTED' ? 'badge-success' : 'badge-gray'}`}>
           {row.status}
         </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: '',
+      render: (row: PurchaseDocument) => (
+        <button
+          title="Copy"
+          className="btn btn-ghost btn-xs"
+          onClick={async (e) => {
+            e.stopPropagation();
+            try {
+              const doc = await get<any>(`${typeConfig[type].endpoint}/${row.id}`);
+              navigate(typeConfig[type].newPath, { state: { transferFrom: doc } });
+            } catch {
+              // ignore
+            }
+          }}
+        >
+          <DocumentDuplicateIcon className="w-5 h-5" />
+        </button>
       ),
     },
   ];

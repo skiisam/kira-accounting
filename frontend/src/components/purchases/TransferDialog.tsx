@@ -96,12 +96,12 @@ export default function PurchaseTransferDialog({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+      <div className="bg-white text-gray-900 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <h2 className="text-xl font-semibold">Transfer to {targetLabel}</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+        <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-100">
+          <h2 className="text-lg font-semibold text-gray-900">Transfer to {targetLabel}</h2>
+          <button onClick={onClose} className="text-gray-600 hover:text-gray-900">
             <XMarkIcon className="w-6 h-6" />
           </button>
         </div>
@@ -115,22 +115,22 @@ export default function PurchaseTransferDialog({
           ) : (
             <>
               {/* Transfer Mode Toggle */}
-              <div className="mb-4 flex items-center gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
+              <div className="mb-4 flex items-center gap-6">
+                <label className="flex items-center gap-2 cursor-pointer text-gray-900 font-medium">
                   <input
                     type="radio"
                     checked={transferAll}
                     onChange={() => setTransferAll(true)}
-                    className="form-radio"
+                    className="form-radio accent-primary-600"
                   />
                   <span>Transfer All Outstanding</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer">
+                <label className="flex items-center gap-2 cursor-pointer text-gray-900 font-medium">
                   <input
                     type="radio"
                     checked={!transferAll}
                     onChange={() => setTransferAll(false)}
-                    className="form-radio"
+                    className="form-radio accent-primary-600"
                   />
                   <span>Partial Transfer</span>
                 </label>
@@ -139,25 +139,25 @@ export default function PurchaseTransferDialog({
               {/* Lines Table */}
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-2">#</th>
-                    <th className="text-left py-2">Code</th>
-                    <th className="text-left py-2">Description</th>
-                    <th className="text-right py-2">Original Qty</th>
-                    <th className="text-right py-2">Outstanding</th>
-                    {!transferAll && <th className="text-right py-2 w-32">Transfer Qty</th>}
+                  <tr className="border-b bg-gray-100 text-gray-700">
+                    <th className="text-left py-2 px-2">#</th>
+                    <th className="text-left py-2 px-2">Code</th>
+                    <th className="text-left py-2 px-2">Description</th>
+                    <th className="text-right py-2 px-2">Original Qty</th>
+                    <th className="text-right py-2 px-2">Outstanding</th>
+                    {!transferAll && <th className="text-right py-2 px-2 w-32">Transfer Qty</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {lines.map((line, index) => (
-                    <tr key={line.id} className="border-b">
-                      <td className="py-2">{line.lineNo}</td>
-                      <td className="py-2 font-mono">{line.productCode}</td>
-                      <td className="py-2">{line.description}</td>
-                      <td className="py-2 text-right">{line.quantity.toFixed(2)}</td>
-                      <td className="py-2 text-right font-semibold">{line.outstandingQty.toFixed(2)}</td>
+                    <tr key={line.id} className="border-b hover:bg-gray-50">
+                      <td className="py-2 px-2 text-gray-800">{line.lineNo}</td>
+                      <td className="py-2 px-2 font-mono text-gray-900">{line.productCode}</td>
+                      <td className="py-2 px-2 text-gray-800">{line.description}</td>
+                      <td className="py-2 px-2 text-right text-gray-900">{line.quantity.toFixed(2)}</td>
+                      <td className="py-2 px-2 text-right font-semibold text-primary-700">{line.outstandingQty.toFixed(2)}</td>
                       {!transferAll && (
-                        <td className="py-2">
+                        <td className="py-2 px-2">
                           <input
                             type="number"
                             min="0"
@@ -174,9 +174,9 @@ export default function PurchaseTransferDialog({
                 </tbody>
                 {!transferAll && (
                   <tfoot>
-                    <tr className="font-bold">
-                      <td colSpan={5} className="py-2 text-right">Total to Transfer:</td>
-                      <td className="py-2 text-right">{totalTransferQty.toFixed(2)}</td>
+                    <tr className="font-semibold text-gray-900">
+                      <td colSpan={5} className="py-2 px-2 text-right">Total to Transfer:</td>
+                      <td className="py-2 px-2 text-right">{totalTransferQty.toFixed(2)}</td>
                     </tr>
                   </tfoot>
                 )}
@@ -186,7 +186,7 @@ export default function PurchaseTransferDialog({
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50">
+        <div className="flex justify-end gap-3 px-6 py-4 border-t bg-gray-100">
           <button onClick={onClose} className="btn btn-secondary">
             Cancel
           </button>

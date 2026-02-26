@@ -166,10 +166,15 @@ export default function APInvoiceFormPage() {
                   <p>{invoice.reference}</p>
                 </div>
               )}
-              {invoice.sourceNo && (
+              {invoice.sourceId && invoice.sourceType === 'PURCHASE_INVOICE' && (
                 <div className="col-span-2">
                   <label className="text-sm text-gray-500">Source Document</label>
-                  <p className="font-mono">{invoice.sourceType}: {invoice.sourceNo}</p>
+                  <button
+                    onClick={() => navigate(`/purchase/invoices/${invoice.sourceId}`)}
+                    className="text-primary-600 hover:underline font-mono"
+                  >
+                    {invoice.sourceType}: {invoice.sourceNo || invoice.sourceId}
+                  </button>
                 </div>
               )}
             </div>
