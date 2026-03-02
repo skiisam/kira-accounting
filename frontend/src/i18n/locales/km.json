@@ -88,7 +88,13 @@
     "socialInbox": "ប្រអប់សង្គម",
     "socialSettings": "ការកំណត់សង្គម",
     "documentScanner": "ស្កេនឯកសារ",
-    "aiReports": "របាយការណ៍ AI"
+    "aiReports": "របាយការណ៍ AI",
+    "stockCard": "កាតស្តុក",
+    "debtorStatement": "របាយការណ៍កូនបំណុល",
+    "creditorStatement": "របាយការណ៍កូនបំណុល",
+    "auditTrail": "ផ្លូវសវនកម្ម",
+    "allReports": "របាយការណ៍ទាំងអស់",
+    "profitLoss": "ចំណេញ & ខាត"
   },
   "auth": {
     "login": "ចូល",

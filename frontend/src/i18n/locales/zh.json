@@ -98,7 +98,15 @@
     "aiReports": "AI报表",
     "einvoice": "电子发票",
     "einvoiceDashboard": "电子发票仪表板",
-    "einvoiceList": "电子发票列表"
+    "einvoiceList": "电子发票列表",
+    "tools": "工具",
+    "reportDesigner": "报表设计器",
+    "stockCard": "库存卡",
+    "debtorStatement": "应收对账单",
+    "creditorStatement": "应付对账单",
+    "auditTrail": "审计跟踪",
+    "allReports": "所有报告",
+    "profitLoss": "损益表"
   },
   "auth": {
     "login": "登录",

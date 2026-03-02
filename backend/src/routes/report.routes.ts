@@ -42,6 +42,10 @@ router.get('/purchase/purchase-by-vendor', requirePermission('REPORTS', 'PURCHAS
 router.get('/purchase/purchase-by-product', requirePermission('REPORTS', 'PURCHASE_ANALYSIS'), reportController.purchaseByProduct);
 router.get('/purchase/outstanding-po', requirePermission('REPORTS', 'OUTSTANDING_PO'), reportController.outstandingPO);
 
+// Debtor/Creditor Statement (alias routes for frontend)
+router.get('/ar/debtor-statement', requirePermission('REPORTS', 'CUSTOMER_STATEMENT'), reportController.customerStatement);
+router.get('/ap/creditor-statement', requirePermission('REPORTS', 'VENDOR_STATEMENT'), reportController.vendorStatement);
+
 // Stock Reports
 router.get('/stock/stock-balance', requirePermission('REPORTS', 'STOCK_BALANCE'), reportController.stockBalance);
 router.get('/stock/stock-card', requirePermission('REPORTS', 'STOCK_CARD'), reportController.stockCard);

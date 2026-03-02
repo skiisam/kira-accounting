@@ -95,7 +95,15 @@
     "aiReports": "Laporan AI",
     "einvoice": "E-Invois",
     "einvoiceDashboard": "Papan Pemuka",
-    "einvoiceList": "Senarai E-Invois"
+    "einvoiceList": "Senarai E-Invois",
+    "tools": "Alatan",
+    "reportDesigner": "Pereka Laporan",
+    "stockCard": "Kad Stok",
+    "debtorStatement": "Penyata Penghutang",
+    "creditorStatement": "Penyata Pemiutang",
+    "auditTrail": "Jejak Audit",
+    "allReports": "Semua Laporan",
+    "profitLoss": "Untung & Rugi"
   },
   "auth": {
     "login": "Log Masuk",

@@ -8,6 +8,7 @@ import { logger } from '../utils/logger';
 import { JwtPayload } from '../middleware/auth';
 import { messagingService } from '../services/messaging.service';
 import { provisionTenantDatabase } from '../services/tenantProvisioning.service';
+import { seedReportTemplatesForCompany } from '../utils/seedReportTemplates';
 
 export class RegistrationController {
   /**
@@ -181,6 +182,15 @@ export class RegistrationController {
         data: { isActive: true },
         include: { group: true, company: true },
       });
+
+      // Seed default report templates for the company
+      if (updated.companyId) {
+        try {
+          await seedReportTemplatesForCompany(updated.companyId);
+        } catch (e) {
+          logger.warn('Failed to seed report templates:', e);
+        }
+      }
 
       // Issue tokens after successful verification
       const payload: JwtPayload = {

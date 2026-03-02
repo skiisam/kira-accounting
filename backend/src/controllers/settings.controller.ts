@@ -1230,9 +1230,79 @@ export class SettingsController {
     }
   };
 
-  createProductGroup = stubHandler('Create Product Group');
-  updateProductGroup = stubHandler('Update Product Group');
-  deleteProductGroup = stubHandler('Delete Product Group');
+  createProductGroup = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = req.body;
+      if (!data.code || !data.name) {
+        res.status(400).json({ success: false, error: { message: 'Code and name are required' } });
+        return;
+      }
+      const group = await prisma.productGroup.create({
+        data: {
+          code: data.code,
+          name: data.name,
+          parentId: data.parentId || null,
+          salesAccountId: data.salesAccountId || null,
+          purchaseAccountId: data.purchaseAccountId || null,
+          stockAccountId: data.stockAccountId || null,
+          cogsAccountId: data.cogsAccountId || null,
+          displayOrder: data.displayOrder || 0,
+          isActive: data.isActive !== false,
+        },
+      });
+      res.json({ success: true, data: group, message: 'Product group created' });
+    } catch (error) {
+      next(error);
+    }
+  };
+  updateProductGroup = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const existing = await prisma.productGroup.findUnique({ where: { id } });
+      if (!existing) {
+        res.status(404).json({ success: false, error: { message: 'Product group not found' } });
+        return;
+      }
+      const data = req.body;
+      const updated = await prisma.productGroup.update({
+        where: { id },
+        data: {
+          code: data.code ?? existing!.code,
+          name: data.name ?? existing!.name,
+          parentId: data.parentId !== undefined ? data.parentId : existing!.parentId,
+          salesAccountId: data.salesAccountId !== undefined ? data.salesAccountId : existing!.salesAccountId,
+          purchaseAccountId: data.purchaseAccountId !== undefined ? data.purchaseAccountId : existing!.purchaseAccountId,
+          stockAccountId: data.stockAccountId !== undefined ? data.stockAccountId : existing!.stockAccountId,
+          cogsAccountId: data.cogsAccountId !== undefined ? data.cogsAccountId : existing!.cogsAccountId,
+          displayOrder: data.displayOrder !== undefined ? data.displayOrder : existing!.displayOrder,
+          isActive: data.isActive !== undefined ? data.isActive : existing!.isActive,
+        },
+      });
+      res.json({ success: true, data: updated, message: 'Product group updated' });
+    } catch (error) {
+      next(error);
+    }
+  };
+  deleteProductGroup = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const id = parseInt(req.params.id);
+      const existing = await prisma.productGroup.findUnique({ where: { id } });
+      if (!existing) {
+        res.status(404).json({ success: false, error: { message: 'Product group not found' } });
+        return;
+      }
+      const hasProducts = await prisma.product.findFirst({ where: { groupId: id } });
+      if (hasProducts) {
+        const deactivated = await prisma.productGroup.update({ where: { id }, data: { isActive: false } });
+        res.json({ success: true, data: deactivated, message: 'Group deactivated (in use by products)' });
+        return;
+      }
+      await prisma.productGroup.delete({ where: { id } });
+      res.json({ success: true, message: 'Product group deleted' });
+    } catch (error) {
+      next(error);
+    }
+  };
 
   // Product Types
   listProductTypes = async (req: Request, res: Response, next: NextFunction) => {

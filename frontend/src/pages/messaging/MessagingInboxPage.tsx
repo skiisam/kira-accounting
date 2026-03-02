@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { get, post } from '../../services/api';
 import DataTable from '../../components/common/DataTable';
@@ -25,6 +25,18 @@ interface Inquiry {
   processedAt?: string;
 }
 
+interface MessageTemplate {
+  id?: number;
+  code: string;
+  name: string;
+  category: string;
+  platform?: string;
+  subject?: string;
+  body: string;
+  isDefault: boolean;
+  isActive: boolean;
+}
+
 const platformIcons: Record<string, string> = {
   WHATSAPP: '💬',
   TELEGRAM: '✈️',
@@ -41,12 +53,22 @@ const statusBadges: Record<string, string> = {
 export default function MessagingInboxPage() {
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>('NEW');
+  const [platformFilter, setPlatformFilter] = useState<string>('ALL');
   const [page, setPage] = useState(1);
   const [selectedInquiry, setSelectedInquiry] = useState<Inquiry | null>(null);
+  const [replyPlatform, setReplyPlatform] = useState<string>('WHATSAPP');
+  const [replyBody, setReplyBody] = useState<string>('');
+  const [selectedTemplateCode, setSelectedTemplateCode] = useState<string>('');
+  const [logsPage] = useState(1);
 
   const { data, isLoading } = useQuery({
     queryKey: ['messaging-inquiries', statusFilter, page],
     queryFn: () => get<any>(`/messaging/inquiries?status=${statusFilter}&page=${page}&pageSize=20`),
+  });
+
+  const { data: templatesData } = useQuery({
+    queryKey: ['messaging-templates'],
+    queryFn: () => get<MessageTemplate[]>(`/messaging/templates`),
   });
 
   const convertToLeadMutation = useMutation({
@@ -59,8 +81,85 @@ export default function MessagingInboxPage() {
     onError: (err: any) => toast.error(err.response?.data?.error?.message || 'Conversion failed'),
   });
 
+  const sendReplyMutation = useMutation({
+    mutationFn: (payload: {
+      platform: string;
+      recipientPhone?: string;
+      recipientChatId?: string;
+      message: string;
+      customerId?: number;
+    }) => post(`/messaging/send`, payload),
+    onSuccess: () => {
+      toast.success('Reply sent');
+      queryClient.invalidateQueries({ queryKey: ['messaging-inquiries'] });
+      setReplyBody('');
+      setSelectedTemplateCode('');
+      // keep modal open for further actions
+    },
+    onError: (err: any) => toast.error(err.response?.data?.error?.message || 'Failed to send'),
+  });
+
   const inquiries: Inquiry[] = data?.data || [];
   const pagination = data?.pagination;
+
+  const filteredInquiries = useMemo(() => {
+    if (platformFilter === 'ALL') return inquiries;
+    return inquiries.filter(i => i.platform === platformFilter);
+  }, [inquiries, platformFilter]);
+
+  const knownPlaceholders = useMemo(
+    () => [
+      'customerName',
+      'documentNo',
+      'amount',
+      'dueDate',
+      'companyName',
+      'invoiceDate',
+      'paymentDate',
+      'outstandingAmount',
+      'daysOverdue',
+    ],
+    []
+  );
+
+  const detectedVariables = useMemo(() => {
+    const vars = new Set<string>();
+    const re = /\{\{\s*(\w+)\s*\}\}/g;
+    let m: RegExpExecArray | null;
+    const source = replyBody || '';
+    // eslint-disable-next-line no-cond-assign
+    while ((m = re.exec(source)) !== null) {
+      vars.add(m[1]);
+    }
+    return Array.from(vars);
+  }, [replyBody]);
+
+  const { data: logsData, isLoading: logsLoading } = useQuery({
+    queryKey: [
+      'messaging-logs',
+      selectedInquiry?.customerId || 'none',
+      selectedInquiry?.platform || 'none',
+      logsPage,
+    ],
+    queryFn: () => {
+      if (!selectedInquiry) return Promise.resolve(null as any);
+      const params = new URLSearchParams();
+      if (selectedInquiry.customerId) params.set('customerId', String(selectedInquiry.customerId));
+      if (selectedInquiry.platform) params.set('platform', selectedInquiry.platform);
+      params.set('page', String(logsPage));
+      params.set('pageSize', '10');
+      return get<any>(`/messaging/logs?${params.toString()}`);
+    },
+    enabled: !!selectedInquiry,
+  });
+
+  const recentLogs = useMemo(() => {
+    const all = logsData?.data || [];
+    if (selectedInquiry?.senderPhone) {
+      return all.filter((l: any) => l.recipientPhone === selectedInquiry.senderPhone).slice(0, 10);
+    }
+    return all.slice(0, 10);
+  }, [logsData, selectedInquiry]);
 
   const columns = [
     {
@@ -121,6 +220,9 @@ export default function MessagingInboxPage() {
           onClick={(e) => {
             e.stopPropagation();
             setSelectedInquiry(row);
+            setReplyPlatform(row.platform || 'WHATSAPP');
+            setReplyBody('');
+            setSelectedTemplateCode('');
           }}
           className="btn btn-secondary btn-sm"
         >
@@ -136,6 +238,22 @@ export default function MessagingInboxPage() {
         <div className="flex items-center gap-3">
           <InboxIcon className="w-6 h-6 text-primary-600" />
           <h1 className="text-2xl font-bold text-gray-900">Messaging Inbox</h1>
+        </div>
+        <div className="flex items-center gap-3">
+          <label className="text-sm text-gray-600">Platform</label>
+          <select
+            value={platformFilter}
+            onChange={(e) => {
+              setPlatformFilter(e.target.value);
+              setPage(1);
+            }}
+            className="input"
+          >
+            <option value="ALL">All</option>
+            <option value="WHATSAPP">WhatsApp</option>
+            <option value="TELEGRAM">Telegram</option>
+            <option value="WECHAT">WeChat</option>
+          </select>
         </div>
       </div>
 
@@ -170,12 +288,12 @@ export default function MessagingInboxPage() {
       <div className="card">
         <DataTable
           columns={columns}
-          data={inquiries}
+          data={filteredInquiries}
           loading={isLoading}
           onRowClick={(row) => setSelectedInquiry(row)}
           pagination={pagination ? { ...pagination, onPageChange: setPage } : undefined}
         />
-        {inquiries.length === 0 && !isLoading && (
+        {filteredInquiries.length === 0 && !isLoading && (
           <div className="text-center py-12 text-gray-500">
             <ChatBubbleLeftRightIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p>No {statusFilter.toLowerCase()} inquiries</p>
@@ -237,6 +355,120 @@ export default function MessagingInboxPage() {
                 <p className="text-xs text-gray-500 mt-1">
                   Received: {new Date(selectedInquiry.createdAt).toLocaleString()}
                 </p>
+              </div>
+
+              {/* Recent Messages */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-500 mb-2">Recent Messages</h4>
+                <div className="bg-white border rounded-lg divide-y max-h-48 overflow-y-auto">
+                  {logsLoading ? (
+                    <div className="p-3 text-sm text-gray-500">Loading…</div>
+                  ) : recentLogs.length === 0 ? (
+                    <div className="p-3 text-sm text-gray-500">No recent messages</div>
+                  ) : (
+                    recentLogs.map((log: any) => (
+                      <div key={log.id} className="p-3 text-sm">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-medium">
+                            {log.direction === 'OUTBOUND' ? 'Sent' : 'Received'}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {new Date(log.createdAt || log.sentAt || new Date()).toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap line-clamp-3">
+                          {log.body}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Quick Reply */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-gray-500">Quick Reply</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="label">Reply via</label>
+                    <select
+                      className="input w-full"
+                      value={replyPlatform}
+                      onChange={(e) => setReplyPlatform(e.target.value)}
+                    >
+                      <option value="WHATSAPP">WhatsApp</option>
+                      <option value="TELEGRAM">Telegram</option>
+                      <option value="WECHAT">WeChat</option>
+                    </select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="label">Insert Template</label>
+                    <select
+                      className="input w-full"
+                      value={selectedTemplateCode}
+                      onChange={(e) => {
+                        const code = e.target.value;
+                        setSelectedTemplateCode(code);
+                        const tpl = (templatesData || []).find((t: MessageTemplate) => t.code === code);
+                        if (tpl) {
+                          setReplyBody(prev => prev ? prev + '\n\n' + tpl.body : tpl.body);
+                        }
+                      }}
+                    >
+                      <option value="">Select a template…</option>
+                      {(templatesData || []).map((t: MessageTemplate) => (
+                        <option key={t.code} value={t.code}>
+                          {t.name} {t.platform ? `(${t.platform})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <textarea
+                  className="input w-full min-h-[120px]"
+                  placeholder="Type your reply…"
+                  value={replyBody}
+                  onChange={(e) => setReplyBody(e.target.value)}
+                />
+                <div className="flex items-center flex-wrap gap-2">
+                  {detectedVariables.length > 0 ? (
+                    detectedVariables.map((v) => (
+                      <span
+                        key={v}
+                        className={`badge ${
+                          knownPlaceholders.includes(v) ? 'badge-success' : 'badge-warning'
+                        }`}
+                        title={
+                          knownPlaceholders.includes(v)
+                            ? 'Known placeholder'
+                            : 'Unknown placeholder'
+                        }
+                      >
+                        {`{{${v}}}`}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs text-gray-500">
+                      No placeholders detected. Supported: {knownPlaceholders.join(', ')}.
+                    </span>
+                  )}
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    className="btn btn-primary"
+                    disabled={sendReplyMutation.isPending || !replyBody.trim()}
+                    onClick={() => {
+                      sendReplyMutation.mutate({
+                        platform: replyPlatform,
+                        recipientPhone: selectedInquiry.senderPhone,
+                        message: replyBody.trim(),
+                        customerId: selectedInquiry.customerId,
+                      });
+                    }}
+                  >
+                    {sendReplyMutation.isPending ? 'Sending…' : 'Send Reply'}
+                  </button>
+                </div>
               </div>
 
               {/* Status */}

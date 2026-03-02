@@ -274,16 +274,18 @@ export class SalesController extends BaseController<any> {
         outstandingQty: number;
         availableQty: number;
         shortfallQty: number;
+        locations: Array<{ locationId: number; locationCode: string; availableQty: number }>;
       }> = [];
 
       // Aggregate stock per product across all locations
       for (const d of order!.details) {
         if (!d.productId) continue;
-        const agg = await prisma.productLocation.aggregate({
+        const balances = await prisma.productLocation.findMany({
           where: { productId: d.productId },
-          _sum: { balanceQty: true },
+          include: { location: { select: { code: true } } },
+          orderBy: { locationId: 'asc' },
         });
-        const available = Number(agg._sum.balanceQty || 0);
+        const available = balances.reduce((sum, b) => sum + Number(b.balanceQty || 0), 0);
         const outstanding = Number(d.outstandingQty || d.quantity || 0);
         const shortfall = Math.max(0, outstanding - available);
         results.push({
@@ -295,6 +297,13 @@ export class SalesController extends BaseController<any> {
           outstandingQty: outstanding,
           availableQty: available,
           shortfallQty: shortfall,
+          locations: balances
+            .filter(b => Number(b.balanceQty) !== 0)
+            .map(b => ({
+              locationId: b.locationId,
+              locationCode: b.location?.code || String(b.locationId),
+              availableQty: Number(b.balanceQty) || 0,
+            })),
         });
       }
 

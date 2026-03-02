@@ -19,7 +19,7 @@ interface DataTableProps<T> {
     onPageChange: (page: number) => void;
   };
   onRowClick?: (row: T) => void;
-  emptyMessage?: string;
+  emptyMessage?: ReactNode;
 }
 
 export default function DataTable<T extends Record<string, any>>({
@@ -44,6 +44,10 @@ export default function DataTable<T extends Record<string, any>>({
   }
 
   if (data.length === 0) {
+    // If emptyMessage is a custom ReactNode (not a string), render it directly
+    if (typeof emptyMessage !== 'string') {
+      return <>{emptyMessage}</>;
+    }
     return (
       <div className="text-center py-16">
         <div className="inline-flex p-4 rounded-full bg-gray-100 dark:bg-slate-700 mb-4">

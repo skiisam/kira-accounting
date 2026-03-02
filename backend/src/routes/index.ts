@@ -12,15 +12,19 @@ import apRoutes from './ap.routes';
 import stockRoutes from './stock.routes';
 import journalRoutes from './journal.routes';
 import reportRoutes from './report.routes';
+import auditRoutes from './audit.routes';
 import settingsRoutes from './settings.routes';
 import codeChangeRoutes from './codeChange.routes';
 import messagingRoutes from './messaging.routes';
 import backupRoutes from './backup.routes';
 import einvoiceRoutes from './einvoice.routes';
 import filesRoutes from './files.routes';
+import bankingRoutes from './banking.routes';
 import dashboardRoutes from './dashboard.routes';
 import accessRightsRoutes from './accessRights.routes';
 import subscriptionRoutes from './subscription.routes';
+import reportTemplateRoutes from './reportTemplate.routes';
+import cashbookRoutes from './cashbook.routes';
 // import crmRoutes from './crm.routes'; // TODO: Fix CRM models
 
 const router = Router();
@@ -42,14 +46,18 @@ router.use('/ap', apRoutes);
 router.use('/stock', stockRoutes);
 router.use('/journals', journalRoutes);
 router.use('/reports', reportRoutes);
+router.use('/audit-trail', auditRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/settings/change-code', codeChangeRoutes);
 router.use('/messaging', messagingRoutes);
 router.use('/backup', backupRoutes);
 router.use('/einvoice', einvoiceRoutes);
 router.use('/files', filesRoutes);
+router.use('/banking', bankingRoutes);
 router.use('/access-rights', accessRightsRoutes);
 router.use('/subscription', subscriptionRoutes);
+router.use('/report-templates', reportTemplateRoutes);
+router.use('/cashbook', cashbookRoutes);
 // router.use('/crm', crmRoutes); // TODO: Fix CRM models
 
 export default router;

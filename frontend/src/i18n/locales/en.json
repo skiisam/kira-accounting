@@ -102,7 +102,15 @@
     "aiReports": "AI Reports",
     "einvoice": "E-Invoice",
     "einvoiceDashboard": "Dashboard",
-    "einvoiceList": "E-Invoice List"
+    "einvoiceList": "E-Invoice List",
+    "tools": "Tools",
+    "reportDesigner": "Report Builder",
+    "stockCard": "Stock Card",
+    "debtorStatement": "Debtor Statement",
+    "creditorStatement": "Creditor Statement",
+    "auditTrail": "Audit Trail",
+    "allReports": "All Reports",
+    "profitLoss": "Profit & Loss"
   },
   "auth": {
     "login": "Sign In",

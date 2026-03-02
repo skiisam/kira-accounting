@@ -26,6 +26,8 @@ import PurchaseListPage from './pages/purchases/PurchaseListPage';
 import PurchaseFormPage from './pages/purchases/PurchaseFormPage';
 import ARInvoiceListPage from './pages/ar/ARInvoiceListPage';
 import ARInvoiceFormPage from './pages/ar/ARInvoiceFormPage';
+import BankSettingsPage from './pages/banking/BankSettingsPage';
+import BankReconciliationPage from './pages/banking/BankReconciliationPage';
 import ARPaymentFormPage from './pages/ar/ARPaymentFormPage';
 import APInvoiceListPage from './pages/ap/APInvoiceListPage';
 import APInvoiceFormPage from './pages/ap/APInvoiceFormPage';
@@ -38,6 +40,18 @@ import StockAdjustmentFormPage from './pages/stock/StockAdjustmentFormPage';
 import StockTransferListPage from './pages/stock/StockTransferListPage';
 import StockTransferFormPage from './pages/stock/StockTransferFormPage';
 import ReportsPage from './pages/reports/ReportsPage';
+import ProfitAndLossPage from './pages/reports/ProfitAndLossPage';
+import StockCardPage from './pages/reports/StockCardPage';
+import DebtorStatementPage from './pages/reports/DebtorStatementPage';
+import CreditorStatementPage from './pages/reports/CreditorStatementPage';
+import AuditTrailPage from './pages/tools/AuditTrailPage';
+import BalanceSheetPage from './pages/reports/BalanceSheetPage';
+import TrialBalancePage from './pages/reports/TrialBalancePage';
+import LedgerPage from './pages/reports/LedgerPage';
+import JournalTransactionPage from './pages/reports/JournalTransactionPage';
+import DebtorAgingPage from './pages/reports/DebtorAgingPage';
+import CreditorAgingPage from './pages/reports/CreditorAgingPage';
+import CashBookEntryPage from './pages/accounting/CashBookEntryPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import AIScannerPage from './pages/ai/AIScannerPage';
 import AIReportsPage from './pages/ai/AIReportsPage';
@@ -51,6 +65,12 @@ import BatchInvoiceSendPage from './pages/messaging/BatchInvoiceSendPage';
 // E-Invoice Pages
 import EInvoiceDashboardPage from './pages/einvoice/EInvoiceDashboardPage';
 import EInvoiceListPage from './pages/einvoice/EInvoiceListPage';
+
+// Tools Pages
+import ReportDesignEditorPage from './pages/tools/ReportDesignEditorPage';
+
+// Tools Pages
+import ReportDesignerPage from './pages/tools/ReportDesignerPage';
 
 // CRM Pages - TODO: Fix CRM models
 // import LeadListPage from './pages/crm/LeadListPage';
@@ -146,6 +166,10 @@ export default function App() {
         <Route path="/purchases/new/:type" element={<PurchaseFormPage />} />
         <Route path="/purchases/:type/:id" element={<PurchaseFormPage />} />
 
+        {/* Banking */}
+        <Route path="/bank/settings" element={<BankSettingsPage />} />
+        <Route path="/bank/reconciliation" element={<BankReconciliationPage />} />
+
         {/* AR */}
         <Route path="/ar/invoices" element={<ARInvoiceListPage />} />
         <Route path="/ar/invoices/:id" element={<ARInvoiceFormPage />} />
@@ -160,9 +184,13 @@ export default function App() {
         <Route path="/ap/payments/new" element={<APPaymentFormPage />} />
         <Route path="/ap/payments/:id" element={<APPaymentFormPage />} />
 
-        {/* GL */}
+        {/* GL / Accounting */}
         <Route path="/gl/accounts" element={<AccountListPage />} />
+        <Route path="/accounting/chart-of-accounts" element={<AccountListPage />} />
         <Route path="/gl/journals" element={<JournalListPage />} />
+
+        {/* Accounting */}
+        <Route path="/accounting/cashbook" element={<CashBookEntryPage />} />
 
         {/* Stock */}
         <Route path="/stock/balance" element={<StockBalancePage />} />
@@ -175,7 +203,22 @@ export default function App() {
 
         {/* Reports */}
         <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/reports/profit-loss" element={<ProfitAndLossPage />} />
+        <Route path="/reports/stock-card" element={<StockCardPage />} />
+        <Route path="/reports/debtor-statement" element={<DebtorStatementPage />} />
+        <Route path="/reports/creditor-statement" element={<CreditorStatementPage />} />
+        <Route path="/reports/balance-sheet" element={<BalanceSheetPage />} />
+        <Route path="/reports/trial-balance" element={<TrialBalancePage />} />
+        <Route path="/reports/ledger" element={<LedgerPage />} />
+        <Route path="/reports/journal-transactions" element={<JournalTransactionPage />} />
+        <Route path="/reports/debtor-aging" element={<DebtorAgingPage />} />
+        <Route path="/reports/creditor-aging" element={<CreditorAgingPage />} />
         <Route path="/reports/:reportId" element={<ReportsPage />} />
+
+        {/* Tools */}
+        <Route path="/tools/report-designer" element={<ReportDesignerPage />} />
+        <Route path="/tools/audit-trail" element={<AuditTrailPage />} />
+        <Route path="/tools/report-designer/:id" element={<ReportDesignerPage />} />
 
         {/* Settings */}
         <Route path="/settings/*" element={<SettingsPage />} />
@@ -198,6 +241,9 @@ export default function App() {
         <Route path="/einvoice" element={<EInvoiceDashboardPage />} />
         <Route path="/einvoice/dashboard" element={<EInvoiceDashboardPage />} />
         <Route path="/einvoice/list" element={<EInvoiceListPage />} />
+
+        {/* Tools */}
+        <Route path="/tools/report-designer/:id/edit" element={<ReportDesignEditorPage />} />
 
         {/* CRM - TODO: Fix CRM models
         <Route path="/crm/leads" element={<LeadListPage />} />

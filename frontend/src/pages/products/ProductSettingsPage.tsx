@@ -26,6 +26,10 @@ const settingsConfig: Record<string, SettingsConfig> = {
     columns: [
       { key: 'code', header: 'Code' },
       { key: 'name', header: 'Name' },
+      { key: 'salesAccountId', header: 'Sales Account' },
+      { key: 'purchaseAccountId', header: 'Purchase Account' },
+      { key: 'stockAccountId', header: 'Stock Account' },
+      { key: 'cogsAccountId', header: 'COGS Account' },
     ],
   },
   types: {
@@ -54,6 +58,7 @@ export default function ProductSettingsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [formData, setFormData] = useState<Record<string, any>>({});
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const config = settingsConfig[type || 'groups'];
   
@@ -67,6 +72,20 @@ export default function ProductSettingsPage() {
   });
 
   const items = Array.isArray(data) ? data : [];
+
+  // Accounts for dropdowns/labels (only needed for product groups)
+  const { data: accountsResp } = useQuery({
+    queryKey: ['gl-accounts-all'],
+    queryFn: () => get('/accounts', { pageSize: 1000 }),
+    enabled: (type || 'groups') === 'groups',
+  });
+  const accounts: any[] = Array.isArray((accountsResp as any)?.data) ? (accountsResp as any).data : (Array.isArray(accountsResp) ? accountsResp : []);
+  const accountById = new Map<number, any>(accounts.map((a) => [a.id, a]));
+  const labelFor = (id?: number) => {
+    if (!id) return '';
+    const a = accountById.get(id);
+    return a ? `${a.accountNo} - ${a.name}` : String(id);
+  };
 
   const saveMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -122,7 +141,15 @@ export default function ProductSettingsPage() {
   };
 
   const displayColumns = [
-    ...config.columns,
+    ...config.columns.map(col => ({
+      ...col,
+      render: (row: any) => {
+        if (type === 'groups' && ['salesAccountId','purchaseAccountId','stockAccountId','cogsAccountId'].includes(col.key)) {
+          return <span className="text-sm text-gray-700 dark:text-gray-300">{labelFor(row[col.key]) || '-'}</span>;
+        }
+        return row[col.key];
+      }
+    })),
     {
       key: 'actions',
       header: 'Actions',
@@ -189,20 +216,149 @@ export default function ProductSettingsPage() {
               {editingItem ? 'Edit' : 'Add New'} {config.title.replace(/s$/, '')}
             </h3>
             <div className="space-y-4">
-              {config.columns.map(col => (
-                <div key={col.key}>
-                  <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
-                    {col.header}
-                  </label>
-                  <input
-                    type="text"
-                    className="input w-full"
-                    value={formData[col.key] || ''}
-                    onChange={(e) => setFormData({ ...formData, [col.key]: e.target.value })}
-                    placeholder={`Enter ${col.header.toLowerCase()}`}
-                  />
+              {config.columns.map(col => {
+                const isAcct = type === 'groups' && ['salesAccountId','purchaseAccountId','stockAccountId','cogsAccountId'].includes(col.key);
+                if (!isAcct) {
+                  return (
+                    <div key={col.key}>
+                      <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                        {col.header}
+                      </label>
+                      <input
+                        type="text"
+                        className="input w-full"
+                        value={formData[col.key] || ''}
+                        onChange={(e) => setFormData({ ...formData, [col.key]: e.target.value })}
+                        placeholder={`Enter ${col.header.toLowerCase()}`}
+                      />
+                    </div>
+                  );
+                }
+                // Account select
+                const filterBy = (key: string) => {
+                  if (key === 'salesAccountId') return (a: any) => a.type?.category === 'REVENUE';
+                  if (key === 'cogsAccountId') return (a: any) => a.type?.name?.toUpperCase()?.includes('COST') || a.type?.category === 'COGS';
+                  if (key === 'stockAccountId') return (a: any) => a.name?.toLowerCase().includes('inventory') || a.specialType === 'STOCK' || a.type?.category === 'ASSET';
+                  if (key === 'purchaseAccountId') return (a: any) => a.type?.category === 'COGS' || a.type?.category === 'EXPENSE';
+                  return () => true;
+                };
+                const options = accounts.filter(filterBy(col.key));
+                return (
+                  <div key={col.key}>
+                    <div className="flex items-center justify-between">
+                      <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                        {col.header}
+                      </label>
+                    </div>
+                    <select
+                      className="input w-full"
+                      value={formData[col.key] ?? ''}
+                      onChange={(e) => setFormData({ ...formData, [col.key]: e.target.value ? parseInt(e.target.value) : null })}
+                    >
+                      <option value="">-- Select Account --</option>
+                      {options.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.accountNo} - {a.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })}
+              {type === 'groups' && (
+                <div className="border-t border-gray-200 dark:border-slate-700 pt-4">
+                  <button
+                    type="button"
+                    className="text-sm text-blue-600 hover:text-blue-800"
+                    onClick={() => setShowAdvanced(v => !v)}
+                  >
+                    {showAdvanced ? 'Hide' : 'Show'} Advanced (Optional)
+                  </button>
+                  {showAdvanced && (
+                    <div className="space-y-4 mt-3">
+                      {[
+                        { key: 'cashSalesAccountId', header: 'Cash Sales Account' },
+                        { key: 'salesReturnAccountId', header: 'Sales Return Account' },
+                        { key: 'salesDiscountAccountId', header: 'Sales Discount Account' },
+                        { key: 'cashPurchaseAccountId', header: 'Cash Purchase Account' },
+                        { key: 'purchaseReturnAccountId', header: 'Purchase Return Account' },
+                        { key: 'purchaseDiscountAccountId', header: 'Purchase Discount Account' },
+                        { key: 'balanceStockAccountId', header: 'Balance Stock Account' },
+                      ].map((field) => {
+                        const filterByAdvanced = (key: string) => {
+                          if (key === 'cashSalesAccountId' || key === 'cashPurchaseAccountId') return (a: any) =>
+                            a.specialType === 'BANK' || /cash|bank/i.test(a.name);
+                          if (key === 'salesReturnAccountId') return (a: any) =>
+                            (a.type?.category === 'REVENUE' && /return inwards|sales return/i.test(a.name));
+                          if (key === 'salesDiscountAccountId') return (a: any) =>
+                            (a.type?.category === 'EXPENSE' && /discount allowed/i.test(a.name));
+                          if (key === 'purchaseReturnAccountId') return (a: any) =>
+                            (/return outwards|purchase return/i.test(a.name) && (a.type?.category === 'COGS' || a.type?.category === 'REVENUE' || a.type?.category === 'EXPENSE'));
+                          if (key === 'purchaseDiscountAccountId') return (a: any) =>
+                            (a.type?.category === 'REVENUE' && /discount received/i.test(a.name));
+                          if (key === 'balanceStockAccountId') return (a: any) =>
+                            (/stock at end|balance stock/i.test(a.name) && a.type?.category === 'COGS');
+                          return () => true;
+                        };
+                        const options = accounts.filter(filterByAdvanced(field.key));
+                        return (
+                          <div key={field.key}>
+                            <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                              {field.header}
+                            </label>
+                            <select
+                              className="input w-full"
+                              value={formData[field.key] ?? ''}
+                              onChange={(e) => setFormData({ ...formData, [field.key]: e.target.value ? parseInt(e.target.value) : null })}
+                            >
+                              <option value="">-- Select Account (Optional) --</option>
+                              {options.map((a) => (
+                                <option key={a.id} value={a.id}>
+                                  {a.accountNo} - {a.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        );
+                      })}
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
+                        Note: Discount accounts are used when line discount posts to a separate account. Balance stock is used when live stock balance is enabled.
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ))}
+              )}
+              {type === 'groups' && (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      // Load default accounts heuristically
+                      const pick = (predicate: (a: any) => boolean) => {
+                        const found = accounts.find(predicate);
+                        return found?.id || '';
+                      };
+                      setFormData({
+                        ...formData,
+                        salesAccountId: pick(a => a.type?.category === 'REVENUE' && /sales|revenue/i.test(a.name)),
+                        cogsAccountId: pick(a => (a.type?.category === 'COGS' && /cost of sales|cost of goods/i.test(a.name)) || /cost of sales|cogs/i.test(a.name)),
+                        stockAccountId: pick(a => /inventory|stock/i.test(a.name) && a.type?.category === 'ASSET'),
+                        purchaseAccountId: pick(a => a.type?.category === 'COGS' || (a.type?.category === 'EXPENSE' && /purchase|raw material|carriage inwards/i.test(a.name))),
+                        cashSalesAccountId: pick(a => a.specialType === 'BANK' || /cash|bank/i.test(a.name)),
+                        salesReturnAccountId: pick(a => a.type?.category === 'REVENUE' && /return inwards|sales return/i.test(a.name)),
+                        salesDiscountAccountId: pick(a => a.type?.category === 'EXPENSE' && /discount allowed/i.test(a.name)),
+                        cashPurchaseAccountId: pick(a => a.specialType === 'BANK' || /cash|bank/i.test(a.name)),
+                        purchaseReturnAccountId: pick(a => /return outwards|purchase return/i.test(a.name)),
+                        purchaseDiscountAccountId: pick(a => a.type?.category === 'REVENUE' && /discount received/i.test(a.name)),
+                        balanceStockAccountId: pick(a => /stock at end|balance stock/i.test(a.name) && a.type?.category === 'COGS'),
+                      });
+                    }}
+                  >
+                    Load Default Accounts
+                  </button>
+                </div>
+              )}
             </div>
             <div className="flex justify-end gap-3 mt-6">
               <button 

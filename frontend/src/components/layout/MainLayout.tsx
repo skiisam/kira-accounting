@@ -31,6 +31,7 @@ import {
   SparklesIcon,
   ChatBubbleLeftRightIcon,
   DocumentCheckIcon,
+  WrenchScrewdriverIcon,
   // UserGroupIcon, // TODO: CRM
 } from '@heroicons/react/24/outline';
 import {
@@ -118,6 +119,7 @@ const navigation = [
     children: [
       { nameKey: 'nav.chartOfAccounts', href: '/gl/accounts' },
       { nameKey: 'nav.journalEntries', href: '/gl/journals' },
+      { nameKey: 'nav.cashBookEntry', href: '/accounting/cashbook' },
     ],
   },
   {
@@ -128,9 +130,24 @@ const navigation = [
       { nameKey: 'nav.stockBalance', href: '/stock/balance' },
       { nameKey: 'nav.stockAdjustment', href: '/stock/adjustment' },
       { nameKey: 'nav.stockTransfer', href: '/stock/transfer' },
+      { nameKey: 'nav.stockCard', href: '/reports/stock-card' },
     ],
   },
-  { nameKey: 'nav.reports', href: '/reports', icon: ChartPieIcon, color: 'from-indigo-500 to-violet-500' },
+  {
+    nameKey: 'nav.reports',
+    icon: ChartPieIcon,
+    color: 'from-indigo-500 to-violet-500',
+    children: [
+      { nameKey: 'nav.allReports', href: '/reports' },
+      { nameKey: 'nav.profitLoss', href: '/reports/profit-loss' }, { nameKey: 'nav.debtorStatement', href: '/reports/debtor-statement' }, { nameKey: 'nav.creditorStatement', href: '/reports/creditor-statement' },
+      { nameKey: 'nav.balanceSheet', href: '/reports/balance-sheet' },
+      { nameKey: 'nav.trialBalance', href: '/reports/trial-balance' },
+      { nameKey: 'nav.ledger', href: '/reports/ledger' },
+      { nameKey: 'nav.journalTransaction', href: '/reports/journal-transactions' },
+      { nameKey: 'nav.debtorAging', href: '/reports/debtor-aging' },
+      { nameKey: 'nav.creditorAging', href: '/reports/creditor-aging' },
+    ],
+  },
   {
     nameKey: 'nav.einvoice',
     icon: DocumentCheckIcon,
@@ -147,6 +164,24 @@ const navigation = [
     children: [
       { nameKey: 'nav.documentScanner', href: '/ai/scanner' },
       { nameKey: 'nav.aiReports', href: '/ai/reports' },
+    ],
+  },
+  {
+    nameKey: 'nav.banking',
+    icon: CurrencyDollarIcon,
+    color: 'from-emerald-600 to-teal-600',
+    children: [
+      { nameKey: 'nav.bankSettings', href: '/bank/settings' },
+      { nameKey: 'nav.bankReconciliation', href: '/bank/reconciliation' },
+    ],
+  },
+  {
+    nameKey: 'nav.tools',
+    icon: WrenchScrewdriverIcon,
+    color: 'from-teal-500 to-cyan-500',
+    children: [
+      { nameKey: 'nav.reportDesigner', href: '/tools/report-designer' },
+      { nameKey: 'nav.auditTrail', href: '/tools/audit-trail' },
     ],
   },
   { nameKey: 'nav.settings', href: '/settings', icon: Cog6ToothIcon, color: 'from-gray-500 to-slate-500' },

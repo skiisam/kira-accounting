@@ -85,9 +85,16 @@ model Company {
   stripeCustomerId     String?   @db.VarChar(100)
   stripeSubscriptionId String?   @db.VarChar(100)
 
-  users    User[]
-  accounts Account[]
-  plan     SubscriptionPlan? @relation(fields: [planCode], references: [code])
+  users           User[]
+  accounts        Account[]
+  plan            SubscriptionPlan? @relation(fields: [planCode], references: [code])
+  reportTemplates ReportTemplate[]
+  
+  // Bank Integration
+  bankConnections     BankConnection[]
+  bankLinkedAccounts  BankLinkedAccount[]
+  bankTransactions    BankTransaction[]
+  bankReconciliations BankReconciliation[]
 
   @@map("companies")
 }
@@ -459,6 +466,10 @@ model Account {
   paymentMethods PaymentMethod[]
   customers     Customer[]       @relation("CustomerControlAccount")
   vendors       Vendor[]         @relation("VendorControlAccount")
+  
+  // Bank Integration
+  bankLinkedAccounts  BankLinkedAccount[]
+  bankReconciliations BankReconciliation[]
 
   @@unique([accountNo, companyId])
   @@map("accounts")
@@ -1915,4 +1926,124 @@ model CashBookKnockoff {
   cashBookEntry     CashBookEntry @relation(fields: [cashBookEntryId], references: [id], onDelete: Cascade)
   
   @@map("cashbook_knockoffs")
+}
+
+// =====================================================
+// REPORT TEMPLATES (KIRA Report Designer)
+// =====================================================
+
+model ReportTemplate {
+  id          String   @id @default(cuid())
+  code        String   @db.VarChar(50)
+  name        String   @db.VarChar(200)
+  type        String   @db.VarChar(30) // invoice, quotation, do, po, receipt, statement, balance-sheet, pnl, aging, custom
+  category    String   @db.VarChar(30) // sales, purchase, accounting, stock, custom
+  isSystem    Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  paperSize   String   @default("A4") @db.VarChar(20) // A4, A5, Letter, A3
+  orientation String   @default("portrait") @db.VarChar(20) // portrait, landscape
+  margins     Json?    // { top, bottom, left, right }
+  design      Json     // Full template design JSON
+  createdBy   String?  @db.VarChar(50)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  companyId   Int
+  company     Company  @relation(fields: [companyId], references: [id])
+
+  @@unique([code, companyId])
+  @@map("report_templates")
+}
+
+// =====================================================
+// BANK INTEGRATION (KIRA Bank)
+// =====================================================
+
+model BankConnection {
+  id             String   @id @default(cuid())
+  bankCode       String   @db.VarChar(30)   // maybank, uob, hlb, cimb, rhb, ambank, publicbank, etc.
+  bankName       String   @db.VarChar(100)
+  businessRegNo  String?  @db.VarChar(50)
+  accessToken    String?  @db.Text           // encrypted
+  refreshToken   String?  @db.Text           // encrypted
+  tokenExpiry    DateTime?
+  status         String   @default("disconnected") @db.VarChar(20) // connected, disconnected, expired
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  companyId      Int
+  
+  company        Company  @relation(fields: [companyId], references: [id])
+  linkedAccounts BankLinkedAccount[]
+
+  @@unique([bankCode, companyId])
+  @@map("bank_connections")
+}
+
+model BankLinkedAccount {
+  id                  String    @id @default(cuid())
+  bankConnectionId    String
+  externalAccountNo   String    @db.VarChar(50)  // Bank's account number
+  externalAccountName String?   @db.VarChar(200)
+  accountId           Int?      // Link to our GL Account
+  lastSyncAt          DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  companyId           Int
+  
+  bankConnection      BankConnection @relation(fields: [bankConnectionId], references: [id], onDelete: Cascade)
+  account             Account?       @relation(fields: [accountId], references: [id])
+  company             Company        @relation(fields: [companyId], references: [id])
+  transactions        BankTransaction[]
+
+  @@unique([bankConnectionId, externalAccountNo])
+  @@map("bank_linked_accounts")
+}
+
+model BankTransaction {
+  id                  String    @id @default(cuid())
+  bankLinkedAccountId String?
+  transactionDate     DateTime
+  valueDate           DateTime?
+  description         String    @db.VarChar(500)
+  reference           String?   @db.VarChar(100)
+  debit               Decimal?  @db.Decimal(18, 2)
+  credit              Decimal?  @db.Decimal(18, 2)
+  balance             Decimal?  @db.Decimal(18, 2)
+  status              String    @default("pending") @db.VarChar(20) // pending, matched, reconciled, excluded
+  matchedDocType      String?   @db.VarChar(30) // payment, receipt, journal
+  matchedDocId        Int?
+  importBatchId       String?   @db.VarChar(50)
+  importSource        String?   @db.VarChar(20) // api, csv, ofx
+  rawData             Json?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  companyId           Int
+  
+  bankLinkedAccount   BankLinkedAccount? @relation(fields: [bankLinkedAccountId], references: [id])
+  company             Company            @relation(fields: [companyId], references: [id])
+
+  @@map("bank_transactions")
+}
+
+model BankReconciliation {
+  id                String    @id @default(cuid())
+  accountId         Int
+  periodStart       DateTime
+  periodEnd         DateTime
+  openingBalance    Decimal   @db.Decimal(18, 2)
+  closingBalance    Decimal   @db.Decimal(18, 2)
+  statementBalance  Decimal   @db.Decimal(18, 2)
+  reconciledBalance Decimal?  @db.Decimal(18, 2)
+  difference        Decimal?  @db.Decimal(18, 2)
+  status            String    @default("draft") @db.VarChar(20) // draft, completed
+  completedAt       DateTime?
+  completedBy       Int?
+  notes             String?   @db.Text
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  companyId         Int
+  
+  account           Account   @relation(fields: [accountId], references: [id])
+  company           Company   @relation(fields: [companyId], references: [id])
+
+  @@map("bank_reconciliations")
 }

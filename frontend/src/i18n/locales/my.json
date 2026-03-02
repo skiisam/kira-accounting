@@ -88,7 +88,13 @@
     "socialInbox": "လူမှုကွန်ရက်ဝင်စာ",
     "socialSettings": "လူမှုကွန်ရက်ဆက်တင်",
     "documentScanner": "စာရွက်စာတမ်းစကင်နာ",
-    "aiReports": "AI အစီရင်ခံစာ"
+    "aiReports": "AI အစီရင်ခံစာ",
+    "stockCard": "Kad Stok",
+    "debtorStatement": "Penyata Penghutang",
+    "creditorStatement": "Penyata Pemiutang",
+    "auditTrail": "Jejak Audit",
+    "allReports": "Semua Laporan",
+    "profitLoss": "Untung & Rugi"
   },
   "auth": {
     "login": "ဝင်ရောက်",
