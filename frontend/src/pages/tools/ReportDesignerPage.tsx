@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -105,6 +105,28 @@ export default function ReportDesignerPage() {
     }
     return true;
   });
+
+  // Auto-seed system templates once if the system list is empty
+  const autoSeedAttempted = useRef(false);
+  useEffect(() => {
+    const maybeSeed = async () => {
+      if (!isSystem) return;
+      if (isLoading) return;
+      if (autoSeedAttempted.current) return;
+      if (filteredTemplates.length > 0) return;
+      autoSeedAttempted.current = true;
+      try {
+        await post('/report-templates/seed-system');
+        toast.success('System templates loaded');
+        queryClient.invalidateQueries({ queryKey: ['report-templates'] });
+      } catch (err: any) {
+        autoSeedAttempted.current = true;
+        const msg = err?.response?.data?.error?.message || 'Failed to load system templates';
+        toast.error(msg);
+      }
+    };
+    maybeSeed();
+  }, [isSystem, isLoading, filteredTemplates.length, queryClient]);
 
   const cloneMutation = useMutation({
     mutationFn: (templateId: string) =>

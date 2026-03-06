@@ -515,6 +515,40 @@ export class MessagingService {
   }
 
   /**
+   * Create follow-up CRM activity for an inquiry
+   */
+  async createInquiryFollowUp(inquiryId: number, activityDate: Date, note: string, userId?: number) {
+    const inquiry = await prisma.messagingInquiry.findUnique({ where: { id: inquiryId } });
+    if (!inquiry) {
+      throw new Error('Inquiry not found');
+    }
+
+    const activity = await prisma.cRMActivity.create({
+      data: {
+        customerId: inquiry.customerId || undefined,
+        type: 'FOLLOW_UP' as any,
+        subject: `Follow-up: Inquiry #${inquiryId}`,
+        description: note || '',
+        activityDate,
+        status: 'PENDING' as any,
+        priority: 'NORMAL' as any,
+        createdBy: userId
+      }
+    });
+
+    await prisma.messagingInquiry.update({
+      where: { id: inquiryId },
+      data: {
+        status: 'IN_PROGRESS',
+        processedBy: userId,
+        processedAt: new Date()
+      }
+    });
+
+    return activity;
+  }
+
+  /**
    * Convert inquiry to CRM lead
    */
   async convertInquiryToLead(inquiryId: number, userId?: number) {
@@ -558,6 +592,48 @@ export class MessagingService {
       }
     });
 
+    return lead;
+  }
+
+  /**
+   * Get CRM leads
+   */
+  async getLeads(options: { status?: string; page?: number; pageSize?: number }) {
+    const { status, page = 1, pageSize = 100 } = options;
+    const where: any = {};
+    if (status) where.status = status;
+    const [data, total] = await Promise.all([
+      prisma.cRMLead.findMany({
+        where,
+        orderBy: [{ status: 'asc' }, { updatedAt: 'desc' }],
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      prisma.cRMLead.count({ where }),
+    ]);
+    return {
+      data,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
+      },
+    };
+  }
+
+  /**
+   * Update lead status (move across pipeline)
+   */
+  async updateLeadStatus(id: number, status: string, userId?: number) {
+    const lead = await prisma.cRMLead.update({
+      where: { id },
+      data: {
+        status,
+        modifiedBy: userId,
+        updatedAt: new Date(),
+      },
+    });
     return lead;
   }
 }

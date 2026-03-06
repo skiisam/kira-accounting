@@ -1,324 +1,345 @@
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { get } from '../services/api';
 import {
+  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from 'recharts';
+import {
   BanknotesIcon,
-  CreditCardIcon,
-  ShoppingCartIcon,
-  CubeIcon,
-  PlusIcon,
   DocumentTextIcon,
   ClipboardDocumentListIcon,
   ArrowTrendingUpIcon,
-  ExclamationTriangleIcon,
-  ClockIcon,
-  UserGroupIcon,
-  CurrencyDollarIcon,
+  ScaleIcon,
+  BuildingLibraryIcon,
+  ChevronDownIcon,
 } from '@heroicons/react/24/outline';
 
-interface DashboardStats {
-  arOutstanding: number;
-  apOutstanding: number;
-  salesThisMonth: number;
-  lowStockItems: number;
-  totalLeads: number;
-  dealsValue: number;
+function PeriodSelector({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="appearance-none text-xs font-medium bg-white/20 dark:bg-white/10 text-white border border-white/30 rounded-lg px-3 py-1.5 pr-7 cursor-pointer focus:outline-none focus:ring-2 focus:ring-white/50"
+      >
+        <option value="7d" className="text-gray-900">Last 7 days</option>
+        <option value="30d" className="text-gray-900">Last 30 days</option>
+        <option value="90d" className="text-gray-900">Last 90 days</option>
+        <option value="12m" className="text-gray-900">Last 12 months</option>
+      </select>
+      <ChevronDownIcon className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-white/70 pointer-events-none" />
+    </div>
+  );
 }
+
+function DashCard({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setVisible(true), delay);
+    return () => clearTimeout(t);
+  }, [delay]);
+  return (
+    <div className={`rounded-2xl shadow-lg dark:shadow-xl overflow-hidden transition-all duration-700 ${visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'} ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+const PIE_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6'];
 
 export default function DashboardPage() {
   const { t } = useTranslation();
+  const [salesPeriod, setSalesPeriod] = useState('30d');
+  const [plPeriod, setPlPeriod] = useState('30d');
+
   const { data: companyData } = useQuery({
     queryKey: ['settings:company'],
     queryFn: () => get('/settings/company'),
   });
   const company = (companyData as any)?.data || companyData || {};
 
+  const { data: summaryResp } = useQuery({
+    queryKey: ['dashboard:summary'],
+    queryFn: () => get('/dashboard/summary'),
+  });
+  const summary = (summaryResp as any)?.data || summaryResp || {};
+
   const { data: statsResp } = useQuery({
     queryKey: ['dashboard:stats'],
     queryFn: () => get('/dashboard/stats'),
   });
-  const statsData: DashboardStats = ((statsResp as any)?.data || statsResp || {
-    arOutstanding: 0, apOutstanding: 0, salesThisMonth: 0, lowStockItems: 0, totalLeads: 0, dealsValue: 0,
-  }) as DashboardStats;
+  const stats = (statsResp as any)?.data || statsResp || {};
 
-  const { data: recentResp } = useQuery({
-    queryKey: ['dashboard:recent'],
-    queryFn: () => get('/dashboard/recent'),
+  const { data: plResp } = useQuery({
+    queryKey: ['reports:pl', plPeriod],
+    queryFn: () => get('/reports/gl/profit-loss'),
   });
-  const recentActivity = Array.isArray((recentResp as any)?.data) ? (recentResp as any).data : (Array.isArray(recentResp) ? recentResp : []);
+  const plData = (plResp as any)?.data || plResp || {};
 
-  const { data: topProductsResp } = useQuery({
-    queryKey: ['dashboard:top-products'],
-    queryFn: () => get('/dashboard/top-products'),
+  const { data: bankResp } = useQuery({
+    queryKey: ['accounts:bank'],
+    queryFn: () => get('/accounts?type=BANK'),
   });
-  const topProducts = Array.isArray((topProductsResp as any)?.data) ? (topProductsResp as any).data : (Array.isArray(topProductsResp) ? topProductsResp : []);
-
-  const { data: alertsResp } = useQuery({
-    queryKey: ['dashboard:alerts'],
-    queryFn: () => get('/dashboard/alerts'),
-  });
-  const alertsData = (alertsResp as any)?.data || alertsResp || {};
-
-  // Stats configuration with translation keys
-  const stats = [
-    { 
-      nameKey: 'dashboard.arOutstanding',
-      key: 'arOutstanding', 
-      icon: BanknotesIcon, 
-      gradient: 'from-cyan-500 to-blue-600',
-      shadowColor: 'shadow-blue-500/30',
-      trend: '+12%',
-      trendUp: true,
-      href: '/ar/invoices',
-    },
-    { 
-      nameKey: 'dashboard.apOutstanding',
-      key: 'apOutstanding', 
-      icon: CreditCardIcon, 
-      gradient: 'from-rose-500 to-pink-600',
-      shadowColor: 'shadow-pink-500/30',
-      trend: '-5%',
-      trendUp: false,
-      href: '/ap/invoices',
-    },
-    { 
-      nameKey: 'dashboard.salesThisMonth',
-      key: 'salesThisMonth', 
-      icon: ShoppingCartIcon, 
-      gradient: 'from-emerald-500 to-teal-600',
-      shadowColor: 'shadow-emerald-500/30',
-      trend: '+24%',
-      trendUp: true,
-      href: '/reports/sales-summary',
-    },
-    { 
-      nameKey: 'dashboard.lowStockItems',
-      key: 'lowStockItems', 
-      icon: CubeIcon, 
-      gradient: 'from-amber-500 to-orange-600',
-      shadowColor: 'shadow-orange-500/30',
-      trend: '3 new',
-      trendUp: false,
-      href: '/stock/balance',
-    },
-    { 
-      nameKey: 'dashboard.activeLeads',
-      key: 'totalLeads', 
-      icon: UserGroupIcon, 
-      gradient: 'from-purple-500 to-pink-600',
-      shadowColor: 'shadow-purple-500/30',
-      trend: '+8',
-      trendUp: true,
-      isNumber: true,
-      href: '/crm/leads',
-    },
-    { 
-      nameKey: 'dashboard.pipelineValue',
-      key: 'dealsValue', 
-      icon: CurrencyDollarIcon, 
-      gradient: 'from-indigo-500 to-violet-600',
-      shadowColor: 'shadow-indigo-500/30',
-      trend: '+18%',
-      trendUp: true,
-      href: '/crm/deals',
-    },
-  ];
-
-  const quickActions = [
-    { nameKey: 'dashboard.newInvoice', href: '/sales/new/invoice', icon: DocumentTextIcon, color: 'from-blue-500 to-indigo-600' },
-    { nameKey: 'dashboard.newQuotation', href: '/sales/new/quotation', icon: ClipboardDocumentListIcon, color: 'from-emerald-500 to-teal-600' },
-    { nameKey: 'dashboard.newLead', href: '/crm/leads/new', icon: UserGroupIcon, color: 'from-purple-500 to-pink-600' },
-    { nameKey: 'dashboard.newDeal', href: '/crm/deals/new', icon: CurrencyDollarIcon, color: 'from-indigo-500 to-violet-600' },
-  ];
-
-  const alerts = [
-    { type: 'warning', icon: ExclamationTriangleIcon, messageKey: 'dashboard.productsBelow', count: alertsData.productsBelow || 0, bgColor: 'bg-amber-50 dark:bg-amber-900/20', textColor: 'text-amber-800 dark:text-amber-300', iconColor: 'text-amber-500', href: '/stock/balance' },
-    { type: 'danger', icon: ClockIcon, messageKey: 'dashboard.invoicesOverdue', count: alertsData.invoicesOverdue || 0, bgColor: 'bg-red-50 dark:bg-red-900/20', textColor: 'text-red-800 dark:text-red-300', iconColor: 'text-red-500', href: '/ar/invoices' },
-    { type: 'info', icon: ClipboardDocumentListIcon, messageKey: 'dashboard.quotationsExpiring', count: alertsData.quotationsExpiring || 0, bgColor: 'bg-blue-50 dark:bg-blue-900/20', textColor: 'text-blue-800 dark:text-blue-300', iconColor: 'text-blue-500', href: '/sales/quotations' },
-  ];
+  const bankAccounts = Array.isArray((bankResp as any)?.data) ? (bankResp as any).data : (Array.isArray(bankResp) ? bankResp : []);
 
   const formatCurrency = (value: number) => {
     const currency = company?.baseCurrency || 'MYR';
-    return new Intl.NumberFormat('en-MY', {
-      style: 'currency',
-      currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
+    return new Intl.NumberFormat('en-MY', { style: 'currency', currency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(value || 0);
   };
+
+  const formatCompact = (value: number) => {
+    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `${(value / 1000).toFixed(1)}K`;
+    return value?.toString() || '0';
+  };
+
+  const salesChartData = summary?.salesChart || Array.from({ length: 30 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - (29 - i));
+    return { date: d.toLocaleDateString('en-MY', { day: '2-digit', month: 'short' }), amount: 0 };
+  });
+
+  const expenseBreakdown = (plData?.expenseBreakdown || summary?.expenseBreakdown || []).slice(0, 5);
+
+  const invoiceCount = summary?.invoiceCount || 0;
+  const totalUnpaid = summary?.totalUnpaid || stats?.arOutstanding || 0;
+  const overdueAmount = summary?.overdueAmount || 0;
+  const notDueAmount = totalUnpaid - overdueAmount;
+
+  const quotationCount = summary?.quotationCount || 0;
+  const quotationTotal = summary?.quotationTotal || 0;
+  const quotationPending = summary?.quotationPending || 0;
+  const quotationSuccess = summary?.quotationSuccess || 0;
+  const quotationLost = summary?.quotationLost || 0;
+  const quotationClosed = summary?.quotationClosed || 0;
+
+  const totalIncome = plData?.totalIncome || summary?.totalIncome || 0;
+  const totalExpense = plData?.totalExpense || summary?.totalExpense || 0;
+  const netIncome = totalIncome - totalExpense;
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
       <div className="page-header">
         <h1 className="page-title">{t('dashboard.title')}</h1>
         <p className="page-subtitle">{t('dashboard.welcome')}</p>
       </div>
 
-      {/* Stats Grid - Clickable */}
+      {/* Row 1 */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {stats.map((stat, index) => {
-          const value = statsData[stat.key as keyof DashboardStats] as number;
-          const displayValue = stat.key === 'lowStockItems' || (stat as any).isNumber
-            ? value.toString() 
-            : formatCurrency(value);
+        {/* Sales */}
+        <DashCard delay={0}>
+          <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-4">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <BanknotesIcon className="w-5 h-5 text-white/80" />
+                <h3 className="text-sm font-semibold text-white/90">Sales</h3>
+              </div>
+              <PeriodSelector value={salesPeriod} onChange={setSalesPeriod} />
+            </div>
+            <p className="text-2xl font-bold text-white">{formatCurrency(summary?.salesTotalAmount || stats?.salesThisMonth || 0)}</p>
+          </div>
+          <div className="bg-white dark:bg-slate-800 p-4">
+            <ResponsiveContainer width="100%" height={120}>
+              <LineChart data={salesChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="#94a3b8" interval="preserveStartEnd" />
+                <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" tickFormatter={formatCompact} width={40} />
+                <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                <Line type="monotone" dataKey="amount" stroke="#6366f1" strokeWidth={2} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </DashCard>
 
-          return (
-            <Link 
-              key={stat.key} 
-              to={stat.href}
-              className={`stat-card bg-gradient-to-br ${stat.gradient} shadow-xl ${stat.shadowColor} transform hover:scale-[1.02] transition-all duration-300 cursor-pointer`}
-              style={{ animationDelay: `${index * 100}ms` }}
-            >
-              {/* Background decoration */}
-              <div className="absolute inset-0 bg-white/5 rounded-xl" />
-              <div className="absolute -right-4 -top-4 w-24 h-24 bg-white/10 rounded-full blur-2xl" />
-              
-              {/* Icon */}
-              <stat.icon className="stat-card-icon" />
-              
-              {/* Content */}
-              <div className="relative">
-                <p className="text-sm font-medium text-white/80 mb-1">{t(stat.nameKey)}</p>
-                <p className="text-3xl font-bold text-white mb-2">{displayValue}</p>
-                <div className={`inline-flex items-center gap-1 text-xs font-medium ${stat.trendUp ? 'text-white/90' : 'text-white/70'}`}>
-                  <ArrowTrendingUpIcon className={`w-3.5 h-3.5 ${!stat.trendUp && 'rotate-180'}`} />
-                  {stat.trend} {t('dashboard.fromLastMonth')}
-                </div>
+        {/* Invoices */}
+        <DashCard delay={100}>
+          <div className="bg-gradient-to-br from-cyan-500 to-blue-600 p-4">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <DocumentTextIcon className="w-5 h-5 text-white/80" />
+                <h3 className="text-sm font-semibold text-white/90">Invoices</h3>
+              </div>
+              <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full text-white font-medium">{invoiceCount} total</span>
+            </div>
+            <p className="text-2xl font-bold text-white">{formatCurrency(totalUnpaid)}</p>
+            <p className="text-xs text-white/70 mt-0.5">Total Unpaid</p>
+          </div>
+          <div className="bg-white dark:bg-slate-800 p-4 space-y-3">
+            <Link to="/ar/invoices" className="block">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-300">Overdue</span>
+                <span className="text-sm font-bold text-red-500">{formatCurrency(overdueAmount)}</span>
+              </div>
+              <div className="mt-1.5 w-full bg-gray-100 dark:bg-slate-700 rounded-full h-2">
+                <div className="bg-red-500 h-2 rounded-full transition-all duration-1000" style={{ width: `${totalUnpaid ? (overdueAmount / totalUnpaid) * 100 : 0}%` }} />
               </div>
             </Link>
-          );
-        })}
-      </div>
-
-      {/* Quick Actions & Recent Activity */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Quick Actions */}
-        <div className="card">
-          <div className="card-header">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <PlusIcon className="w-5 h-5 text-primary-500" />
-              {t('dashboard.quickActions')}
-            </h2>
+            <Link to="/ar/invoices" className="block">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-300">Not Due</span>
+                <span className="text-sm font-bold text-emerald-500">{formatCurrency(notDueAmount)}</span>
+              </div>
+              <div className="mt-1.5 w-full bg-gray-100 dark:bg-slate-700 rounded-full h-2">
+                <div className="bg-emerald-500 h-2 rounded-full transition-all duration-1000" style={{ width: `${totalUnpaid ? (notDueAmount / totalUnpaid) * 100 : 0}%` }} />
+              </div>
+            </Link>
           </div>
-          <div className="card-body">
+        </DashCard>
+
+        {/* Quotations */}
+        <DashCard delay={200}>
+          <div className="bg-gradient-to-br from-violet-500 to-fuchsia-600 p-4">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <ClipboardDocumentListIcon className="w-5 h-5 text-white/80" />
+                <h3 className="text-sm font-semibold text-white/90">Quotations</h3>
+              </div>
+              <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full text-white font-medium">{quotationCount} total</span>
+            </div>
+            <p className="text-2xl font-bold text-white">{formatCurrency(quotationTotal)}</p>
+            <p className="text-xs text-white/70 mt-0.5">Total Deal Value</p>
+          </div>
+          <div className="bg-white dark:bg-slate-800 p-4">
             <div className="grid grid-cols-2 gap-3">
-              {quickActions.map((action) => (
-                <Link
-                  key={action.nameKey}
-                  to={action.href}
-                  className={`flex items-center gap-3 p-4 rounded-xl bg-gradient-to-br ${action.color} text-white font-medium shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200`}
-                >
-                  <action.icon className="w-5 h-5" />
-                  <span className="text-sm">{t(action.nameKey)}</span>
+              {[
+                { label: 'Pending', value: quotationPending, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-900/20' },
+                { label: 'Success', value: quotationSuccess, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+                { label: 'Lost', value: quotationLost, color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-900/20' },
+                { label: 'Closed', value: quotationClosed, color: 'text-gray-500', bg: 'bg-gray-50 dark:bg-gray-700/30' },
+              ].map((item) => (
+                <Link key={item.label} to="/sales/quotations" className={`${item.bg} rounded-xl p-3 text-center hover:scale-[1.02] transition-transform`}>
+                  <p className={`text-xl font-bold ${item.color}`}>{item.value}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">{item.label}</p>
                 </Link>
               ))}
             </div>
           </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="card">
-          <div className="card-header">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <ClockIcon className="w-5 h-5 text-primary-500" />
-              {t('dashboard.recentActivity')}
-            </h2>
-          </div>
-          <div className="card-body">
-            <div className="space-y-4">
-              {recentActivity.map((item: any, index: number) => (
-                <div 
-                  key={index}
-                  className="flex justify-between items-center p-3 rounded-lg bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-gradient-to-r from-primary-500 to-purple-500" />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{item.doc}</span>
-                  </div>
-                  <span className={`badge ${item.statusColor}`}>{item.status}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        </DashCard>
       </div>
 
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Sales Chart */}
-        <div className="lg:col-span-2 card">
-          <div className="card-header">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <ArrowTrendingUpIcon className="w-5 h-5 text-emerald-500" />
-              {t('dashboard.salesOverview')}
-            </h2>
+      {/* Row 2 */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {/* P&L */}
+        <DashCard delay={300}>
+          <div className="bg-gradient-to-br from-emerald-500 to-teal-600 p-4">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <ArrowTrendingUpIcon className="w-5 h-5 text-white/80" />
+                <h3 className="text-sm font-semibold text-white/90">Profit & Loss</h3>
+              </div>
+              <PeriodSelector value={plPeriod} onChange={setPlPeriod} />
+            </div>
+            <p className={`text-2xl font-bold ${netIncome >= 0 ? 'text-white' : 'text-red-200'}`}>{formatCurrency(netIncome)}</p>
+            <p className="text-xs text-white/70 mt-0.5">Net Income</p>
           </div>
-          <div className="card-body">
-            <div className="h-64 flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-slate-700/30 dark:to-slate-800/30 rounded-xl">
-              <div className="text-center">
-                <div className="inline-flex p-4 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 text-white mb-3">
-                  <ArrowTrendingUpIcon className="w-8 h-8" />
-                </div>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">{t('dashboard.salesChartPlaceholder')}</p>
+          <div className="bg-white dark:bg-slate-800 p-4">
+            <ResponsiveContainer width="100%" height={120}>
+              <BarChart data={[{ name: 'Income', value: totalIncome }, { name: 'Expenses', value: totalExpense }]}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                <YAxis tick={{ fontSize: 10 }} stroke="#94a3b8" tickFormatter={formatCompact} width={40} />
+                <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                  <Cell fill="#10b981" />
+                  <Cell fill="#ef4444" />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+            <div className="flex justify-between mt-2 text-xs">
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" /><span className="text-gray-500 dark:text-gray-400">Income: {formatCurrency(totalIncome)}</span></span>
+              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-red-500" /><span className="text-gray-500 dark:text-gray-400">Expense: {formatCurrency(totalExpense)}</span></span>
+            </div>
+          </div>
+        </DashCard>
+
+        {/* Cost & Expenses */}
+        <DashCard delay={400}>
+          <div className="bg-gradient-to-br from-rose-500 to-pink-600 p-4">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <ScaleIcon className="w-5 h-5 text-white/80" />
+                <h3 className="text-sm font-semibold text-white/90">Cost & Expenses</h3>
               </div>
             </div>
+            <p className="text-2xl font-bold text-white">{formatCurrency(totalExpense)}</p>
+            <p className="text-xs text-white/70 mt-0.5">Total Expenses</p>
           </div>
-        </div>
-
-        {/* Top Products */}
-        <div className="card">
-          <div className="card-header">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-              <CubeIcon className="w-5 h-5 text-purple-500" />
-              {t('dashboard.topProducts')}
-            </h2>
-          </div>
-          <div className="card-body">
-            <div className="space-y-4">
-              {topProducts.map((product: any, index: number) => (
-                <div key={index} className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm shadow-lg`}>
-                    {index + 1}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900 dark:text-white text-sm">{product.name}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{product.sales} {t('dashboard.unitsSold')}</p>
-                  </div>
+          <div className="bg-white dark:bg-slate-800 p-4">
+            {expenseBreakdown.length > 0 ? (
+              <div className="flex items-center gap-4">
+                <ResponsiveContainer width={120} height={120}>
+                  <PieChart>
+                    <Pie data={expenseBreakdown} dataKey="amount" nameKey="name" cx="50%" cy="50%" outerRadius={50} innerRadius={25}>
+                      {expenseBreakdown.map((_: any, i: number) => (
+                        <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex-1 space-y-1.5">
+                  {expenseBreakdown.map((exp: any, i: number) => (
+                    <div key={i} className="flex items-center gap-2 text-xs">
+                      <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: PIE_COLORS[i % PIE_COLORS.length] }} />
+                      <span className="text-gray-600 dark:text-gray-300 truncate flex-1">{exp.name}</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{formatCurrency(exp.amount)}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[120px] text-gray-400 dark:text-gray-500 text-sm">
+                <p>No expense data available</p>
+              </div>
+            )}
+          </div>
+        </DashCard>
+
+        {/* Bank Accounts */}
+        <DashCard delay={500}>
+          <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-4">
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <BuildingLibraryIcon className="w-5 h-5 text-white/80" />
+                <h3 className="text-sm font-semibold text-white/90">Bank Accounts</h3>
+              </div>
+              <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full text-white font-medium">{bankAccounts.length} accounts</span>
             </div>
+            <p className="text-2xl font-bold text-white">{formatCurrency(bankAccounts.reduce((sum: number, a: any) => sum + (a.balance || 0), 0))}</p>
+            <p className="text-xs text-white/70 mt-0.5">Total Balance</p>
           </div>
-        </div>
-      </div>
-
-      {/* Alerts - Clickable */}
-      <div className="card">
-        <div className="card-header">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-            <ExclamationTriangleIcon className="w-5 h-5 text-amber-500" />
-            {t('dashboard.alertsNotifications')}
-          </h2>
-        </div>
-        <div className="card-body">
-          <div className="space-y-3">
-            {alerts.map((alert, index) => (
-              <Link 
-                key={index}
-                to={alert.href}
-                className={`flex items-center gap-4 p-4 rounded-xl ${alert.bgColor} transition-all hover:scale-[1.01] cursor-pointer`}
-              >
-                <div className={`p-2 rounded-lg bg-white/50 dark:bg-white/10 ${alert.iconColor}`}>
-                  <alert.icon className="w-5 h-5" />
-                </div>
-                <span className={`text-sm font-medium ${alert.textColor}`}>
-                  {alert.count} {t(alert.messageKey)}
-                </span>
-              </Link>
-            ))}
+          <div className="bg-white dark:bg-slate-800 p-4">
+            {bankAccounts.length > 0 ? (
+              <div className="space-y-2.5 max-h-[140px] overflow-y-auto">
+                {bankAccounts.map((account: any, i: number) => (
+                  <Link key={account.id || i} to="/gl/accounts" className="flex items-center justify-between p-2.5 rounded-lg bg-gray-50 dark:bg-slate-700/50 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center">
+                        <BuildingLibraryIcon className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate max-w-[140px]">{account.name || account.accountName}</p>
+                        <p className="text-xs text-gray-400">{account.code || account.accountCode}</p>
+                      </div>
+                    </div>
+                    <p className={`text-sm font-bold ${(account.balance || 0) >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>{formatCurrency(account.balance || 0)}</p>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[120px] text-gray-400 dark:text-gray-500 text-sm">
+                <Link to="/bank/settings" className="text-center hover:text-indigo-500 transition-colors">
+                  <BuildingLibraryIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>No bank accounts configured</p>
+                  <p className="text-xs mt-1 text-indigo-400">Click to set up</p>
+                </Link>
+              </div>
+            )}
           </div>
-        </div>
+        </DashCard>
       </div>
     </div>
   );

@@ -112,6 +112,7 @@
     "allReports": "All Reports",
     "profitLoss": "Profit & Loss"
   },
+  "nav.leads": "Leads",
   "auth": {
     "login": "Sign In",
     "logout": "Logout",

@@ -14,10 +14,10 @@ router.get('/types', reportTemplateController.getTypes);
 router.get('/fields/:type', reportTemplateController.getFields);
 
 // List templates (with filters)
-router.get('/', requirePermission('SYSTEM', 'REPORT_TEMPLATES'), reportTemplateController.list);
+router.get('/', reportTemplateController.list);
 
 // Get single template
-router.get('/:id', requirePermission('SYSTEM', 'REPORT_TEMPLATES'), reportTemplateController.getById);
+router.get('/:id', reportTemplateController.getById);
 
 // Create new template
 router.post('/', requirePermission('SYSTEM', 'REPORT_TEMPLATES'), reportTemplateController.create);

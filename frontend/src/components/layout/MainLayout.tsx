@@ -110,6 +110,7 @@ const navigation = [
       { nameKey: 'nav.paymentNotify', href: '/messaging/payment-notify' },
       { nameKey: 'nav.socialInbox', href: '/social/inbox' },
       { nameKey: 'nav.socialSettings', href: '/social/settings' },
+      { nameKey: 'nav.leads', href: '/crm/leads' },
     ],
   },
   {

@@ -161,6 +161,23 @@ export default function MessagingInboxPage() {
     return all.slice(0, 10);
   }, [logsData, selectedInquiry]);
 
+  const [followUpDate, setFollowUpDate] = useState<string>('');
+  const [followUpNote, setFollowUpNote] = useState<string>('');
+  const followUpMutation = useMutation({
+    mutationFn: (data: { id: number; activityDate: string; note: string }) =>
+      post(`/messaging/inquiries/${data.id}/follow-up`, {
+        activityDate: data.activityDate,
+        note: data.note,
+      }),
+    onSuccess: () => {
+      toast.success('Follow-up scheduled');
+      setFollowUpDate('');
+      setFollowUpNote('');
+      queryClient.invalidateQueries({ queryKey: ['messaging-inquiries'] });
+    },
+    onError: (err: any) => toast.error(err.response?.data?.error?.message || 'Failed to schedule follow-up'),
+  });
+
   const columns = [
     {
       key: 'platform',
@@ -467,6 +484,47 @@ export default function MessagingInboxPage() {
                     }}
                   >
                     {sendReplyMutation.isPending ? 'Sending…' : 'Send Reply'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Follow-up */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-gray-500">Follow-up Reminder</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="label">Follow-up Date</label>
+                    <input
+                      type="datetime-local"
+                      className="input w-full"
+                      value={followUpDate}
+                      onChange={(e) => setFollowUpDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="label">Note</label>
+                    <input
+                      type="text"
+                      className="input w-full"
+                      placeholder="E.g., call customer to confirm order"
+                      value={followUpNote}
+                      onChange={(e) => setFollowUpNote(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    className="btn btn-secondary"
+                    disabled={followUpMutation.isPending || !followUpDate}
+                    onClick={() => {
+                      followUpMutation.mutate({
+                        id: selectedInquiry.id,
+                        activityDate: followUpDate,
+                        note: followUpNote,
+                      });
+                    }}
+                  >
+                    {followUpMutation.isPending ? 'Scheduling…' : 'Schedule Follow-up'}
                   </button>
                 </div>
               </div>

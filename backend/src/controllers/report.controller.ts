@@ -632,6 +632,169 @@ export class ReportController {
   // Tax Reports
   sstReport = stubHandler('SST Report');
 
+  // Monthly Sales Analysis
+  monthlySalesAnalysis = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const year = parseInt(req.query.year as string) || new Date().getFullYear();
+      const customerId = req.query.customerId ? parseInt(req.query.customerId as string) : undefined;
+
+      const dateFrom = new Date(year, 0, 1);
+      const dateTo = new Date(year, 11, 31, 23, 59, 59);
+
+      const where: any = {
+        documentType: { in: ['INVOICE', 'CASH_SALE'] },
+        documentDate: { gte: dateFrom, lte: dateTo },
+        isVoid: false,
+      };
+      if (customerId) where.customerId = customerId;
+
+      const cnWhere: any = {
+        documentType: 'CREDIT_NOTE',
+        documentDate: { gte: dateFrom, lte: dateTo },
+        isVoid: false,
+      };
+      if (customerId) cnWhere.customerId = customerId;
+
+      const invoices = await prisma.salesHeader.findMany({ where, select: { documentDate: true, netTotal: true } });
+      const creditNotes = await prisma.salesHeader.findMany({ where: cnWhere, select: { documentDate: true, netTotal: true } });
+
+      const months = Array.from({ length: 12 }, (_, i) => ({
+        month: i + 1,
+        monthName: new Date(year, i).toLocaleString('en', { month: 'short' }),
+        invoiceCount: 0, totalSales: 0, returns: 0, netSales: 0,
+      }));
+
+      for (const inv of invoices) {
+        const m = new Date(inv.documentDate).getMonth();
+        months[m].invoiceCount++;
+        months[m].totalSales += Number(inv.netTotal);
+      }
+      for (const cn of creditNotes) {
+        const m = new Date(cn.documentDate).getMonth();
+        months[m].returns += Number(cn.netTotal);
+      }
+      months.forEach(m => { m.netSales = m.totalSales - m.returns; });
+
+      const totalYearSales = months.reduce((s, m) => s + m.netSales, 0);
+      const avgMonthly = totalYearSales / 12;
+      const bestMonth = months.reduce((best, m) => m.netSales > best.netSales ? m : best, months[0]);
+      const worstMonth = months.reduce((worst, m) => m.netSales < worst.netSales ? m : worst, months[0]);
+
+      res.json({
+        success: true,
+        data: { year, months, totalYearSales, avgMonthly, bestMonth: bestMonth.monthName, worstMonth: worstMonth.monthName },
+      });
+    } catch (error) { next(error); }
+  };
+
+  // Monthly Purchase Analysis
+  monthlyPurchaseAnalysis = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const year = parseInt(req.query.year as string) || new Date().getFullYear();
+      const vendorId = req.query.vendorId ? parseInt(req.query.vendorId as string) : undefined;
+
+      const dateFrom = new Date(year, 0, 1);
+      const dateTo = new Date(year, 11, 31, 23, 59, 59);
+
+      const where: any = {
+        documentType: { in: ['PURCHASE_INVOICE', 'GRN'] },
+        documentDate: { gte: dateFrom, lte: dateTo },
+        isVoid: false,
+      };
+      if (vendorId) where.vendorId = vendorId;
+
+      const cnWhere: any = {
+        documentType: 'CREDIT_NOTE',
+        documentDate: { gte: dateFrom, lte: dateTo },
+        isVoid: false,
+      };
+      if (vendorId) cnWhere.vendorId = vendorId;
+
+      const invoices = await prisma.purchaseHeader.findMany({ where, select: { documentDate: true, netTotal: true } });
+      const creditNotes = await prisma.purchaseHeader.findMany({ where: cnWhere, select: { documentDate: true, netTotal: true } });
+
+      const months = Array.from({ length: 12 }, (_, i) => ({
+        month: i + 1,
+        monthName: new Date(year, i).toLocaleString('en', { month: 'short' }),
+        invoiceCount: 0, totalPurchases: 0, returns: 0, netPurchases: 0,
+      }));
+
+      for (const inv of invoices) {
+        const m = new Date(inv.documentDate).getMonth();
+        months[m].invoiceCount++;
+        months[m].totalPurchases += Number(inv.netTotal);
+      }
+      for (const cn of creditNotes) {
+        const m = new Date(cn.documentDate).getMonth();
+        months[m].returns += Number(cn.netTotal);
+      }
+      months.forEach(m => { m.netPurchases = m.totalPurchases - m.returns; });
+
+      const totalYearPurchases = months.reduce((s, m) => s + m.netPurchases, 0);
+      const avgMonthly = totalYearPurchases / 12;
+      const bestMonth = months.reduce((best, m) => m.netPurchases > best.netPurchases ? m : best, months[0]);
+      const worstMonth = months.reduce((worst, m) => m.netPurchases < worst.netPurchases ? m : worst, months[0]);
+
+      res.json({
+        success: true,
+        data: { year, months, totalYearPurchases, avgMonthly, bestMonth: bestMonth.monthName, worstMonth: worstMonth.monthName },
+      });
+    } catch (error) { next(error); }
+  };
+
+  // Product Profit Margin
+  productProfitMargin = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const dateFrom = new Date(req.query.dateFrom as string || new Date(new Date().getFullYear(), 0, 1).toISOString());
+      const dateTo = new Date(req.query.dateTo as string || new Date().toISOString());
+      const productGroupId = req.query.productGroupId ? parseInt(req.query.productGroupId as string) : undefined;
+
+      const where: any = {
+        header: {
+          documentType: { in: ['INVOICE', 'CASH_SALE'] },
+          documentDate: { gte: dateFrom, lte: dateTo },
+          isVoid: false,
+        },
+        productId: { not: null },
+      };
+
+      const details = await prisma.salesDetail.findMany({
+        where,
+        include: { product: { include: { group: true } } },
+      });
+
+      const productMap = new Map<number, { code: string; name: string; groupName: string; totalSales: number; totalCost: number }>();
+
+      for (const d of details) {
+        if (!d.product) continue;
+        if (productGroupId && d.product.groupId !== productGroupId) continue;
+        const existing = productMap.get(d.product.id) || {
+          code: d.product.code, name: d.product.description || d.product.code,
+          groupName: d.product.group?.name || '-',
+          totalSales: 0, totalCost: 0,
+        };
+        existing.totalSales += Number(d.subTotal);
+        existing.totalCost += Number(d.totalCost);
+        productMap.set(d.product.id, existing);
+      }
+
+      const products = Array.from(productMap.values()).map(p => ({
+        ...p,
+        grossProfit: p.totalSales - p.totalCost,
+        marginPercent: p.totalSales > 0 ? ((p.totalSales - p.totalCost) / p.totalSales) * 100 : 0,
+      }));
+
+      const totalRevenue = products.reduce((s, p) => s + p.totalSales, 0);
+      const totalCost = products.reduce((s, p) => s + p.totalCost, 0);
+      const overallMargin = totalRevenue > 0 ? ((totalRevenue - totalCost) / totalRevenue) * 100 : 0;
+
+      res.json({
+        success: true,
+        data: { dateFrom, dateTo, products, totalRevenue, totalCost, overallMargin },
+      });
+    } catch (error) { next(error); }
+  };
+
   // Export
   exportReport = stubHandler('Export Report');
 }

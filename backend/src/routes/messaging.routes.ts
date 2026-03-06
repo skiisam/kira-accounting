@@ -441,6 +441,86 @@ router.post('/inquiries/:id/convert-to-lead', async (req: Request, res: Response
   }
 });
 
+/**
+ * POST /messaging/inquiries/:id/follow-up
+ * Create a follow-up CRM activity for an inquiry
+ */
+router.post('/inquiries/:id/follow-up', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    const inquiryId = parseInt(req.params.id);
+    const { activityDate, note } = req.body;
+    if (!activityDate) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'activityDate is required' }
+      });
+    }
+    const activity = await messagingService.createInquiryFollowUp(
+      inquiryId,
+      new Date(activityDate),
+      note || '',
+      userId
+    );
+    res.json({ success: true, data: activity });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'FOLLOW_UP_ERROR', message: error.message }
+    });
+  }
+});
+
+// =====================================================
+// CRM Leads (minimal endpoints for Kanban)
+// =====================================================
+
+/**
+ * GET /messaging/leads
+ * List leads (optionally by status)
+ */
+router.get('/leads', async (req: Request, res: Response) => {
+  try {
+    const { status, page, pageSize } = req.query;
+    const leads = await messagingService.getLeads({
+      status: status as string | undefined,
+      page: page ? parseInt(page as string) : 1,
+      pageSize: pageSize ? parseInt(page as string) : 100,
+    });
+    res.json({ success: true, ...leads });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'FETCH_ERROR', message: error.message }
+    });
+  }
+});
+
+/**
+ * PUT /messaging/leads/:id/status
+ * Update lead status
+ */
+router.put('/leads/:id/status', async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user?.id;
+    const id = parseInt(req.params.id);
+    const { status } = req.body;
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        error: { code: 'VALIDATION_ERROR', message: 'status is required' }
+      });
+    }
+    const lead = await messagingService.updateLeadStatus(id, status, userId);
+    res.json({ success: true, data: lead });
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: { code: 'UPDATE_ERROR', message: error.message }
+    });
+  }
+});
+
 // =====================================================
 // BATCH SOA (Statement of Account)
 // =====================================================

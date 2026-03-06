@@ -1929,6 +1929,50 @@ model CashBookKnockoff {
 }
 
 // =====================================================
+// KNOCK OFF ENTRIES (Direct Debit/Credit Matching)
+// =====================================================
+
+model KnockOffEntry {
+  id              Int       @id @default(autoincrement())
+  entryNo         String    @unique @db.VarChar(30)
+  entryDate       DateTime
+  entryType       String    @db.VarChar(10) // AR or AP
+  customerId      Int?
+  vendorId        Int?
+  description     String?   @db.VarChar(500)
+  totalAmount     Decimal   @default(0) @db.Decimal(18, 2)
+  status          String    @default("COMPLETED") @db.VarChar(20)
+  isVoid          Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  createdBy       Int?
+  modifiedBy      Int?
+
+  details KnockOffEntryDetail[]
+
+  @@map("knock_off_entries")
+}
+
+model KnockOffEntryDetail {
+  id                Int       @id @default(autoincrement())
+  knockOffEntryId   Int
+  side              String    @db.VarChar(10) // DEBIT or CREDIT
+  documentType      String    @db.VarChar(30) // AR_INVOICE, AR_CN, AR_PAYMENT, AP_INVOICE, AP_DN, AP_PAYMENT
+  documentId        Int
+  documentNo        String    @db.VarChar(30)
+  documentDate      DateTime?
+  documentAmount    Decimal   @default(0) @db.Decimal(18, 2)
+  outstandingBefore Decimal   @default(0) @db.Decimal(18, 2)
+  knockOffAmount    Decimal   @default(0) @db.Decimal(18, 2)
+  outstandingAfter  Decimal   @default(0) @db.Decimal(18, 2)
+
+  entry KnockOffEntry @relation(fields: [knockOffEntryId], references: [id], onDelete: Cascade)
+
+  @@map("knock_off_entry_details")
+}
+
+
+// =====================================================
 // REPORT TEMPLATES (KIRA Report Designer)
 // =====================================================
 

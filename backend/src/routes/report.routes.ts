@@ -57,6 +57,12 @@ router.get('/stock/slow-moving', requirePermission('REPORTS', 'SLOW_MOVING'), re
 // Tax Reports
 router.get('/tax/sst-report', requirePermission('REPORTS', 'SST_REPORT'), reportController.sstReport);
 
+
+// Analysis Reports
+router.get('/sales/monthly-sales-analysis', requirePermission('REPORTS', 'SALES_ANALYSIS'), reportController.monthlySalesAnalysis);
+router.get('/purchase/monthly-purchase-analysis', requirePermission('REPORTS', 'PURCHASE_ANALYSIS'), reportController.monthlyPurchaseAnalysis);
+router.get('/sales/product-profit-margin', requirePermission('REPORTS', 'SALES_ANALYSIS'), reportController.productProfitMargin);
+
 // Export
 router.post('/export', reportController.exportReport);
 

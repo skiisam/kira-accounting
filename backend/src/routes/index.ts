@@ -25,6 +25,7 @@ import accessRightsRoutes from './accessRights.routes';
 import subscriptionRoutes from './subscription.routes';
 import reportTemplateRoutes from './reportTemplate.routes';
 import cashbookRoutes from './cashbook.routes';
+import knockoffRoutes from './knockoff.routes';
 // import crmRoutes from './crm.routes'; // TODO: Fix CRM models
 
 const router = Router();
@@ -58,6 +59,7 @@ router.use('/access-rights', accessRightsRoutes);
 router.use('/subscription', subscriptionRoutes);
 router.use('/report-templates', reportTemplateRoutes);
 router.use('/cashbook', cashbookRoutes);
+router.use('/knockoff', knockoffRoutes);
 // router.use('/crm', crmRoutes); // TODO: Fix CRM models
 
 export default router;
