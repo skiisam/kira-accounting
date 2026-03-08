@@ -13,6 +13,12 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('🌱 Seeding database...');
 
+  // Subscription Plans (must be first)
+  await prisma.subscriptionPlan.upsert({ where: { code: 'FREE' }, update: {}, create: { code: 'FREE', name: 'Free', description: 'Free plan', monthlyPrice: 0, yearlyPrice: 0, currency: 'MYR', maxUsers: 2, maxCompanies: 1, maxInvoicesMonth: 50, maxProducts: 100, maxCustomers: 100, storageGb: 1, features: { einvoice: false, multiCurrency: false }, isActive: true, sortOrder: 1 } });
+  await prisma.subscriptionPlan.upsert({ where: { code: 'STARTER' }, update: {}, create: { code: 'STARTER', name: 'Starter', description: 'For small businesses', monthlyPrice: 49.90, yearlyPrice: 499, currency: 'MYR', maxUsers: 5, maxCompanies: 2, maxInvoicesMonth: 500, maxProducts: 1000, maxCustomers: 500, storageGb: 5, features: { einvoice: true, multiCurrency: true }, isActive: true, sortOrder: 2 } });
+  await prisma.subscriptionPlan.upsert({ where: { code: 'PRO' }, update: {}, create: { code: 'PRO', name: 'Professional', description: 'For growing businesses', monthlyPrice: 99.90, yearlyPrice: 999, currency: 'MYR', maxUsers: 20, maxCompanies: 5, maxInvoicesMonth: 0, maxProducts: 0, maxCustomers: 0, storageGb: 20, features: { einvoice: true, multiCurrency: true, bankIntegration: true }, isActive: true, sortOrder: 3 } });
+  console.log('✅ Subscription plans created');
+
   // Account Types
   const accountTypes = await Promise.all([
     prisma.accountType.upsert({ where: { code: 'ASSET' }, update: {}, create: { code: 'ASSET', name: 'Assets', category: 'ASSET', normalBalance: 'D', displayOrder: 1 } }),
