@@ -626,8 +626,16 @@ export class PurchaseController extends BaseController<any> {
 
   // ==================== CASH PURCHASES ====================
 
-  listCashPurchases = stubHandler('List Cash Purchases');
-  createCashPurchase = stubHandler('Create Cash Purchase');
+  listCashPurchases = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'List Cash Purchases coming soon' } });
+    } catch (error) { next(error); }
+  };
+  createCashPurchase = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create Cash Purchase coming soon' } });
+    } catch (error) { next(error); }
+  };
 
   // ==================== CREDIT NOTES ====================
 
@@ -1265,6 +1273,14 @@ export class PurchaseController extends BaseController<any> {
   list = this.listOrders;
   getById = this.getOrder;
   create = this.createOrder;
-  update = stubHandler('Update Purchase');
-  delete = stubHandler('Delete Purchase');
+  update = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update Purchase coming soon' } });
+    } catch (error) { next(error); }
+  };
+  delete = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Delete Purchase coming soon' } });
+    } catch (error) { next(error); }
+  };
 }

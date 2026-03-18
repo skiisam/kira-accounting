@@ -670,7 +670,11 @@ export class SettingsController {
     }
   };
 
-  updateUser = stubHandler('Update User');
+  updateUser = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update User coming soon' } });
+    } catch (error) { next(error); }
+  };
   deleteUser = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = parseInt(req.params.id);
@@ -1182,9 +1186,21 @@ export class SettingsController {
     }
   };
 
-  createArea = stubHandler('Create Area');
-  updateArea = stubHandler('Update Area');
-  deleteArea = stubHandler('Delete Area');
+  createArea = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create Area coming soon' } });
+    } catch (error) { next(error); }
+  };
+  updateArea = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update Area coming soon' } });
+    } catch (error) { next(error); }
+  };
+  deleteArea = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Delete Area coming soon' } });
+    } catch (error) { next(error); }
+  };
 
   // Sales Agents
   listSalesAgents = async (req: Request, res: Response, next: NextFunction) => {
@@ -1196,9 +1212,21 @@ export class SettingsController {
     }
   };
 
-  createSalesAgent = stubHandler('Create Sales Agent');
-  updateSalesAgent = stubHandler('Update Sales Agent');
-  deleteSalesAgent = stubHandler('Delete Sales Agent');
+  createSalesAgent = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create Sales Agent coming soon' } });
+    } catch (error) { next(error); }
+  };
+  updateSalesAgent = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update Sales Agent coming soon' } });
+    } catch (error) { next(error); }
+  };
+  deleteSalesAgent = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Delete Sales Agent coming soon' } });
+    } catch (error) { next(error); }
+  };
 
   // Purchase Agents
   listPurchaseAgents = async (req: Request, res: Response, next: NextFunction) => {
@@ -1210,9 +1238,21 @@ export class SettingsController {
     }
   };
 
-  createPurchaseAgent = stubHandler('Create Purchase Agent');
-  updatePurchaseAgent = stubHandler('Update Purchase Agent');
-  deletePurchaseAgent = stubHandler('Delete Purchase Agent');
+  createPurchaseAgent = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create Purchase Agent coming soon' } });
+    } catch (error) { next(error); }
+  };
+  updatePurchaseAgent = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update Purchase Agent coming soon' } });
+    } catch (error) { next(error); }
+  };
+  deletePurchaseAgent = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Delete Purchase Agent coming soon' } });
+    } catch (error) { next(error); }
+  };
 
   // Product Groups
   listProductGroups = async (req: Request, res: Response, next: NextFunction) => {
@@ -1325,9 +1365,21 @@ export class SettingsController {
     }
   };
 
-  createProductType = stubHandler('Create Product Type');
-  updateProductType = stubHandler('Update Product Type');
-  deleteProductType = stubHandler('Delete Product Type');
+  createProductType = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create Product Type coming soon' } });
+    } catch (error) { next(error); }
+  };
+  updateProductType = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update Product Type coming soon' } });
+    } catch (error) { next(error); }
+  };
+  deleteProductType = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Delete Product Type coming soon' } });
+    } catch (error) { next(error); }
+  };
 
   // Payment Methods
   listPaymentMethods = async (req: Request, res: Response, next: NextFunction) => {
@@ -1473,7 +1525,11 @@ export class SettingsController {
       next(error);
     }
   };
-  closeFiscalYear = stubHandler('Close Fiscal Year');
+  closeFiscalYear = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Close Fiscal Year coming soon' } });
+    } catch (error) { next(error); }
+  };
 
   /**
    * Lock a fiscal year to prevent editing/deleting transactions
@@ -1604,9 +1660,21 @@ export class SettingsController {
     }
   };
 
-  createProject = stubHandler('Create Project');
-  updateProject = stubHandler('Update Project');
-  deleteProject = stubHandler('Delete Project');
+  createProject = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create Project coming soon' } });
+    } catch (error) { next(error); }
+  };
+  updateProject = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update Project coming soon' } });
+    } catch (error) { next(error); }
+  };
+  deleteProject = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Delete Project coming soon' } });
+    } catch (error) { next(error); }
+  };
 
   // Departments
   listDepartments = async (req: Request, res: Response, next: NextFunction) => {
@@ -1618,9 +1686,21 @@ export class SettingsController {
     }
   };
 
-  createDepartment = stubHandler('Create Department');
-  updateDepartment = stubHandler('Update Department');
-  deleteDepartment = stubHandler('Delete Department');
+  createDepartment = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create Department coming soon' } });
+    } catch (error) { next(error); }
+  };
+  updateDepartment = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update Department coming soon' } });
+    } catch (error) { next(error); }
+  };
+  deleteDepartment = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Delete Department coming soon' } });
+    } catch (error) { next(error); }
+  };
 
   // Audit Trail
   getAuditTrail = async (req: Request, res: Response, next: NextFunction) => {
@@ -1637,6 +1717,14 @@ export class SettingsController {
   };
 
   // System
-  createBackup = stubHandler('Create Backup');
-  restoreBackup = stubHandler('Restore Backup');
+  createBackup = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create Backup coming soon' } });
+    } catch (error) { next(error); }
+  };
+  restoreBackup = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Restore Backup coming soon' } });
+    } catch (error) { next(error); }
+  };
 }

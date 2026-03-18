@@ -53,8 +53,16 @@ export class StockController extends BaseController<any> {
     }
   };
 
-  updateReceive = stubHandler('Update Stock Receive');
-  deleteReceive = stubHandler('Delete Stock Receive');
+  updateReceive = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update Stock Receive coming soon' } });
+    } catch (error) { next(error); }
+  };
+  deleteReceive = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Delete Stock Receive coming soon' } });
+    } catch (error) { next(error); }
+  };
 
   // Stock Issue
   listIssue = async (req: Request, res: Response, next: NextFunction) => {
@@ -98,8 +106,16 @@ export class StockController extends BaseController<any> {
     }
   };
 
-  updateIssue = stubHandler('Update Stock Issue');
-  deleteIssue = stubHandler('Delete Stock Issue');
+  updateIssue = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update Stock Issue coming soon' } });
+    } catch (error) { next(error); }
+  };
+  deleteIssue = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Delete Stock Issue coming soon' } });
+    } catch (error) { next(error); }
+  };
 
   // Stock Transfer
   listTransfer = async (req: Request, res: Response, next: NextFunction) => {
@@ -118,10 +134,26 @@ export class StockController extends BaseController<any> {
     }
   };
 
-  getTransfer = stubHandler('Get Stock Transfer');
-  createTransfer = stubHandler('Create Stock Transfer');
-  updateTransfer = stubHandler('Update Stock Transfer');
-  deleteTransfer = stubHandler('Delete Stock Transfer');
+  getTransfer = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Get Stock Transfer coming soon' } });
+    } catch (error) { next(error); }
+  };
+  createTransfer = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create Stock Transfer coming soon' } });
+    } catch (error) { next(error); }
+  };
+  updateTransfer = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update Stock Transfer coming soon' } });
+    } catch (error) { next(error); }
+  };
+  deleteTransfer = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Delete Stock Transfer coming soon' } });
+    } catch (error) { next(error); }
+  };
 
   // Stock Adjustment
   listAdjustment = async (req: Request, res: Response, next: NextFunction) => {
@@ -140,20 +172,60 @@ export class StockController extends BaseController<any> {
     }
   };
 
-  getAdjustment = stubHandler('Get Stock Adjustment');
-  createAdjustment = stubHandler('Create Stock Adjustment');
-  updateAdjustment = stubHandler('Update Stock Adjustment');
-  deleteAdjustment = stubHandler('Delete Stock Adjustment');
+  getAdjustment = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Get Stock Adjustment coming soon' } });
+    } catch (error) { next(error); }
+  };
+  createAdjustment = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create Stock Adjustment coming soon' } });
+    } catch (error) { next(error); }
+  };
+  updateAdjustment = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update Stock Adjustment coming soon' } });
+    } catch (error) { next(error); }
+  };
+  deleteAdjustment = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Delete Stock Adjustment coming soon' } });
+    } catch (error) { next(error); }
+  };
 
   // Stock Take
-  listStockTake = stubHandler('List Stock Take');
-  createStockTake = stubHandler('Create Stock Take');
-  finalizeStockTake = stubHandler('Finalize Stock Take');
+  listStockTake = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'List Stock Take coming soon' } });
+    } catch (error) { next(error); }
+  };
+  createStockTake = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create Stock Take coming soon' } });
+    } catch (error) { next(error); }
+  };
+  finalizeStockTake = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Finalize Stock Take coming soon' } });
+    } catch (error) { next(error); }
+  };
 
   // Assembly
-  listAssembly = stubHandler('List Assembly');
-  createAssembly = stubHandler('Create Assembly');
-  createDisassembly = stubHandler('Create Disassembly');
+  listAssembly = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'List Assembly coming soon' } });
+    } catch (error) { next(error); }
+  };
+  createAssembly = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create Assembly coming soon' } });
+    } catch (error) { next(error); }
+  };
+  createDisassembly = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create Disassembly coming soon' } });
+    } catch (error) { next(error); }
+  };
 
   // Queries
   getStockBalance = async (req: Request, res: Response, next: NextFunction) => {
@@ -191,7 +263,18 @@ export class StockController extends BaseController<any> {
     }
   };
 
-  getStockMovements = stubHandler('Get Stock Movements');
+  getStockMovements = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const productId = parseInt(req.params.productId);
+      const movements = await prisma.stockTransaction.findMany({
+        where: { productId },
+        include: { location: true },
+        orderBy: { transactionDate: 'desc' },
+        take: 100,
+      });
+      res.json({ success: true, data: movements });
+    } catch (error) { next(error); }
+  };
 
   getStockCard = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -242,7 +325,16 @@ export class StockController extends BaseController<any> {
     }
   };
 
-  getLocationBalance = stubHandler('Get Location Balance');
+  getLocationBalance = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const productId = parseInt(req.params.productId);
+      const balances = await prisma.productLocation.findMany({
+        where: { productId },
+        include: { location: true },
+      });
+      res.json({ success: true, data: balances });
+    } catch (error) { next(error); }
+  };
 
   private async createStockTransaction(type: string, transactionNo: string, data: any, userId?: number) {
     const totalCost = data.details.reduce((sum: number, d: any) => sum + (d.quantity * (d.unitCost || 0)), 0);
@@ -300,6 +392,14 @@ export class StockController extends BaseController<any> {
   list = this.listReceive;
   getById = this.getReceive;
   create = this.createReceive;
-  update = stubHandler('Update Stock');
-  delete = stubHandler('Delete Stock');
+  update = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update Stock coming soon' } });
+    } catch (error) { next(error); }
+  };
+  delete = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Delete Stock coming soon' } });
+    } catch (error) { next(error); }
+  };
 }

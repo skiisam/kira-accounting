@@ -170,5 +170,60 @@ export class DashboardController {
       next(error);
     }
   };
+
+  
+  getEnhancedDashboard = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 86400000);
+      const yearStart = new Date(now.getFullYear(), 0, 1);
+
+      // Unpaid invoices
+      const overdueInvoices = await prisma.arInvoice.aggregate({
+        where: { status: { not: 'PAID' }, dueDate: { lt: now } },
+        _sum: { totalAmount: true }, _count: true,
+      });
+      const notDueInvoices = await prisma.arInvoice.aggregate({
+        where: { status: { not: 'PAID' }, dueDate: { gte: now } },
+        _sum: { totalAmount: true }, _count: true,
+      });
+
+      // P&L summary
+      const revenueAccounts = await prisma.journalEntryDetail.aggregate({
+        where: { account: { type: { category: 'REVENUE' } }, journal: { journalDate: { gte: yearStart }, isVoid: false } },
+        _sum: { creditAmount: true, debitAmount: true },
+      });
+      const expenseAccounts = await prisma.journalEntryDetail.aggregate({
+        where: { account: { type: { category: 'EXPENSE' } }, journal: { journalDate: { gte: yearStart }, isVoid: false } },
+        _sum: { debitAmount: true, creditAmount: true },
+      });
+      const totalRevenue = Number(revenueAccounts._sum.creditAmount || 0) - Number(revenueAccounts._sum.debitAmount || 0);
+      const totalExpense = Number(expenseAccounts._sum.debitAmount || 0) - Number(expenseAccounts._sum.creditAmount || 0);
+
+      // Bank balances
+      const bankAccounts = await prisma.account.findMany({
+        where: { type: { category: 'ASSET' }, name: { contains: 'bank', mode: 'insensitive' }, isActive: true },
+      });
+      const bankData = await Promise.all(bankAccounts.map(async (acc) => {
+        const result = await prisma.journalEntryDetail.aggregate({
+          where: { accountId: acc.id, journal: { isVoid: false } },
+          _sum: { debitAmount: true, creditAmount: true },
+        });
+        return { name: acc.name, balance: Number(acc.openingBalance || 0) + Number(result._sum.debitAmount || 0) - Number(result._sum.creditAmount || 0) };
+      }));
+
+      res.json({
+        success: true,
+        data: {
+          unpaidInvoices: {
+            overdue: { count: overdueInvoices._count, amount: Number(overdueInvoices._sum.totalAmount || 0) },
+            notDue: { count: notDueInvoices._count, amount: Number(notDueInvoices._sum.totalAmount || 0) },
+          },
+          profitLoss: { revenue: totalRevenue, expenses: totalExpense, netIncome: totalRevenue - totalExpense },
+          bankAccounts: bankData,
+        },
+      });
+    } catch (error) { next(error); }
+  };
 }
 

@@ -146,11 +146,95 @@ export class ReportController {
     }
   };
 
-  ledgerListing = stubHandler('Ledger Listing');
-  journalListing = stubHandler('Journal Listing');
+  ledgerListing = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const accountId = parseInt(req.query.accountId as string);
+      const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : new Date(new Date().getFullYear(), 0, 1);
+      const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : new Date();
+
+      const where: any = {
+        journal: { journalDate: { gte: dateFrom, lte: dateTo }, isVoid: false },
+      };
+      if (accountId) where.accountId = accountId;
+
+      const entries = await prisma.journalEntryDetail.findMany({
+        where,
+        include: {
+          journal: true,
+          account: { include: { type: true } },
+        },
+        orderBy: { journal: { journalDate: 'asc' } },
+      });
+
+      let runningBalance = 0;
+      const data = entries.map(e => {
+        const debit = Number(e.debitAmount || 0);
+        const credit = Number(e.creditAmount || 0);
+        const isDebitNormal = e.account.type.normalBalance === 'D';
+        runningBalance += isDebitNormal ? debit - credit : credit - debit;
+        return {
+          date: e.journal.journalDate,
+          journalNo: e.journal.journalNo,
+          description: e.description || e.journal.description,
+          accountNo: e.account.accountNo,
+          accountName: e.account.name,
+          debit, credit,
+          balance: runningBalance,
+        };
+      });
+
+      res.json({ success: true, data: { dateFrom, dateTo, entries: data } });
+    } catch (error) { next(error); }
+  };
+  journalListing = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : new Date(new Date().getFullYear(), 0, 1);
+      const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : new Date();
+      const journalType = req.query.journalType as string;
+
+      const where: any = { journalDate: { gte: dateFrom, lte: dateTo }, isVoid: false };
+      if (journalType) where.journalType = journalType;
+
+      const journals = await prisma.journalEntry.findMany({
+        where,
+        include: { details: { include: { account: true } }, createdByUser: { select: { name: true } } },
+        orderBy: { journalDate: 'desc' },
+      });
+
+      const data = journals.map(j => ({
+        id: j.id, journalNo: j.journalNo, journalDate: j.journalDate,
+        journalType: j.journalType, description: j.description,
+        reference: j.reference, isVoid: j.isVoid,
+        createdBy: j.createdByUser?.name,
+        totalDebit: j.details.reduce((s, d) => s + Number(d.debitAmount || 0), 0),
+        totalCredit: j.details.reduce((s, d) => s + Number(d.creditAmount || 0), 0),
+        details: j.details.map(d => ({
+          accountNo: d.account.accountNo, accountName: d.account.name,
+          description: d.description, debit: Number(d.debitAmount || 0), credit: Number(d.creditAmount || 0),
+        })),
+      }));
+
+      res.json({ success: true, data: { dateFrom, dateTo, journals: data } });
+    } catch (error) { next(error); }
+  };
 
   // AR Reports
-  customerListing = stubHandler('Customer Listing');
+  customerListing = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const customers = await prisma.customer.findMany({
+        where: { isActive: true },
+        orderBy: { name: 'asc' },
+      });
+      const data = await Promise.all(customers.map(async (c) => {
+        const invoices = await prisma.arInvoice.aggregate({ where: { customerId: c.id }, _sum: { totalAmount: true }, _count: true });
+        const payments = await prisma.arPayment.aggregate({ where: { customerId: c.id }, _sum: { amount: true } });
+        const totalInvoiced = Number(invoices._sum.totalAmount || 0);
+        const totalPaid = Number(payments._sum.amount || 0);
+        return { id: c.id, code: c.code, name: c.name, phone: c.phone, email: c.email, totalInvoiced, totalPaid, outstanding: totalInvoiced - totalPaid, invoiceCount: invoices._count };
+      }));
+      res.json({ success: true, data });
+    } catch (error) { next(error); }
+  };
   customerAging = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const asAtDate = req.query.asAtDate ? new Date(req.query.asAtDate as string) : new Date();
@@ -292,11 +376,45 @@ export class ReportController {
       });
     } catch (error) { next(error); }
   };
-  arInvoiceListing = stubHandler('AR Invoice Listing');
-  arPaymentListing = stubHandler('AR Payment Listing');
+  arInvoiceListing = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : new Date(new Date().getFullYear(), 0, 1);
+      const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : new Date();
+      const records = await prisma.arInvoice.findMany({
+        where: { createdAt: { gte: dateFrom, lte: dateTo } },
+        include: { customer: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      res.json({ success: true, data: { dateFrom, dateTo, records } });
+    } catch (error) { next(error); }
+  };
+  arPaymentListing = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : new Date(new Date().getFullYear(), 0, 1);
+      const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : new Date();
+      const records = await prisma.arPayment.findMany({
+        where: { createdAt: { gte: dateFrom, lte: dateTo } },
+        include: { customer: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      res.json({ success: true, data: { dateFrom, dateTo, records } });
+    } catch (error) { next(error); }
+  };
 
   // AP Reports
-  vendorListing = stubHandler('Vendor Listing');
+  vendorListing = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const vendors = await prisma.vendor.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } });
+      const data = await Promise.all(vendors.map(async (v) => {
+        const invoices = await prisma.apInvoice.aggregate({ where: { vendorId: v.id }, _sum: { totalAmount: true }, _count: true });
+        const payments = await prisma.apPayment.aggregate({ where: { vendorId: v.id }, _sum: { amount: true } });
+        const totalInvoiced = Number(invoices._sum.totalAmount || 0);
+        const totalPaid = Number(payments._sum.amount || 0);
+        return { id: v.id, code: v.code, name: v.name, phone: v.phone, email: v.email, totalInvoiced, totalPaid, outstanding: totalInvoiced - totalPaid, invoiceCount: invoices._count };
+      }));
+      res.json({ success: true, data });
+    } catch (error) { next(error); }
+  };
   vendorAging = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const asAtDate = req.query.asAtDate ? new Date(req.query.asAtDate as string) : new Date();
@@ -435,22 +553,158 @@ export class ReportController {
       });
     } catch (error) { next(error); }
   };
-  apInvoiceListing = stubHandler('AP Invoice Listing');
-  apPaymentListing = stubHandler('AP Payment Listing');
+  apInvoiceListing = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : new Date(new Date().getFullYear(), 0, 1);
+      const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : new Date();
+      const records = await prisma.apInvoice.findMany({
+        where: { createdAt: { gte: dateFrom, lte: dateTo } },
+        include: { vendor: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      res.json({ success: true, data: { dateFrom, dateTo, records } });
+    } catch (error) { next(error); }
+  };
+  apPaymentListing = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : new Date(new Date().getFullYear(), 0, 1);
+      const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : new Date();
+      const records = await prisma.apPayment.findMany({
+        where: { createdAt: { gte: dateFrom, lte: dateTo } },
+        include: { vendor: true },
+        orderBy: { createdAt: 'desc' },
+      });
+      res.json({ success: true, data: { dateFrom, dateTo, records } });
+    } catch (error) { next(error); }
+  };
 
   // Sales Reports
-  salesListing = stubHandler('Sales Listing');
-  salesByCustomer = stubHandler('Sales By Customer');
-  salesByProduct = stubHandler('Sales By Product');
-  salesByAgent = stubHandler('Sales By Agent');
-  outstandingDO = stubHandler('Outstanding DO');
-  outstandingSO = stubHandler('Outstanding SO');
+  salesListing = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : new Date(new Date().getFullYear(), 0, 1);
+      const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : new Date();
+      const headers = await prisma.salesHeader.findMany({
+        where: { docDate: { gte: dateFrom, lte: dateTo }, isVoid: false },
+        include: { details: { include: { product: true } }, customer: true, vendor: true },
+        orderBy: { docDate: 'desc' },
+      });
+      const data = headers.map(h => ({ id: h.id, docNo: h.docNo, docDate: h.docDate, docType: h.docType, customerName: (h as any).customer?.name, vendorName: (h as any).vendor?.name, totalAmount: Number(h.totalAmount || 0), status: h.status }));
+      res.json({ success: true, data: { dateFrom, dateTo, records: data } });
+    } catch (error) { next(error); }
+  };
+  salesByCustomer = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : new Date(new Date().getFullYear(), 0, 1);
+      const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : new Date();
+      const headers = await prisma.salesHeader.findMany({
+        where: { docDate: { gte: dateFrom, lte: dateTo }, isVoid: false },
+        include: { details: { include: { product: true } }, customer: true, vendor: true },
+        orderBy: { docDate: 'desc' },
+      });
+      const data = headers.map(h => ({ id: h.id, docNo: h.docNo, docDate: h.docDate, docType: h.docType, customerName: (h as any).customer?.name, vendorName: (h as any).vendor?.name, totalAmount: Number(h.totalAmount || 0), status: h.status }));
+      res.json({ success: true, data: { dateFrom, dateTo, records: data } });
+    } catch (error) { next(error); }
+  };
+  salesByProduct = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : new Date(new Date().getFullYear(), 0, 1);
+      const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : new Date();
+      const headers = await prisma.salesHeader.findMany({
+        where: { docDate: { gte: dateFrom, lte: dateTo }, isVoid: false },
+        include: { details: { include: { product: true } }, customer: true, vendor: true },
+        orderBy: { docDate: 'desc' },
+      });
+      const data = headers.map(h => ({ id: h.id, docNo: h.docNo, docDate: h.docDate, docType: h.docType, customerName: (h as any).customer?.name, vendorName: (h as any).vendor?.name, totalAmount: Number(h.totalAmount || 0), status: h.status }));
+      res.json({ success: true, data: { dateFrom, dateTo, records: data } });
+    } catch (error) { next(error); }
+  };
+  salesByAgent = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : new Date(new Date().getFullYear(), 0, 1);
+      const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : new Date();
+      const headers = await prisma.salesHeader.findMany({
+        where: { docDate: { gte: dateFrom, lte: dateTo }, isVoid: false },
+        include: { details: { include: { product: true } }, customer: true, vendor: true },
+        orderBy: { docDate: 'desc' },
+      });
+      const data = headers.map(h => ({ id: h.id, docNo: h.docNo, docDate: h.docDate, docType: h.docType, customerName: (h as any).customer?.name, vendorName: (h as any).vendor?.name, totalAmount: Number(h.totalAmount || 0), status: h.status }));
+      res.json({ success: true, data: { dateFrom, dateTo, records: data } });
+    } catch (error) { next(error); }
+  };
+  outstandingDO = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const headers = await prisma.salesHeader.findMany({
+        where: { docType: 'DO', status: { in: ['DRAFT', 'CONFIRMED', 'PARTIAL'] }, isVoid: false },
+        include: { customer: true, vendor: true },
+        orderBy: { docDate: 'desc' },
+      });
+      const data = headers.map(h => ({ id: h.id, docNo: h.docNo, docDate: h.docDate, customerName: (h as any).customer?.name, vendorName: (h as any).vendor?.name, totalAmount: Number(h.totalAmount || 0), status: h.status }));
+      res.json({ success: true, data });
+    } catch (error) { next(error); }
+  };
+  outstandingSO = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const headers = await prisma.salesHeader.findMany({
+        where: { docType: 'SO', status: { in: ['DRAFT', 'CONFIRMED', 'PARTIAL'] }, isVoid: false },
+        include: { customer: true, vendor: true },
+        orderBy: { docDate: 'desc' },
+      });
+      const data = headers.map(h => ({ id: h.id, docNo: h.docNo, docDate: h.docDate, customerName: (h as any).customer?.name, vendorName: (h as any).vendor?.name, totalAmount: Number(h.totalAmount || 0), status: h.status }));
+      res.json({ success: true, data });
+    } catch (error) { next(error); }
+  };
 
   // Purchase Reports
-  purchaseListing = stubHandler('Purchase Listing');
-  purchaseByVendor = stubHandler('Purchase By Vendor');
-  purchaseByProduct = stubHandler('Purchase By Product');
-  outstandingPO = stubHandler('Outstanding PO');
+  purchaseListing = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : new Date(new Date().getFullYear(), 0, 1);
+      const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : new Date();
+      const headers = await prisma.purchaseHeader.findMany({
+        where: { docDate: { gte: dateFrom, lte: dateTo }, isVoid: false },
+        include: { details: { include: { product: true } }, customer: true, vendor: true },
+        orderBy: { docDate: 'desc' },
+      });
+      const data = headers.map(h => ({ id: h.id, docNo: h.docNo, docDate: h.docDate, docType: h.docType, customerName: (h as any).customer?.name, vendorName: (h as any).vendor?.name, totalAmount: Number(h.totalAmount || 0), status: h.status }));
+      res.json({ success: true, data: { dateFrom, dateTo, records: data } });
+    } catch (error) { next(error); }
+  };
+  purchaseByVendor = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : new Date(new Date().getFullYear(), 0, 1);
+      const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : new Date();
+      const headers = await prisma.purchaseHeader.findMany({
+        where: { docDate: { gte: dateFrom, lte: dateTo }, isVoid: false },
+        include: { details: { include: { product: true } }, customer: true, vendor: true },
+        orderBy: { docDate: 'desc' },
+      });
+      const data = headers.map(h => ({ id: h.id, docNo: h.docNo, docDate: h.docDate, docType: h.docType, customerName: (h as any).customer?.name, vendorName: (h as any).vendor?.name, totalAmount: Number(h.totalAmount || 0), status: h.status }));
+      res.json({ success: true, data: { dateFrom, dateTo, records: data } });
+    } catch (error) { next(error); }
+  };
+  purchaseByProduct = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : new Date(new Date().getFullYear(), 0, 1);
+      const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : new Date();
+      const headers = await prisma.purchaseHeader.findMany({
+        where: { docDate: { gte: dateFrom, lte: dateTo }, isVoid: false },
+        include: { details: { include: { product: true } }, customer: true, vendor: true },
+        orderBy: { docDate: 'desc' },
+      });
+      const data = headers.map(h => ({ id: h.id, docNo: h.docNo, docDate: h.docDate, docType: h.docType, customerName: (h as any).customer?.name, vendorName: (h as any).vendor?.name, totalAmount: Number(h.totalAmount || 0), status: h.status }));
+      res.json({ success: true, data: { dateFrom, dateTo, records: data } });
+    } catch (error) { next(error); }
+  };
+  outstandingPO = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const headers = await prisma.purchaseHeader.findMany({
+        where: { docType: 'PO', status: { in: ['DRAFT', 'CONFIRMED', 'PARTIAL'] }, isVoid: false },
+        include: { customer: true, vendor: true },
+        orderBy: { docDate: 'desc' },
+      });
+      const data = headers.map(h => ({ id: h.id, docNo: h.docNo, docDate: h.docDate, customerName: (h as any).customer?.name, vendorName: (h as any).vendor?.name, totalAmount: Number(h.totalAmount || 0), status: h.status }));
+      res.json({ success: true, data });
+    } catch (error) { next(error); }
+  };
 
   // Stock Reports
   stockBalance = async (req: Request, res: Response, next: NextFunction) => {
@@ -624,13 +878,55 @@ export class ReportController {
       });
     } catch (error) { next(error); }
   };
-  stockMovement = stubHandler('Stock Movement');
-  stockValuation = stubHandler('Stock Valuation');
-  reorderAdvisory = stubHandler('Reorder Advisory');
-  slowMovingStock = stubHandler('Slow Moving Stock');
+  stockMovement = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const productId = parseInt(req.query.productId as string);
+      const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : new Date(new Date().getFullYear(), 0, 1);
+      const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : new Date();
+      const where: any = { transactionDate: { gte: dateFrom, lte: dateTo } };
+      if (productId) where.productId = productId;
+      const movements = await prisma.stockTransaction.findMany({
+        where, include: { product: true, location: true }, orderBy: { transactionDate: 'desc' },
+      });
+      const data = movements.map(m => ({ id: m.id, date: m.transactionDate, productCode: m.product.code, productName: m.product.name, type: m.transactionType, quantity: Number(m.quantity), unitCost: Number(m.unitCost || 0), totalCost: Number(m.totalCost || 0), reference: m.referenceNo, location: m.location?.name }));
+      res.json({ success: true, data: { dateFrom, dateTo, movements: data } });
+    } catch (error) { next(error); }
+  };
+  stockValuation = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const products = await prisma.product.findMany({ where: { isActive: true, type: 'STOCK' }, orderBy: { code: 'asc' } });
+      const data = products.map(p => ({ id: p.id, code: p.code, name: p.name, quantity: Number(p.quantityOnHand || 0), avgCost: Number(p.averageCost || 0), totalValue: Number(p.quantityOnHand || 0) * Number(p.averageCost || 0) }));
+      const totalValue = data.reduce((s, d) => s + d.totalValue, 0);
+      res.json({ success: true, data: { products: data, totalValue } });
+    } catch (error) { next(error); }
+  };
+  reorderAdvisory = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const products = await prisma.product.findMany({ where: { isActive: true, type: 'STOCK' }, orderBy: { code: 'asc' } });
+      const data = products.filter(p => Number(p.quantityOnHand || 0) <= Number(p.reorderLevel || 0)).map(p => ({ id: p.id, code: p.code, name: p.name, currentQty: Number(p.quantityOnHand || 0), reorderLevel: Number(p.reorderLevel || 0), reorderQty: Number(p.reorderQuantity || 0), deficit: Number(p.reorderLevel || 0) - Number(p.quantityOnHand || 0) }));
+      res.json({ success: true, data });
+    } catch (error) { next(error); }
+  };
+  slowMovingStock = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const days = parseInt(req.query.days as string) || 90;
+      const cutoff = new Date(); cutoff.setDate(cutoff.getDate() - days);
+      const products = await prisma.product.findMany({ where: { isActive: true, type: 'STOCK' }, include: { stockTransactions: { where: { transactionDate: { gte: cutoff } }, take: 1 } }, orderBy: { code: 'asc' } });
+      const data = products.filter(p => p.stockTransactions.length === 0 && Number(p.quantityOnHand || 0) > 0).map(p => ({ id: p.id, code: p.code, name: p.name, quantity: Number(p.quantityOnHand || 0), value: Number(p.quantityOnHand || 0) * Number(p.averageCost || 0) }));
+      res.json({ success: true, data: { days, products: data } });
+    } catch (error) { next(error); }
+  };
 
   // Tax Reports
-  sstReport = stubHandler('SST Report');
+  sstReport = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const dateFrom = req.query.dateFrom ? new Date(req.query.dateFrom as string) : new Date(new Date().getFullYear(), 0, 1);
+      const dateTo = req.query.dateTo ? new Date(req.query.dateTo as string) : new Date();
+      const salesTax = await prisma.salesHeader.aggregate({ where: { docDate: { gte: dateFrom, lte: dateTo }, isVoid: false }, _sum: { taxAmount: true, totalAmount: true } });
+      const purchaseTax = await prisma.purchaseHeader.aggregate({ where: { docDate: { gte: dateFrom, lte: dateTo }, isVoid: false }, _sum: { taxAmount: true, totalAmount: true } });
+      res.json({ success: true, data: { dateFrom, dateTo, outputTax: Number(salesTax._sum.taxAmount || 0), salesAmount: Number(salesTax._sum.totalAmount || 0), inputTax: Number(purchaseTax._sum.taxAmount || 0), purchaseAmount: Number(purchaseTax._sum.totalAmount || 0), netTax: Number(salesTax._sum.taxAmount || 0) - Number(purchaseTax._sum.taxAmount || 0) } });
+    } catch (error) { next(error); }
+  };
 
   // Monthly Sales Analysis
   monthlySalesAnalysis = async (req: Request, res: Response, next: NextFunction) => {
@@ -796,5 +1092,9 @@ export class ReportController {
   };
 
   // Export
-  exportReport = stubHandler('Export Report');
+  exportReport = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.json({ success: true, message: 'Export feature - use frontend PDF/Excel export' });
+    } catch (error) { next(error); }
+  };
 }

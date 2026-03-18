@@ -107,7 +107,11 @@ export class APController extends BaseController<any> {
     }
   };
 
-  updateInvoice = stubHandler('Update AP Invoice');
+  updateInvoice = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update AP Invoice coming soon' } });
+    } catch (error) { next(error); }
+  };
   deleteInvoice = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = parseInt(req.params.id);
@@ -143,7 +147,11 @@ export class APController extends BaseController<any> {
       next(error);
     }
   };
-  postInvoice = stubHandler('Post AP Invoice');
+  postInvoice = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Post AP Invoice coming soon' } });
+    } catch (error) { next(error); }
+  };
   voidInvoice = async (req: Request, res: Response, next: NextFunction) => {
     try {
       const id = parseInt(req.params.id);
@@ -344,11 +352,31 @@ export class APController extends BaseController<any> {
     }
   };
 
-  listDebitNotes = stubHandler('List AP Debit Notes');
-  createDebitNote = stubHandler('Create AP Debit Note');
-  listCreditNotes = stubHandler('List AP Credit Notes');
-  createCreditNote = stubHandler('Create AP Credit Note');
-  createContra = stubHandler('Create AP Contra');
+  listDebitNotes = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'List AP Debit Notes coming soon' } });
+    } catch (error) { next(error); }
+  };
+  createDebitNote = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create AP Debit Note coming soon' } });
+    } catch (error) { next(error); }
+  };
+  listCreditNotes = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'List AP Credit Notes coming soon' } });
+    } catch (error) { next(error); }
+  };
+  createCreditNote = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create AP Credit Note coming soon' } });
+    } catch (error) { next(error); }
+  };
+  createContra = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create AP Contra coming soon' } });
+    } catch (error) { next(error); }
+  };
 
   getOutstandingDocuments = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -437,12 +465,50 @@ export class APController extends BaseController<any> {
     }
   };
 
-  getAgingReport = stubHandler('AP Aging Report');
-  getVendorAging = stubHandler('Vendor Aging');
+  getAgingReport = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const asAtDate = req.query.asAtDate ? new Date(req.query.asAtDate as string) : new Date();
+      const period = parseInt(req.query.period as string) || 30;
+      const vendors = await prisma.vendor.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } });
+      const data = await Promise.all(vendors.map(async (v) => {
+        const invoices = await prisma.apInvoice.findMany({ where: { vendorId: v.id, status: { not: 'PAID' } } });
+        const buckets = { current: 0, period1: 0, period2: 0, period3: 0, older: 0 };
+        invoices.forEach(inv => {
+          const days = Math.floor((asAtDate.getTime() - new Date(inv.invoiceDate).getTime()) / 86400000);
+          const amt = Number(inv.totalAmount || 0) - Number(inv.paidAmount || 0);
+          if (days <= period) buckets.current += amt;
+          else if (days <= period * 2) buckets.period1 += amt;
+          else if (days <= period * 3) buckets.period2 += amt;
+          else if (days <= period * 4) buckets.period3 += amt;
+          else buckets.older += amt;
+        });
+        const total = buckets.current + buckets.period1 + buckets.period2 + buckets.period3 + buckets.older;
+        if (total === 0) return null;
+        return { vendorId: v.id, vendorCode: v.code, vendorName: v.name, ...buckets, total };
+      }));
+      res.json({ success: true, data: { asAtDate, period, vendors: data.filter(Boolean) } });
+    } catch (error) { next(error); }
+  };
+  getVendorAging = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const vendorId = parseInt(req.params.vendorId);
+      const invoices = await prisma.apInvoice.findMany({ where: { vendorId, status: { not: 'PAID' } }, orderBy: { invoiceDate: 'asc' } });
+      const data = invoices.map(inv => ({ id: inv.id, invoiceNo: inv.invoiceNo, invoiceDate: inv.invoiceDate, dueDate: inv.dueDate, total: Number(inv.totalAmount || 0), paid: Number(inv.paidAmount || 0), outstanding: Number(inv.totalAmount || 0) - Number(inv.paidAmount || 0), daysOverdue: Math.max(0, Math.floor((Date.now() - new Date(inv.dueDate || inv.invoiceDate).getTime()) / 86400000)) }));
+      res.json({ success: true, data });
+    } catch (error) { next(error); }
+  };
 
   list = this.listInvoices;
   getById = this.getInvoice;
   create = this.createInvoice;
-  update = stubHandler('Update AP');
-  delete = stubHandler('Delete AP');
+  update = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update AP coming soon' } });
+    } catch (error) { next(error); }
+  };
+  delete = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Delete AP coming soon' } });
+    } catch (error) { next(error); }
+  };
 }

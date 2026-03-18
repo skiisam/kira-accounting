@@ -196,8 +196,16 @@ export class ARController extends BaseController<any> {
     }
   };
 
-  postInvoice = stubHandler('Post AR Invoice');
-  voidInvoice = stubHandler('Void AR Invoice');
+  postInvoice = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Post AR Invoice coming soon' } });
+    } catch (error) { next(error); }
+  };
+  voidInvoice = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Void AR Invoice coming soon' } });
+    } catch (error) { next(error); }
+  };
 
   // ==================== PAYMENTS ====================
 
@@ -312,20 +320,56 @@ export class ARController extends BaseController<any> {
     }
   };
 
-  updatePayment = stubHandler('Update AR Payment');
-  deletePayment = stubHandler('Delete AR Payment');
-  voidPayment = stubHandler('Void AR Payment');
+  updatePayment = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update AR Payment coming soon' } });
+    } catch (error) { next(error); }
+  };
+  deletePayment = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Delete AR Payment coming soon' } });
+    } catch (error) { next(error); }
+  };
+  voidPayment = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Void AR Payment coming soon' } });
+    } catch (error) { next(error); }
+  };
 
   // ==================== CREDIT/DEBIT NOTES ====================
 
-  listCreditNotes = stubHandler('List AR Credit Notes');
-  getCreditNote = stubHandler('Get AR Credit Note');
-  createCreditNote = stubHandler('Create AR Credit Note');
+  listCreditNotes = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'List AR Credit Notes coming soon' } });
+    } catch (error) { next(error); }
+  };
+  getCreditNote = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Get AR Credit Note coming soon' } });
+    } catch (error) { next(error); }
+  };
+  createCreditNote = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create AR Credit Note coming soon' } });
+    } catch (error) { next(error); }
+  };
 
-  listDebitNotes = stubHandler('List AR Debit Notes');
-  createDebitNote = stubHandler('Create AR Debit Note');
+  listDebitNotes = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'List AR Debit Notes coming soon' } });
+    } catch (error) { next(error); }
+  };
+  createDebitNote = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create AR Debit Note coming soon' } });
+    } catch (error) { next(error); }
+  };
 
-  createContra = stubHandler('Create AR Contra');
+  createContra = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create AR Contra coming soon' } });
+    } catch (error) { next(error); }
+  };
 
   // ==================== QUERIES ====================
 

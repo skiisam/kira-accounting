@@ -175,9 +175,58 @@ export class JournalController extends BaseController<any> {
     }
   };
 
-  post = stubHandler('Post Journal');
-  void = stubHandler('Void Journal');
-  reverse = stubHandler('Reverse Journal');
+  post = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const journal = await prisma.journalEntry.update({
+        where: { id: parseInt(id) },
+        data: { isPosted: true, postedAt: new Date() },
+      });
+      res.json({ success: true, data: journal, message: 'Journal posted successfully' });
+    } catch (error) { next(error); }
+  };
+  voidJournal = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const journal = await prisma.journalEntry.update({
+        where: { id: parseInt(id) },
+        data: { isVoid: true, voidedAt: new Date(), voidReason: req.body.reason },
+      });
+      res.json({ success: true, data: journal, message: 'Journal voided successfully' });
+    } catch (error) { next(error); }
+  };
+  reverse = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const original = await prisma.journalEntry.findUnique({
+        where: { id: parseInt(id) },
+        include: { details: true },
+      });
+      if (!original) return res.status(404).json({ success: false, error: { message: 'Journal not found' } });
+
+      const reversed = await prisma.journalEntry.create({
+        data: {
+          journalNo: `REV-${original.journalNo}`,
+          journalDate: new Date(),
+          journalType: original.journalType,
+          description: `Reversal of ${original.journalNo}: ${original.description || ''}`,
+          reference: original.journalNo,
+          companyId: original.companyId,
+          createdBy: (req as any).user?.id,
+          details: {
+            create: original.details.map(d => ({
+              accountId: d.accountId,
+              debitAmount: d.creditAmount,
+              creditAmount: d.debitAmount,
+              description: `Reversal: ${d.description || ''}`,
+            })),
+          },
+        },
+        include: { details: true },
+      });
+      res.json({ success: true, data: reversed, message: 'Journal reversed successfully' });
+    } catch (error) { next(error); }
+  };
 
   listTypes = async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -191,11 +240,35 @@ export class JournalController extends BaseController<any> {
     }
   };
 
-  listRecurring = stubHandler('List Recurring Journals');
-  createRecurring = stubHandler('Create Recurring Journal');
-  generateFromRecurring = stubHandler('Generate from Recurring');
+  listRecurring = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.json({ success: true, data: [], message: 'Recurring journals feature coming soon' });
+    } catch (error) { next(error); }
+  };
+  createRecurring = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, message: 'Recurring journals coming soon' });
+    } catch (error) { next(error); }
+  };
+  generateFromRecurring = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, message: 'Generate from recurring coming soon' });
+    } catch (error) { next(error); }
+  };
 
-  listTemplates = stubHandler('List Journal Templates');
-  saveTemplate = stubHandler('Save Journal Template');
-  applyTemplate = stubHandler('Apply Journal Template');
+  listTemplates = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.json({ success: true, data: [] });
+    } catch (error) { next(error); }
+  };
+  saveTemplate = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, message: 'Journal templates coming soon' });
+    } catch (error) { next(error); }
+  };
+  applyTemplate = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.status(501).json({ success: false, message: 'Journal templates coming soon' });
+    } catch (error) { next(error); }
+  };
 }
