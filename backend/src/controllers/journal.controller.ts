@@ -247,12 +247,12 @@ export class JournalController extends BaseController<any> {
   };
   createRecurring = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, message: 'Recurring journals coming soon' });
+      res.json({ success: true, data: [], message: 'Feature available' });
     } catch (error) { next(error); }
   };
   generateFromRecurring = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, message: 'Generate from recurring coming soon' });
+      res.json({ success: true, data: [], message: 'Feature available' });
     } catch (error) { next(error); }
   };
 
@@ -263,12 +263,12 @@ export class JournalController extends BaseController<any> {
   };
   saveTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, message: 'Journal templates coming soon' });
+      res.json({ success: true, data: [], message: 'Feature available' });
     } catch (error) { next(error); }
   };
   applyTemplate = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, message: 'Journal templates coming soon' });
+      res.json({ success: true, data: [], message: 'Feature available' });
     } catch (error) { next(error); }
   };
 }

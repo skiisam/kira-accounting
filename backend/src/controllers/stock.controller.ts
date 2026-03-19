@@ -55,12 +55,45 @@ export class StockController extends BaseController<any> {
 
   updateReceive = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update Stock Receive coming soon' } });
+      const id = parseInt(req.params.id);
+      const data = req.body;
+      const doc = await prisma.stockTransaction.findFirst({ where: { id, transactionType: 'RECEIVE' } });
+      if (!doc) this.notFound(id);
+      
+      // Delete old details and recreate
+      await prisma.stockTransactionDetail.deleteMany({ where: { transactionId: id } });
+      const totalCost = data.details?.reduce((sum: number, d: any) => sum + (d.quantity * (d.unitCost || 0)), 0) || 0;
+      
+      const updated = await prisma.stockTransaction.update({
+        where: { id },
+        data: {
+          transactionDate: data.transactionDate ? new Date(data.transactionDate) : undefined,
+          toLocationId: data.locationId,
+          reference: data.reference,
+          description: data.description,
+          totalCost,
+          updatedBy: req.user?.userId,
+          details: data.details ? {
+            create: data.details.map((d: any, idx: number) => ({
+              lineNo: idx + 1, productId: d.productId, productCode: d.productCode,
+              description: d.description, uomId: d.uomId, quantity: d.quantity,
+              uomRate: d.uomRate || 1, baseQuantity: d.quantity * (d.uomRate || 1),
+              unitCost: d.unitCost || 0, totalCost: d.quantity * (d.unitCost || 0),
+              locationId: d.locationId, batchNo: d.batchNo, serialNo: d.serialNo,
+              expiryDate: d.expiryDate ? new Date(d.expiryDate) : null,
+            })),
+          } : undefined,
+        },
+        include: { details: true },
+      });
+      this.successResponse(res, updated);
     } catch (error) { next(error); }
   };
   deleteReceive = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Delete Stock Receive coming soon' } });
+      const id = parseInt(req.params.id);
+      await prisma.stockTransaction.update({ where: { id }, data: { isVoid: true, updatedBy: req.user?.userId } });
+      this.successResponse(res, { message: 'Stock Receive voided successfully' });
     } catch (error) { next(error); }
   };
 
@@ -108,12 +141,34 @@ export class StockController extends BaseController<any> {
 
   updateIssue = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update Stock Issue coming soon' } });
+      const id = parseInt(req.params.id);
+      const data = req.body;
+      await prisma.stockTransactionDetail.deleteMany({ where: { transactionId: id } });
+      const totalCost = data.details?.reduce((sum: number, d: any) => sum + (d.quantity * (d.unitCost || 0)), 0) || 0;
+      const updated = await prisma.stockTransaction.update({
+        where: { id },
+        data: {
+          transactionDate: data.transactionDate ? new Date(data.transactionDate) : undefined,
+          toLocationId: data.locationId, reference: data.reference, description: data.description,
+          totalCost, updatedBy: req.user?.userId,
+          details: data.details ? { create: data.details.map((d: any, idx: number) => ({
+            lineNo: idx + 1, productId: d.productId, productCode: d.productCode,
+            description: d.description, uomId: d.uomId, quantity: d.quantity,
+            uomRate: d.uomRate || 1, baseQuantity: d.quantity * (d.uomRate || 1),
+            unitCost: d.unitCost || 0, totalCost: d.quantity * (d.unitCost || 0),
+            locationId: d.locationId,
+          })) } : undefined,
+        },
+        include: { details: true },
+      });
+      this.successResponse(res, updated);
     } catch (error) { next(error); }
   };
   deleteIssue = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Delete Stock Issue coming soon' } });
+      const id = parseInt(req.params.id);
+      await prisma.stockTransaction.update({ where: { id }, data: { isVoid: true, updatedBy: req.user?.userId } });
+      this.successResponse(res, { message: 'Stock Issue voided successfully' });
     } catch (error) { next(error); }
   };
 
@@ -136,22 +191,45 @@ export class StockController extends BaseController<any> {
 
   getTransfer = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Get Stock Transfer coming soon' } });
+const id = parseInt(req.params.id);
+      const doc = await prisma.stockTransaction.findFirst({
+        where: { id, transactionType: 'TRANSFER' },
+        include: { details: { include: { product: true } } },
+      });
+      if (!doc) this.notFound(id);
+      this.successResponse(res, doc);
     } catch (error) { next(error); }
   };
   createTransfer = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create Stock Transfer coming soon' } });
+const data = req.body;
+      this.validateRequired(data, ['details', 'fromLocationId', 'locationId']);
+      const transactionNo = await this.documentService.getNextNumber('STOCK_TRANSFER');
+      const doc = await this.createStockTransaction('TRANSFER', transactionNo, data, req.user?.userId);
+      // Also deduct from source location
+      for (const detail of data.details) {
+        await this.updateProductLocationBalance(detail.productId, data.fromLocationId, -detail.quantity);
+      }
+      this.createdResponse(res, doc);
     } catch (error) { next(error); }
   };
   updateTransfer = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update Stock Transfer coming soon' } });
+const id = parseInt(req.params.id);
+      const data = req.body;
+      await prisma.stockTransactionDetail.deleteMany({ where: { transactionId: id } });
+      const updated = await prisma.stockTransaction.update({
+        where: { id }, data: { reference: data.reference, description: data.description, updatedBy: req.user?.userId },
+        include: { details: true },
+      });
+      this.successResponse(res, updated);
     } catch (error) { next(error); }
   };
   deleteTransfer = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Delete Stock Transfer coming soon' } });
+const id = parseInt(req.params.id);
+      await prisma.stockTransaction.update({ where: { id }, data: { isVoid: true, updatedBy: req.user?.userId } });
+      this.successResponse(res, { message: 'Stock Transfer voided successfully' });
     } catch (error) { next(error); }
   };
 
@@ -174,56 +252,101 @@ export class StockController extends BaseController<any> {
 
   getAdjustment = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Get Stock Adjustment coming soon' } });
+const id = parseInt(req.params.id);
+      const doc = await prisma.stockTransaction.findFirst({
+        where: { id, transactionType: 'ADJUSTMENT' },
+        include: { details: { include: { product: true } } },
+      });
+      if (!doc) this.notFound(id);
+      this.successResponse(res, doc);
     } catch (error) { next(error); }
   };
   createAdjustment = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create Stock Adjustment coming soon' } });
+const data = req.body;
+      this.validateRequired(data, ['details']);
+      const transactionNo = await this.documentService.getNextNumber('STOCK_ADJUSTMENT');
+      const doc = await this.createStockTransaction('ADJUSTMENT', transactionNo, data, req.user?.userId);
+      this.createdResponse(res, doc);
     } catch (error) { next(error); }
   };
   updateAdjustment = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update Stock Adjustment coming soon' } });
+const id = parseInt(req.params.id);
+      const data = req.body;
+      const updated = await prisma.stockTransaction.update({
+        where: { id }, data: { reference: data.reference, description: data.description, updatedBy: req.user?.userId },
+      });
+      this.successResponse(res, updated);
     } catch (error) { next(error); }
   };
   deleteAdjustment = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Delete Stock Adjustment coming soon' } });
+const id = parseInt(req.params.id);
+      await prisma.stockTransaction.update({ where: { id }, data: { isVoid: true, updatedBy: req.user?.userId } });
+      this.successResponse(res, { message: 'Stock Adjustment voided successfully' });
     } catch (error) { next(error); }
   };
 
   // Stock Take
   listStockTake = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'List Stock Take coming soon' } });
+const { skip, take, page, pageSize } = this.getPagination(req);
+      const where = { transactionType: 'STOCK_TAKE', isVoid: false };
+      const [documents, total] = await Promise.all([
+        prisma.stockTransaction.findMany({ where, skip, take, orderBy: { transactionDate: 'desc' } }),
+        prisma.stockTransaction.count({ where }),
+      ]);
+      this.paginatedResponse(res, documents, total, page, pageSize);
     } catch (error) { next(error); }
   };
   createStockTake = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create Stock Take coming soon' } });
+const data = req.body;
+      const transactionNo = await this.documentService.getNextNumber('STOCK_TAKE');
+      const doc = await this.createStockTransaction('STOCK_TAKE', transactionNo, data, req.user?.userId);
+      this.createdResponse(res, doc);
     } catch (error) { next(error); }
   };
   finalizeStockTake = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Finalize Stock Take coming soon' } });
+const id = parseInt(req.params.id);
+      const doc = await prisma.stockTransaction.update({
+        where: { id }, data: { status: 'FINALIZED', updatedBy: req.user?.userId },
+        include: { details: true },
+      });
+      this.successResponse(res, doc);
     } catch (error) { next(error); }
   };
 
   // Assembly
   listAssembly = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'List Assembly coming soon' } });
+const { skip, take, page, pageSize } = this.getPagination(req);
+      const where = { transactionType: 'ASSEMBLY', isVoid: false };
+      const [documents, total] = await Promise.all([
+        prisma.stockTransaction.findMany({ where, skip, take, orderBy: { transactionDate: 'desc' }, include: { details: true } }),
+        prisma.stockTransaction.count({ where }),
+      ]);
+      this.paginatedResponse(res, documents, total, page, pageSize);
     } catch (error) { next(error); }
   };
   createAssembly = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create Assembly coming soon' } });
+const data = req.body;
+      this.validateRequired(data, ['details', 'productId']);
+      const transactionNo = await this.documentService.getNextNumber('ASSEMBLY');
+      const doc = await this.createStockTransaction('ASSEMBLY', transactionNo, data, req.user?.userId);
+      this.createdResponse(res, doc);
     } catch (error) { next(error); }
   };
   createDisassembly = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Create Disassembly coming soon' } });
+const data = req.body;
+      this.validateRequired(data, ['details', 'productId']);
+      const transactionNo = await this.documentService.getNextNumber('DISASSEMBLY');
+      const doc = await this.createStockTransaction('DISASSEMBLY', transactionNo, data, req.user?.userId);
+      this.createdResponse(res, doc);
     } catch (error) { next(error); }
   };
 
@@ -394,12 +517,17 @@ export class StockController extends BaseController<any> {
   create = this.createReceive;
   update = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Update Stock coming soon' } });
+const id = parseInt(req.params.id);
+      const data = req.body;
+      const updated = await prisma.stockTransaction.update({ where: { id }, data: { reference: data.reference, description: data.description, updatedBy: req.user?.userId } });
+      this.successResponse(res, updated);
     } catch (error) { next(error); }
   };
   delete = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      res.status(501).json({ success: false, error: { code: 'NOT_IMPLEMENTED', message: 'Delete Stock coming soon' } });
+const id = parseInt(req.params.id);
+      await prisma.stockTransaction.update({ where: { id }, data: { isVoid: true, updatedBy: req.user?.userId } });
+      this.successResponse(res, { message: 'Stock transaction voided successfully' });
     } catch (error) { next(error); }
   };
 }
