@@ -109,6 +109,19 @@ async function main() {
 
   console.log('✅ Access rights created');
 
+  // Default Company
+  const defaultCompany = await prisma.company.upsert({
+    where: { code: 'DEFAULT' },
+    update: {},
+    create: {
+      code: 'DEFAULT',
+      name: 'My Company Sdn Bhd',
+      country: 'MY',
+      baseCurrency: 'MYR',
+    },
+  });
+  console.log('✅ Default company created');
+
   // Admin User
   const hashedPassword = await bcrypt.hash('admin', 10);
   await prisma.user.upsert({
@@ -120,6 +133,7 @@ async function main() {
       email: 'admin@traeaccounting.com',
       passwordHash: hashedPassword,
       groupId: adminGroup.id,
+      companyId: defaultCompany.id,
       isAdmin: true,
     },
   });
