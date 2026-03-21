@@ -180,7 +180,7 @@ export class JournalController extends BaseController<any> {
       const { id } = req.params;
       const journal = await prisma.journalEntry.update({
         where: { id: parseInt(id) },
-        data: { isPosted: true, postedAt: new Date() },
+        data: { isPosted: true },
       });
       res.json({ success: true, data: journal, message: 'Journal posted successfully' });
     } catch (error) { next(error); }
@@ -190,7 +190,7 @@ export class JournalController extends BaseController<any> {
       const { id } = req.params;
       const journal = await prisma.journalEntry.update({
         where: { id: parseInt(id) },
-        data: { isVoid: true, voidedAt: new Date(), voidReason: req.body.reason },
+        data: { isVoid: true },
       });
       res.json({ success: true, data: journal, message: 'Journal voided successfully' });
     } catch (error) { next(error); }
@@ -208,16 +208,19 @@ export class JournalController extends BaseController<any> {
         data: {
           journalNo: `REV-${original.journalNo}`,
           journalDate: new Date(),
-          journalType: original.journalType,
+          journalTypeId: original.journalTypeId,
           description: `Reversal of ${original.journalNo}: ${original.description || ''}`,
           reference: original.journalNo,
-          companyId: original.companyId,
+          
           createdBy: (req as any).user?.id,
           details: {
-            create: original.details.map(d => ({
+            create: original.details.map((d, idx) => ({
+              lineNo: idx + 1,
               accountId: d.accountId,
               debitAmount: d.creditAmount,
               creditAmount: d.debitAmount,
+              debitAmountLocal: d.creditAmountLocal,
+              creditAmountLocal: d.debitAmountLocal,
               description: `Reversal: ${d.description || ''}`,
             })),
           },

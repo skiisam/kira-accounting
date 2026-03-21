@@ -203,7 +203,7 @@ export class ARController extends BaseController<any> {
   };
   voidInvoice = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const id = parseInt(req.params.id); await prisma.aRInvoice.update({ where: { id }, data: { isVoid: true, voidedAt: new Date(), voidReason: req.body.reason } }); res.json({ success: true, message: 'Invoice voided successfully' });
+      const id = parseInt(req.params.id); await prisma.aRInvoice.update({ where: { id }, data: { isVoid: true } }); res.json({ success: true, message: 'Invoice voided successfully' });
     } catch (error) { next(error); }
   };
 

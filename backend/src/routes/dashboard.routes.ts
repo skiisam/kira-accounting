@@ -11,6 +11,7 @@ router.get('/stats', controller.getStats);
 router.get('/recent', controller.getRecent);
 router.get('/top-products', controller.getTopProducts);
 router.get('/alerts', controller.getAlerts);
+router.get('/enhanced', controller.getEnhancedDashboard);
 
 export default router;
 

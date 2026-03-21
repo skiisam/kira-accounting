@@ -470,6 +470,7 @@ model Account {
   // Bank Integration
   bankLinkedAccounts  BankLinkedAccount[]
   bankReconciliations BankReconciliation[]
+  journalDetails    JournalEntryDetail[]
 
   @@unique([accountNo, companyId])
   @@map("accounts")
@@ -1542,6 +1543,7 @@ model JournalEntryDetail {
   departmentId     Int?
 
   journal JournalEntry @relation(fields: [journalId], references: [id], onDelete: Cascade)
+  account Account @relation(fields: [accountId], references: [id])
 
   @@map("journal_entry_details")
 }

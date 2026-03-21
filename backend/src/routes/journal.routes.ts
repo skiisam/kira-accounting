@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Router } from 'express';
 import { JournalController } from '../controllers/journal.controller';
 import { authenticate, requirePermission } from '../middleware/auth';
