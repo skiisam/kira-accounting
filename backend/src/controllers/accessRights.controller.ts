@@ -411,7 +411,7 @@ export class AccessRightsController {
    */
   getMyPermissions = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = (req as any).user?.id;
+      const userId = (req as any).user?.userId;
       if (!userId) {
         return res.status(401).json({ success: false, error: { message: 'Not authenticated' } });
       }
