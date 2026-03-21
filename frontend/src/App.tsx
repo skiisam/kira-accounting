@@ -54,6 +54,7 @@ const DebtorAgingPage = lazy(() => import('./pages/reports/DebtorAgingPage'));
 const CreditorAgingPage = lazy(() => import('./pages/reports/CreditorAgingPage'));
 const CashBookEntryPage = lazy(() => import('./pages/accounting/CashBookEntryPage'));
 const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'));
+const TwoFAPage = lazy(() => import('./pages/settings/TwoFAPage'));
 const AIScannerPage = lazy(() => import('./pages/ai/AIScannerPage'));
 const AIReportsPage = lazy(() => import('./pages/ai/AIReportsPage'));
 const SocialSettingsPage = lazy(() => import('./pages/social/SocialSettingsPage'));
@@ -191,6 +192,7 @@ export default function App() {
           <Route path="/tools/report-designer/:id/edit" element={<ReportDesignEditorPage />} />
 
           <Route path="/settings/*" element={<SettingsPage />} />
+          <Route path="/settings/2fa" element={<TwoFAPage />} />
 
           <Route path="/ai/scanner" element={<AIScannerPage />} />
           <Route path="/ai/reports" element={<AIReportsPage />} />

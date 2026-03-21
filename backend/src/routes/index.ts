@@ -61,5 +61,7 @@ router.use('/report-templates', reportTemplateRoutes);
 router.use('/cashbook', cashbookRoutes);
 router.use('/knockoff', knockoffRoutes);
 // router.use('/crm', crmRoutes); // TODO: Fix CRM models
+import twofaRoutes from './twofa.routes';
+router.use('/2fa', twofaRoutes);
 
 export default router;

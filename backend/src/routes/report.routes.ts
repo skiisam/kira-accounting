@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { ReportController } from '../controllers/report.controller';
 import { authenticate, requirePermission } from '../middleware/auth';
+import { reportLimiter } from '../middleware/rateLimiter';
 
 const router = Router();
 const reportController = new ReportController();
 
-router.use(authenticate);
+router.use(authenticate, reportLimiter);
 
 // General Ledger Reports
 router.get('/gl/trial-balance', requirePermission('REPORTS', 'TRIAL_BALANCE'), reportController.trialBalance);
