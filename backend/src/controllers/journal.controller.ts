@@ -212,7 +212,7 @@ export class JournalController extends BaseController<any> {
           description: `Reversal of ${original.journalNo}: ${original.description || ''}`,
           reference: original.journalNo,
           
-          createdBy: (req as any).user?.id,
+          createdBy: (req as any).user?.userId,
           details: {
             create: original.details.map((d, idx) => ({
               lineNo: idx + 1,

@@ -537,7 +537,7 @@ export class ReportTemplateController extends BaseController<any> {
               orientation: 'portrait' as any,
               margins: { top: 20, bottom: 20, left: 20, right: 20 } as any,
               design: this.buildInvoiceDesign() as any,
-              createdBy: (req as any).user?.id?.toString() || null,
+              createdBy: (req as any).user?.userId?.toString() || null,
               companyId,
             } as any,
             {
@@ -551,7 +551,7 @@ export class ReportTemplateController extends BaseController<any> {
               orientation: 'portrait' as any,
               margins: { top: 20, bottom: 20, left: 20, right: 20 } as any,
               design: this.buildPurchaseOrderDesign() as any,
-              createdBy: (req as any).user?.id?.toString() || null,
+              createdBy: (req as any).user?.userId?.toString() || null,
               companyId,
             } as any,
             {
@@ -565,7 +565,7 @@ export class ReportTemplateController extends BaseController<any> {
               orientation: 'portrait' as any,
               margins: { top: 20, bottom: 20, left: 20, right: 20 } as any,
               design: this.buildProformaInvoiceDesign() as any,
-              createdBy: (req as any).user?.id?.toString() || null,
+              createdBy: (req as any).user?.userId?.toString() || null,
               companyId,
             } as any,
           ],
