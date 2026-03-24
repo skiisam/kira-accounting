@@ -411,9 +411,10 @@ export class AccessRightsController {
    */
   getMyPermissions = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = (req as any).user?.userId;
+      const reqUser = (req as any).user;
+      const userId = reqUser?.userId || reqUser?.id;
       if (!userId) {
-        return res.status(401).json({ success: false, error: { message: 'Not authenticated' } });
+        return res.status(401).json({ success: false, error: { message: 'Not authenticated', debug: { hasUser: !!reqUser, keys: reqUser ? Object.keys(reqUser) : [] } } });
       }
 
       const user = await prisma.user.findUnique({
