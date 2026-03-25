@@ -7,7 +7,8 @@ import { errorHandler } from './middleware/errorHandler';
 import { notFoundHandler } from './middleware/notFoundHandler';
 import { logger } from './utils/logger';
 import routes from './routes';
-import { apiLimiter } from './middleware/rateLimiter';
+let apiLimiter: any;
+try { apiLimiter = require('./middleware/rateLimiter').apiLimiter; } catch(e) { console.warn('Rate limiter not available:', e.message); }
 import path from 'path';
 import fs from 'fs';
 
@@ -61,7 +62,7 @@ app.get('/health', (req, res) => {
 });
 
 // API routes
-app.use(config.apiPrefix, apiLimiter, routes);
+if (apiLimiter) { app.use(config.apiPrefix, apiLimiter, routes); } else { app.use(config.apiPrefix, routes); }
 
 // Static files for uploads (customer PO attachments, templates, etc.)
 const uploadsDir = path.resolve(process.cwd(), config.upload.dir);

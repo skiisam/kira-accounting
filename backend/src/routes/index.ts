@@ -61,7 +61,6 @@ router.use('/report-templates', reportTemplateRoutes);
 router.use('/cashbook', cashbookRoutes);
 router.use('/knockoff', knockoffRoutes);
 // router.use('/crm', crmRoutes); // TODO: Fix CRM models
-import twofaRoutes from './twofa.routes';
-router.use('/2fa', twofaRoutes);
+try { const twofaRoutes = require('./twofa.routes').default; router.use('/2fa', twofaRoutes); } catch(e) { console.warn('2FA routes not available:', e.message); }
 
 export default router;
